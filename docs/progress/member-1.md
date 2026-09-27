@@ -50,8 +50,41 @@
    - 24 tài liệu được tạo mới thành công, không có lỗi định dạng markdown.
    - Xác nhận `DoAnCK` sẵn sàng bước vào giai đoạn thiết lập khung mã nguồn.
 6. **Commit**:
-   - Chưa thực hiện commit (chờ người dùng yêu cầu chính thức theo quy định).
+   - `docs: hoan thien ho so ky thuat rubric HCMUTE va phan cong Tri chu tri assignment chatbot` (Hash: `7a69d45`)
 7. **Khó khăn & Thách thức**:
    - Phát hiện project mẫu thiếu thư mục `docker/mysql/init` dù có khai báo volume trong `docker-compose.yml`, đã kịp thời ghi nhận quyết định tạo thư mục bù đắp tại `DECISIONS.md`.
 8. **Việc tiếp theo**:
-   - Ngày 28–29/09: Cùng Thành viên 2 hoàn thiện bảng ma trận tính năng chi tiết và kiểm kê toàn bộ DTO/API của Identity và Course Service.
+   - Khởi tạo Maven Parent POM, Eureka Server, Spring Cloud Gateway, khung Assignment Service & Chatbot Service.
+
+---
+
+### [2026-09-27] — Thiết Lập Hạ Tầng Backend Monorepo & Khung Phân Hệ Assignment, Chatbot
+
+1. **Ngày thực hiện**: 27/09/2026
+2. **Công việc đã làm**:
+   - Tạo file `.gitignore` toàn diện cho hệ thống Monorepo (bỏ qua artifacts compile, node_modules, IDE, file môi trường bí mật).
+   - Thiết lập hạ tầng Docker: `docker/mysql/init/01-create-databases.sql` khởi tạo tự động 4 CSDL (`lms_identity`, `lms_course`, `lms_assignment`, `lms_blog`) khắc phục triệt để lỗi ADR-005 của project mẫu.
+   - Viết `docker-compose.db.yml` quản lý 4 container dịch vụ dữ liệu: MySQL 8.4, MongoDB 7.0, Redis 7.2, MinIO S3.
+   - Thiết lập Maven Parent `backend/pom.xml` quản lý đồng bộ phiên bản: Spring Boot 3.3.5, Spring Cloud 2023.0.1, Java 21, Lombok, MapStruct, JJWT.
+   - Khởi tạo module `service-registry` (Eureka Server 8761) với package chuẩn `com.lms.serviceregistry` (khắc phục ADR-006).
+   - Khởi tạo module `api-gateway` (Spring Cloud Gateway 8080) đầy đủ cấu hình định tuyến microservices, `AuthFilter` thực hiện Token Offloading, `JwtUtil`, Circuit Breaker fallback và `GlobalErrorExceptionHandler`.
+   - Khởi tạo khung `assignment-service` (cổng 8083, Spring Boot 3.3.5, JPA MySQL, MongoDB, Resilience4j, MinIO, Flyway migration V1 & V2).
+   - Khởi tạo khung `chatbot-service` (cổng 8085, Spring Boot 3.3.5, WebFlux SSE, MongoDB, Redis, GeminiProperties cấu hình LLM DeepSeek/OpenCode).
+3. **File thay đổi / tạo mới**:
+   - `.gitignore`
+   - `docker/mysql/init/01-create-databases.sql`
+   - `docker-compose.db.yml`
+   - `backend/pom.xml`
+   - `backend/service-registry/*`
+   - `backend/api-gateway/*`
+   - `backend/assignment-service/*`
+   - `backend/chatbot-service/*`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - Chạy `mvn clean compile -DskipTests` toàn bộ 4 module backend con.
+   - Kết quả: `BUILD SUCCESS` hoàn hảo trong 49.167s với JDK 21.0.12.
+5. **Kết quả**:
+   - Toàn bộ khung hạ tầng backend Monorepo và 2 phân hệ cốt lõi của Thành viên 1 đã sẵn sàng để triển khai tầng nghiệp vụ (Business Logic).
+6. **Commit**:
+   - `feat(infra): thiết lập eureka api gateway và khung assignment chatbot`
+
