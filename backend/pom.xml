@@ -19,8 +19,8 @@
 
     <modules>
         <module>service-registry</module>
-        <!--
         <module>api-gateway</module>
+        <!--
         <module>identity-service</module>
         <module>course-service</module>
         <module>blog-service</module>
@@ -107,6 +107,7 @@
                             <arg>-Amapstruct.suppressGeneratorTimestamp=true</arg>
                             <arg>-Amapstruct.defaultComponentModel=spring</arg>
                         </compilerArgs>
+                        <testCompilerArgument>-proc:none</testCompilerArgument>
                     </configuration>
                 </plugin>
             </plugins>

@@ -46,8 +46,35 @@
       2. `eurekaAppsEndpointReturns200()`: PASS (`GET /eureka/apps` trả về HTTP 200 OK)
   - **Commit dự kiến**: `feat(registry): cấu hình Netflix Eureka Server, test khởi động và endpoint /eureka/apps`
 
+### Phase 3: API Gateway — Spring Cloud Gateway (Port 8080)
+
+- [x] **Task 3.1 & 3.2: TDD Dynamic Routing & AuthFilter (15 Test Cases)**
+  - **Phương pháp**: TDD Red 1 (Compilation Error) -> Stubs -> Red 2 (Assertion Failures) -> Green.
+  - **File tạo**:
+    - `backend/api-gateway/pom.xml`
+    - `backend/api-gateway/src/test/resources/application-test.yaml`
+    - `backend/api-gateway/src/test/java/com/lms/apigateway/ApiGatewayApplicationTests.java` (1 test case)
+    - `backend/api-gateway/src/test/java/com/lms/apigateway/configuration/JwtUtilTest.java` (3 test cases)
+    - `backend/api-gateway/src/test/java/com/lms/apigateway/configuration/AuthFilterTest.java` (6 test cases)
+    - `backend/api-gateway/src/test/java/com/lms/apigateway/configuration/GatewayRouteConfigurationTest.java` (5 test cases)
+    - `backend/api-gateway/src/main/resources/application.yaml`
+    - `backend/api-gateway/src/main/java/com/lms/apigateway/ApiGatewayApplication.java`
+    - `backend/api-gateway/src/main/java/com/lms/apigateway/exception/ErrorCode.java`
+    - `backend/api-gateway/src/main/java/com/lms/apigateway/configuration/JwtUtil.java`
+    - `backend/api-gateway/src/main/java/com/lms/apigateway/configuration/AuthFilter.java`
+  - **Kết quả TDD**:
+    - **Red 1**: Kiểm thử ban đầu lỗi biên dịch do thiếu class `JwtUtil`, `AuthFilter`, `ErrorCode`.
+    - **Red 2**: Sau khi tạo class stubs rỗng, kiểm thử thất bại chính xác tại các behavioral assertions (chưa có logic verify token và whitelist).
+    - **Green**: Triển khai đầy đủ logic xác thực HMAC SHA, bóc tách claims, token offloading (inject 4 headers `X-*`, strip `Authorization`), whitelist phân quyền HTTP Method -> Toàn bộ **15/15 test cases PASS 100%**:
+      1. `ApiGatewayApplicationTests`: 1 test case PASS (`contextLoads`).
+      2. `JwtUtilTest`: 3 test cases PASS (`extractToken`, `verify` hợp lệ, `verify` từ chối refresh/malformed/expired/tampered).
+      3. `AuthFilterTest`: 6 test cases PASS (Header Injection, 401 khi thiếu token, 401 token hết hạn, 401 sai chữ ký, Header Stripping 5 headers giả mạo, Whitelist HTTP Method).
+      4. `GatewayRouteConfigurationTest`: 5 test cases PASS (Định tuyến Identity, Course, Blog, Shortcuts, Sensitive Route Assertions).
+  - **Commit dự kiến**: `feat(gateway): triển khai Spring Cloud Gateway dynamic routes và AuthFilter`
+
 ---
 
-### Kế Hoạch Tiếp Theo (Phase 3)
-- Phase 3: Spring Cloud Gateway (`api-gateway`) — Viết test trước (TDD Red: 15 test cases) cho `JwtUtil`, `AuthFilter`, `GatewayRouteConfiguration` rồi triển khai mã nguồn (Green).
+### Kế Hoạch Tiếp Theo (Phase 4)
+- Phase 4: Thiết lập khung 3 Microservices (`identity-service`, `course-service`, `blog-service`) với H2 in-memory test profiles.
+
 
