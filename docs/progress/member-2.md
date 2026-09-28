@@ -29,8 +29,25 @@
     - MinIO S3: Port 9000 (API) và 9001 (Console).
   - **Commit dự kiến**: `build(docker): thêm docker-compose.db cho MySQL MongoDB Redis và MinIO`
 
+### Phase 2: Service Registry — Netflix Eureka Server (Port 8761)
+
+- [x] **Task 2.1 & 2.2: TDD Eureka Server & Endpoint Verification**
+  - **Phương pháp**: TDD Red -> Green.
+  - **File tạo**:
+    - `backend/service-registry/pom.xml`
+    - `backend/service-registry/src/test/resources/application-test.yaml`
+    - `backend/service-registry/src/test/java/com/lms/serviceregistry/ServiceRegistryApplicationTests.java`
+    - `backend/service-registry/src/main/resources/application.yaml`
+    - `backend/service-registry/src/main/java/com/lms/serviceregistry/ServiceRegistryApplication.java`
+  - **Kết quả TDD**:
+    - **Red**: Khi chưa có class `ServiceRegistryApplication`, kiểm thử báo lỗi `Unable to find a @SpringBootConfiguration` -> Xác nhận Red chuẩn xác.
+    - **Green**: Triển khai `ServiceRegistryApplication` (`@EnableEurekaServer`) và `application.yaml` -> Toàn bộ **2/2 test cases PASS 100%**:
+      1. `contextLoads()`: PASS
+      2. `eurekaAppsEndpointReturns200()`: PASS (`GET /eureka/apps` trả về HTTP 200 OK)
+  - **Commit dự kiến**: `feat(registry): cấu hình Netflix Eureka Server, test khởi động và endpoint /eureka/apps`
+
 ---
 
-### Kế Hoạch Tiếp Theo (Phase 2 & Phase 3)
-- Phase 2: Eureka Server (`service-registry`) — Viết test trước (TDD Red: 2 test cases) rồi triển khai mã nguồn (Green).
+### Kế Hoạch Tiếp Theo (Phase 3)
 - Phase 3: Spring Cloud Gateway (`api-gateway`) — Viết test trước (TDD Red: 15 test cases) cho `JwtUtil`, `AuthFilter`, `GatewayRouteConfiguration` rồi triển khai mã nguồn (Green).
+
