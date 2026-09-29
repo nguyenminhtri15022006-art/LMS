@@ -74,7 +74,29 @@
 
 ---
 
-### Kế Hoạch Tiếp Theo (Phase 4)
-- Phase 4: Thiết lập khung 3 Microservices (`identity-service`, `course-service`, `blog-service`) với H2 in-memory test profiles.
+### Phase 4: Thiết Lập Khung 3 Microservices Của Thành Viên 2
+
+- [x] **Task 4.1: Khung identity-service (Port 8081)**
+  - **Phương pháp**: TDD Red -> Green.
+  - **File tạo**:
+    - `backend/identity-service/pom.xml`
+    - `backend/identity-service/src/test/resources/application-test.yaml`
+    - `backend/identity-service/src/test/java/com/lms/identityservice/IdentityServiceApplicationTests.java`
+    - `backend/identity-service/src/main/resources/application.yaml`
+    - `backend/identity-service/src/main/java/com/lms/identityservice/IdentityServiceApplication.java`
+  - **Kết quả TDD**:
+    - **Red**: Chạy `mvn test -pl identity-service` khi chưa có class cấu hình chính -> `IllegalStateException: Unable to find a @SpringBootConfiguration` -> Xác nhận Red chuẩn xác.
+    - **Green**: Triển khai `IdentityServiceApplication` (`@SpringBootApplication`, `@EnableDiscoveryClient`), `application.yaml` (MySQL `identity_lms`, context-path `/identity`, port `8081`), `application-test.yaml` (H2 in-memory `identity_test`, Eureka disabled) -> **1/1 test case PASS 100%**:
+      1. `contextLoads()`: PASS (Khởi tạo EntityManagerFactory và Spring Context trên H2).
+  - **Commit dự kiến**: `feat(identity): thiết lập khung dự án identity-service và cấu hình database`
+
+- [ ] **Task 4.2: Khung course-service (Port 8082)**
+- [ ] **Task 4.3: Khung blog-service (Port 8084)**
+
+---
+
+### Kế Hoạch Tiếp Theo (Phase 5)
+- Phase 5: Tổng kiểm tra monorepo và nghiệm thu toàn bộ Đợt 1.
+
 
 

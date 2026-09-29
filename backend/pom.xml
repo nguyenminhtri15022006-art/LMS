@@ -20,8 +20,8 @@
     <modules>
         <module>service-registry</module>
         <module>api-gateway</module>
-        <!--
         <module>identity-service</module>
+        <!--
         <module>course-service</module>
         <module>blog-service</module>
         -->
