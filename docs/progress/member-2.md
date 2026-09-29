@@ -90,7 +90,20 @@
       1. `contextLoads()`: PASS (Khởi tạo EntityManagerFactory và Spring Context trên H2).
   - **Commit dự kiến**: `feat(identity): thiết lập khung dự án identity-service và cấu hình database`
 
-- [ ] **Task 4.2: Khung course-service (Port 8082)**
+- [x] **Task 4.2: Khung course-service (Port 8082)**
+  - **Phương pháp**: TDD Red -> Green.
+  - **File tạo**:
+    - `backend/course-service/pom.xml`
+    - `backend/course-service/src/test/resources/application-test.yaml`
+    - `backend/course-service/src/test/java/com/lms/courseservice/CourseServiceApplicationTests.java`
+    - `backend/course-service/src/main/resources/application.yaml`
+    - `backend/course-service/src/main/java/com/lms/courseservice/CourseServiceApplication.java`
+  - **Kết quả TDD**:
+    - **Red**: Chạy `mvn test -pl course-service` khi chưa có class cấu hình chính -> `IllegalStateException: Unable to find a @SpringBootConfiguration` -> Xác nhận Red chuẩn xác.
+    - **Green**: Triển khai `CourseServiceApplication` (`@SpringBootApplication`, `@EnableDiscoveryClient`), `application.yaml` (MySQL `course_lms`, MongoDB `course_lms_mongo`, context-path `/course`, port `8082`), `application-test.yaml` (H2 in-memory `course_test`, exclude Mongo auto-config, Eureka disabled) -> **1/1 test case PASS 100%**:
+      1. `contextLoads()`: PASS (Khởi tạo EntityManagerFactory và Spring Data JPA/MongoDB strict mode trên H2).
+  - **Commit dự kiến**: `feat(course): thiết lập khung dự án course-service kết nối MySQL và MongoDB`
+
 - [ ] **Task 4.3: Khung blog-service (Port 8084)**
 
 ---
