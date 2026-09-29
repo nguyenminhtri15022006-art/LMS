@@ -104,12 +104,25 @@
       1. `contextLoads()`: PASS (Khởi tạo EntityManagerFactory và Spring Data JPA/MongoDB strict mode trên H2).
   - **Commit dự kiến**: `feat(course): thiết lập khung dự án course-service kết nối MySQL và MongoDB`
 
-- [ ] **Task 4.3: Khung blog-service (Port 8084)**
+- [x] **Task 4.3: Khung blog-service (Port 8084)**
+  - **Phương pháp**: TDD Red -> Green.
+  - **File tạo**:
+    - `backend/blog-service/pom.xml`
+    - `backend/blog-service/src/test/resources/application-test.yaml`
+    - `backend/blog-service/src/test/java/com/lms/blogservice/BlogServiceApplicationTests.java`
+    - `backend/blog-service/src/main/resources/application.yaml`
+    - `backend/blog-service/src/main/java/com/lms/blogservice/BlogServiceApplication.java`
+  - **Kết quả TDD**:
+    - **Red**: Chạy `mvn test -pl blog-service` khi chưa có class cấu hình chính -> `IllegalStateException: Unable to find a @SpringBootConfiguration` -> Xác nhận Red chuẩn xác.
+    - **Green**: Triển khai `BlogServiceApplication` (`@SpringBootApplication`, `@EnableDiscoveryClient`), `application.yaml` (MySQL `blog_lms`, context-path `/blog`, port `8084`), `application-test.yaml` (H2 in-memory `blog_test`, Eureka disabled) -> **1/1 test case PASS 100%**:
+      1. `contextLoads()`: PASS (Khởi tạo EntityManagerFactory và Spring Data JPA trên H2).
+  - **Commit dự kiến**: `feat(blog): thiết lập khung dự án blog-service và cấu hình MySQL`
 
 ---
 
 ### Kế Hoạch Tiếp Theo (Phase 5)
 - Phase 5: Tổng kiểm tra monorepo và nghiệm thu toàn bộ Đợt 1.
+
 
 
 
