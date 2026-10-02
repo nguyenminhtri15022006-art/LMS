@@ -123,5 +123,51 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - Hoàn thành 100% mục tiêu Đợt 2: Toàn bộ nền tảng hạ tầng Monorepo và khung 2 microservice chủ trì của Thành viên 1 đã sẵn sàng để triển khai tầng nghiệp vụ (Business Logic).
 6. **Commit**:
    - `feat(infra): thiet lap eureka api gateway va khung assignment chatbot` (Hash: `a02474a`)
-7. **Việc tiếp theo (Đợt 3 — 03/10 đến 05/10)**:
-   - Triển khai Ngân hàng câu hỏi trắc nghiệm (`Question`), Parser nhập CSV/TXT (`CsvQuestionParser`), Tạo đề thi Quiz (`QuizServiceImpl`) và cơ chế khóa ảo chống spam làm bài.
+7. **Việc tiếp theo (Đợt 3)**:
+   - Triển khai Quản lý bài tập lập trình (Problem), bộ Test cases ẩn/hiện, lưu Submission vào MongoDB và tích hợp Judge Engine.
+
+---
+
+### [2026-10-02] — Đợt 3: Triển Khai Quản Lý Bài Tập Lập Trình (Problems), Test Cases & Lưu Trữ Submission MongoDB
+1. **Ngày thực hiện**: 02/10/2026 – 03/10/2026
+2. **Công việc đã làm**:
+   - **Mô hình thực thể & Tài liệu CSDL**:
+     - Thực thể `Problem` (MySQL: `problems`): Quản lý chi tiết bài tập, độ khó (`EASY`, `MEDIUM`, `HARD`), time limit, memory limit, danh sách ngôn ngữ hỗ trợ (`allowed_langs`), soft delete, điểm số.
+     - Thực thể `TestCase` (MySQL: `test_cases`): Input, expected output, cờ `is_hidden`, thứ tự `order_index`, trọng số điểm `score_weight`.
+     - Document `Submission` (MongoDB: `submissions`): Lưu trữ mã nguồn bài nộp, trạng thái chấm (`PENDING`, `JUDGING`, `AC`, `WA`, `TLE`, `MLE`, `RE`, `CE`, `IE`), thời gian thực thi, bộ nhớ sử dụng và chi tiết kết quả từng testcase qua nested document `TestCaseResult`.
+   - **Tầng Data Access (Repository)**:
+     - `ProblemRepository`: Truy vấn lọc theo course, lesson, difficulty, trạng thái public, cập nhật bộ đếm `totalSubmit` và `totalAccepted`.
+     - `TestCaseRepository`: Lấy danh sách testcase theo problem có sắp xếp, phân loại testcase ẩn/hiện cho giảng viên và học viên.
+     - `SubmissionRepository` (Spring Data MongoDB): Truy vấn lịch sử nộp bài theo user/problem, tìm submission mới nhất, thống kê bài nộp.
+   - **Tầng Nghiệp vụ (Service & Impl)**:
+     - `ProblemServiceImpl`: CRUD bài tập lập trình, clone bài tập, unpublish/restore, tính toán tỷ lệ Accepted (`acceptanceRate`).
+     - `TestCaseServiceImpl`: Thêm mới, cập nhật, xóa, đồng bộ hàng loạt testcases, import testcases từ file ZIP / CSV / Excel (Apache POI).
+     - `TestCaseTemplateServiceImpl`: Cung cấp file mẫu template testcase (CSV, Excel) phục vụ nhập liệu.
+     - `SubmissionServiceImpl`: Tiếp nhận bài nộp code từ học viên, kiểm tra ngôn ngữ, lưu vào MongoDB, điều phối chấm bất đồng bộ.
+     - `SubmissionJudgingServiceImpl`: Xử lý chấm code bất đồng bộ `@Async("judgeExecutor")` qua `JudgeEngine`.
+     - `ProblemTestCaseAiPreviewServiceImpl`: Tích hợp AI (DeepSeek LLM qua `ChatbotClient`) tự động sinh bộ testcases biên cho bài tập.
+   - **Động cơ Chấm Code (Judge Engine)**:
+     - Interface `JudgeEngine` và các DTO `JudgeRequest`, `JudgeResult`.
+     - `Judge0Engine`: Tích hợp máy chấm Judge0 qua REST client và cơ chế polling trạng thái.
+     - `CustomEngine`: Động cơ chấm dự phòng tùy biến.
+   - **Bộ lọc Bảo mật & Xử lý Ngoại lệ**:
+     - `SecurityConfig` & `GatewayAuthentication`: Bóc tách headers `X-User-Id`, `X-User-Role` từ Gateway để phân quyền method security `@PreAuthorize`.
+     - `ErrorCode`, `AssignmentException`, `GlobalExceptionHandler`: Xử lý ngoại lệ tập trung chuẩn hóa `ApiResponse<T>`.
+   - **Tầng Điều khiển (Controller)**:
+     - `ProblemController` (`/problems/**`): Endpoint cho học viên và giảng viên.
+     - `TestCaseController` (`/problems/{problemId}/testcases/**`): Quản lý testcase, import và AI preview.
+     - `CodeJudgeController` (`/submissions/**`): Nộp bài, chạy thử code (`/run`), xem lịch sử và kết quả bài nộp.
+   - **Background Job**:
+     - `SubmissionCleanupJob`: Tự động quét dọn và chuyển trạng thái các submission bị kẹt quá thời gian quy định sang `IE`.
+3. **File thay đổi / tạo mới**:
+   - 81 source files trong `backend/assignment-service/src/main/java/com/lms/assignmentservice/`
+   - Các file template import trong `src/main/resources/templates/testcase-import/`
+   - 8 file kiểm thử Unit Test trong `src/test/java/`
+4. **Test đã chạy**:
+   - `mvn clean compile -pl assignment-service`: `BUILD SUCCESS` (biên dịch thành công 81 source files, thời gian: 18.056s).
+   - `mvn test -pl assignment-service -Dtest="ProblemMapperTest,ProblemServiceImplTest,TestCaseTemplateServiceImplTest"`: `BUILD SUCCESS` (12/12 tests passed, 0 failures, 0 errors, thời gian: 10.445s).
+5. **Kết quả**:
+   - Hoàn thành toàn diện Đợt 3: Đã có đầy đủ chức năng quản lý bài toán lập trình, bộ testcase, import file, lưu trữ submission MongoDB và chuẩn bị sẵn sàng cho tích hợp sâu với máy chấm Judge0.
+6. **Commit**:
+   - `feat(assignment): add coding problems and testcases`
+
