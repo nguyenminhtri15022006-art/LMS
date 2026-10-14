@@ -554,6 +554,36 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
 - **Commit message dự kiến**:
   - `feat(course): thêm quản lý khóa học danh mục và cấu trúc bài giảng mongodb`
 
+- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 7**:
+  - **Trạng thái**: ĐÃ HOÀN THÀNH TOÀN DIỆN (8/15 tính năng Course Service chuyển sang `TESTED` 100%, 0 IMPLEMENTED).
+  - **Kết quả kiểm thử thực tế**:
+    * Lệnh chạy module: `mvn test -pl course-service -f backend/pom.xml`
+    * Kết quả: **25/25 test cases PASS 100%**, 0 Failures, 0 Errors, 0 Skipped (thời gian chạy: 22.5s).
+    * Phân bổ chi tiết các bài kiểm thử:
+      1. `CourseServiceApplicationTests`: 1 test PASS (`contextLoads` - khởi động Spring Boot context và H2 database).
+      2. `CategoryServiceImplTest`: 4 tests PASS (`getAllCategoriesReturnsList`, `createCategoryAdminSuccess`, `updateCategoryAdminSuccess`, `deleteCategoryAdminSuccess`).
+      3. `CourseServiceImplTest`: 8 tests PASS (`createCourseInstructorSuccess`, `updateCourseOwnerSuccess`, `updateCourseNotOwnerThrowsForbidden`, `deleteCourseOwnerSuccess`, `getMyCoursesInstructorReturnsPage`, `lockCourseAdminUpdatesStatus`, `unlockCourseAdminUpdatesStatus`, `getCourseByIdPublicReturnsDetails`).
+      4. `CourseStructureServiceImplTest`: 6 tests PASS (`getStructureExistingCourseReturnsMongoTree`, `addNodeValidParentAddsNodeToTree`, `addMultipleNodesBatchSuccess`, `reorderNodesValidListUpdatesOrderInMongo`, `updateNodeTitleExistingNodeUpdatesTitle`, `deleteNodeRemovesNodeAndCleansChildren`).
+      5. `LessonServiceImplTest`: 2 tests PASS (`updateLessonContentOwnerSuccess`, `updateLessonContentUnauthorizedThrowsForbidden`).
+      6. `CourseApiIntegrationTest`: 4 tests PASS (`categoryControllerEnforcesAdminRole`, `courseControllerValidationFailsOnBlankTitle`, `courseStructureEndpointReturnsTreeJson`, `lessonControllerEnforcesOwnerAuthorizationOnUpdate`).
+    * Lệnh kiểm thử hồi quy toàn Monorepo: `mvn test -f backend/pom.xml` -> **87/87 test cases PASS 100%** trên toàn bộ 6 modules (`service-registry`: 2, `api-gateway`: 15, `identity-service`: 44, `course-service`: 25, `blog-service`: 1).
+  - **Danh mục mã nguồn đã triển khai**:
+    * Flyway Database Migrations: `V1__initial_schema.sql`, `V2__add_indexes.sql`.
+    * Cấu hình: `pom.xml` (bổ sung lombok, mapstruct, validation, security, flyway, minio), `application-test.yaml` (profile test H2 in-memory, exclude MongoRepositoriesAutoConfiguration), `SecurityConfig.java`, `GatewayAuthentication.java`.
+    * Enums: `CourseStatus` (`PRIVATE`, `PUBLIC`, `LOCKED`), `CourseLevel` (`BEGINNER`, `INTERMEDIATE`, `ADVANCED`), `NodeType` (`FOLDER`, `LESSON`), `LessonType` (`VIDEO`, `DOCUMENT`), `EnrollmentStatus` (`ACTIVE`, `CANCELLED`).
+    * Entities & Repositories:
+      - MySQL: `Category`, `Course`, `Enrollment`, `Announcement`, `CategoryRepository`, `CourseRepository`, `CourseSpecifications`, `EnrollmentRepository`, `AnnouncementRepository`.
+      - MongoDB: `CourseStructure`, `StructureNode`, `Lesson`, `CourseStructureRepository`, `LessonRepository`.
+    * DTOs & Mappers: `ApiResponse`, `MeetingInfo`, `CreateCategoryRequest`, `UpdateCategoryRequest`, `CategoryResponse`, `CreateCourseRequest`, `UpdateCourseRequest`, `LockCourseRequest`, `CourseResponse`, `AddNodeRequest`, `AddMultipleNodesRequest`, `ReorderNodesRequest`, `UpdateNodeTitleRequest`, `CourseStructureResponse`, `StructureNodeResponse`, `LessonResponse`, `UpdateLessonRequest`, `InstructorStatsResponse`, `RecentEnrollmentResponse`, `CourseStudentResponse`, `EnrollmentResponse`, `InviteResultResponse`, `UserInfoDto`, `CategoryMapper`, `CourseMapper`, `CourseStructureMapper`, `LessonMapper`, `EnrollmentMapper`.
+    * Services & Business Logic: `CategoryServiceImpl`, `CourseServiceImpl`, `CourseStructureServiceImpl`, `LessonServiceImpl`, `GoogleMeetServiceImpl`, `MinioServiceImpl`.
+    * Controllers & OpenFeign Clients: `CategoryController`, `CourseController`, `CourseStructureController`, `LessonController`, `AssignmentClient`, `IdentityClient`.
+  - **Đồng bộ tài liệu**:
+    * [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md): Khớp 100% với các endpoint triển khai (Category, Course, Course Structure, Lesson).
+    * [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): Chuyển 8 tính năng phân hệ Course Service sang `TESTED` (Quản lý danh mục, Danh sách khóa học public, Chi tiết khóa học, Giảng viên tạo khóa học, Giảng viên sửa & đổi trạng thái, Quản lý cây bài học MongoDB, Quản lý nội dung bài học, Quản trị viên duyệt và quản lý toàn bộ khóa học). Tổng số tính năng hoàn thành trên toàn hệ thống đạt 40.0% (24 TESTED, 6 VERIFIED).
+  - **Lịch sử commits**:
+    * Nhánh: `cuong-dev`
+    * Commit: `feat(course): thêm quản lý khóa học danh mục và cấu trúc bài giảng mongodb`
+
 ---
 
 ### Phase 8: Ghi Danh, Tiến Độ Học Tập, Lịch Học Google Meet, Thông Báo & MinIO Upload (`course-service`)
