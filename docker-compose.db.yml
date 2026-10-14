@@ -1,38 +1,41 @@
 services:
+  # 1. DATABASE MYSQL 8.4 (Identity, Course, Assignment, Blog)
   mysql:
     image: mysql:8.4
     container_name: lms-mysql
+    restart: always
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqladmin123}
       MYSQL_ROOT_HOST: "%"
-      MYSQL_DATABASE: lms_identity
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent" ]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD:-mysqladmin123} --silent" ]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 30s
     networks:
-      - lms
+      - lms-network
 
+  # 2. DATABASE MONGODB 7.0 (Course, Assignment, Chatbot)
   mongodb:
-    image: mongo:7
+    image: mongo:7.0
     container_name: lms-mongodb
+    restart: always
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}
     ports:
       - "${MONGODB_PORT:-27017}:27017"
     volumes:
-      - mongo-data:/data/db
+      - mongo_data:/data/db
     healthcheck:
       test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
       interval: 10s
@@ -40,29 +43,33 @@ services:
       retries: 10
       start_period: 20s
     networks:
-      - lms
+      - lms-network
 
+  # 3. REDIS 7.2 (Cache, Rate Limiter)
   redis:
-    image: redis:7-alpine
+    image: redis:7.2-alpine
     container_name: lms-redis
-    command: [ "redis-server", "--appendonly", "yes" ]
+    restart: always
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD:-redisadmin123}", "--appendonly", "yes" ]
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD:-redisadmin123}
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     healthcheck:
-      test: [ "CMD", "redis-cli", "ping" ]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redisadmin123}", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 10
     networks:
-      - lms
+      - lms-network
 
+  # 4. MINIO (Object Storage)
   minio:
     image: minio/minio:latest
     container_name: lms-minio
+    restart: always
     command: [ "server", "/data", "--console-address", ":9001" ]
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
@@ -71,22 +78,21 @@ services:
       - "${MINIO_PORT:-9000}:9000"
       - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - minio-data:/data
+      - minio_data:/data
     healthcheck:
-      test: [ "CMD", "mc", "ready", "local" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
     networks:
-      - lms
+      - lms-network
 
 networks:
-  lms:
+  lms-network:
     driver: bridge
 
 volumes:
-  mysql-data:
-  mongo-data:
-  redis-data:
-  minio-data:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  minio_data:

@@ -4,7 +4,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lms.apigateway.exception.ErrorCode;
 import io.jsonwebtoken.Claims;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -23,12 +24,13 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * AuthFilter — Gateway Filter thực hiện Token Offloading.
+ * AuthFilter — Gateway Filter thực hiện Token Offloading & Whitelist.
  * Xác thực JWT tại Gateway và tiêm header định danh người dùng xuống microservices.
  */
-@Slf4j
 @Component
 public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {
+
+    private static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
 
     private final JwtUtil jwtUtil;
     private final ObjectMapper objectMapper;
@@ -43,6 +45,8 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
+
+            // Bỏ qua xác thực cho OPTIONS và các request GET thuộc Whitelist
             if (HttpMethod.OPTIONS.equals(request.getMethod()) || isPublicRequest(request)) {
                 ServerHttpRequest publicRequest = request.mutate()
                         .headers(this::removeGatewayAuthHeaders)
@@ -52,11 +56,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
+            // 1. Trích xuất token từ Authorization header
             Optional<String> tokenOpt = jwtUtil.extractToken(authHeader);
             if (tokenOpt.isEmpty()) {
                 return writeError(exchange, ErrorCode.UNAUTHENTICATED);
             }
 
+            // 2. Xác thực JWT
             Optional<Claims> claimsOpt = jwtUtil.verify(tokenOpt.get());
             if (claimsOpt.isEmpty()) {
                 return writeError(exchange, ErrorCode.UNAUTHENTICATED);
@@ -69,15 +75,17 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             log.debug("Gateway xác thực thành công: userId={} role={} path={}", userId, role, request.getPath());
 
+            // 3. Mutate request: Xóa 5 headers cũ (4 X-* + Authorization) và inject 4 headers mới
             ServerHttpRequest mutatedRequest = request.mutate()
                     .headers(httpHeaders -> {
                         removeGatewayAuthHeaders(httpHeaders);
-                        httpHeaders.set("X-User-Id", userId);
+                        httpHeaders.set("X-User-Id", userId != null ? userId : "");
                         httpHeaders.set("X-User-Role", role != null ? role : "");
                         httpHeaders.set("X-User-Email", email != null ? email : "");
                         httpHeaders.set("X-Gateway-Authenticated", "true");
                     })
                     .build();
+
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
         };
     }
@@ -106,9 +114,6 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         }
     }
 
-    public static class Config {
-    }
-
     private void removeGatewayAuthHeaders(HttpHeaders httpHeaders) {
         httpHeaders.remove(HttpHeaders.AUTHORIZATION);
         httpHeaders.remove("X-User-Id");
@@ -130,9 +135,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 || normalizedPath.matches("^/blog/posts/[^/]+/comments$")
                 || normalizedPath.equals("/course/categories")
                 || normalizedPath.equals("/course/courses")
+                || normalizedPath.startsWith("/course/courses/public")
                 || normalizedPath.matches("^/course/courses/(?!my$|enrolled$|users$)[^/]+$")
                 || normalizedPath.matches("^/course/courses/[^/]+/(students|lessons)/count$")
                 || normalizedPath.matches("^/course/courses/[^/]+/structure$")
                 || normalizedPath.matches("^/course/courses/[^/]+/structure/lessons$");
+    }
+
+    public static class Config {
     }
 }

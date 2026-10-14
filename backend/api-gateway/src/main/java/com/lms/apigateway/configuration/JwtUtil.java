@@ -4,9 +4,8 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.AccessLevel;
-import lombok.experimental.FieldDefaults;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,13 +18,13 @@ import java.util.Optional;
  * Nơi duy nhất trong hệ thống giải mã chữ ký JWT signer-key.
  */
 @Component
-@Slf4j
-@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class JwtUtil {
 
-    SecretKey secretKey;
+    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class);
 
-    public JwtUtil(@Value("${jwt.signer-key}") String signerKey) {
+    private final SecretKey secretKey;
+
+    public JwtUtil(@Value("${jwt.signer-key:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}") String signerKey) {
         this.secretKey = Keys.hmacShaKeyFor(signerKey.getBytes(StandardCharsets.UTF_8));
     }
 
@@ -40,6 +39,7 @@ public class JwtUtil {
                     .parseSignedClaims(token)
                     .getPayload();
 
+            // Kiểm tra đây là ACCESS token, không phải REFRESH token
             String type = claims.get("type", String.class);
             if (!"ACCESS".equals(type)) {
                 log.warn("Token type không hợp lệ: {}", type);

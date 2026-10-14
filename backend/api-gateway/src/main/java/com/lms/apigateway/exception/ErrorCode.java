@@ -1,9 +1,7 @@
 package com.lms.apigateway.exception;
 
-import lombok.Getter;
 import org.springframework.http.HttpStatus;
 
-@Getter
 public enum ErrorCode {
     UNAUTHENTICATED(1401, "Chưa xác thực. Token không hợp lệ hoặc đã hết hạn.", HttpStatus.UNAUTHORIZED),
     MISSING_AUTHORIZATION_HEADER(1402, "Thiếu header Authorization trong request.", HttpStatus.BAD_REQUEST),
@@ -21,5 +19,17 @@ public enum ErrorCode {
         this.code = code;
         this.message = message;
         this.httpStatusCode = statusCode;
+    }
+
+    public Integer getCode() {
+        return code;
+    }
+
+    public String getMessage() {
+        return message;
+    }
+
+    public HttpStatus getHttpStatusCode() {
+        return httpStatusCode;
     }
 }

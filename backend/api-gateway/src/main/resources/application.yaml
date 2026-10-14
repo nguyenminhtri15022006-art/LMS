@@ -126,7 +126,7 @@ spring:
                 name: identityServiceCircuitBreaker
                 fallbackUri: forward:/fallback/identity-service
 
-        # ===== Course Service =====
+        # ===== Storage Service =====
         - id: storage-service
           uri: lb://course-service
           predicates:
