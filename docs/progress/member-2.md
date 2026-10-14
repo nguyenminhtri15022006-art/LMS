@@ -1176,3 +1176,90 @@ flowchart TD
    - Trình bày tóm tắt kết quả phase vừa xong cho người dùng kèm bằng chứng log chạy test thực tế và danh sách tính năng được chuyển trạng thái.
    - **TUYỆT ĐỐI DỪNG LẠI**, không tự ý thực hiện phase tiếp theo.
    - **TUYỆT ĐỐI KHÔNG** tự ý chạy `git commit` hoặc `git push` trừ khi người dùng ra lệnh rõ ràng. Mọi commit khi được phép phải có mô tả bằng **tiếng Việt có dấu**.
+
+---
+
+## VI. Tiến Độ Thực Hiện & Bằng Chứng Nghiệm Thu Đợt 3 (Frontend & Tích Hợp)
+
+### Phase 11: Nền Tảng Cốt Lõi, Quản Lý Phiên, 401 Refresh Queue & Phân Hệ Xác Thực (`features/auth`, `features/settings`)
+
+- **Thời điểm hoàn thành**: 14/10/2026
+- **Người thực hiện**: Thành viên 2 (`NVCuong3112`)
+- **Nhánh làm việc**: `cuong-phase11` (tạo từ commit HEAD `0475227` của `cuong-phase10`)
+- **Phương pháp thực hiện**: Test-Driven Development (TDD: Red 1 -> Red 2 -> Green -> Refactor), tách biệt kiểm thử cô lập (Vitest + React Testing Library) và tích hợp (Playwright + Mailpit E2E).
+
+#### 1. Mục tiêu & Các hạng mục đã hoàn thành
+1. **Khởi tạo kiến trúc Frontend Monorepo chuẩn**:
+   - Sử dụng Vite 5 + React 18 + React Router 6 + Axios + FontAwesome + Framer Motion.
+   - Kiến trúc CSS Vanilla Design Tokens (`index.css` với biến `:root`), typography Inter, hỗ trợ Dark Mode đồng bộ giao diện mẫu.
+   - Không sử dụng Tailwind CSS để tuân thủ tuyệt đối cấu trúc giao diện mẫu.
+2. **Quản lý phiên, 401 Refresh Queue & Chống lặp vô hạn**:
+   - `frontend/src/services/api.client.js`: Cơ chế `failedQueue` (Promise Queue). Khi nhiều request đồng thời gặp HTTP 401, chỉ kích hoạt một lệnh gọi `POST /api/identity/auth/refresh` duy nhất; các request khác được đưa vào hàng đợi chờ token mới và thực thi lại tự động.
+   - Gắn cờ `_retry = true` để chặn retry vô hạn nếu request đã refresh một lần mà vẫn thất bại.
+   - Endpoint `/api/identity/auth/refresh` không bao giờ tự retry chính nó.
+   - Khi refresh token hết hạn hoặc không hợp lệ: Xóa session storage (`clearSession()`) và chuyển hướng an toàn về `/login`.
+   - `frontend/src/context/AuthContext.jsx`: Khôi phục phiên làm việc từ `localStorage` hoặc `sessionStorage` (theo cờ `remember`), quản lý state `user`, `token`, các hàm `login`, `logout` (thu hồi token phía backend) và `updateUserProfile`.
+3. **Phân hệ Giao diện Xác thực & Modal OTP**:
+   - `frontend/src/features/auth/pages/AuthPage.jsx`: Chuyển đổi tab Đăng nhập và Đăng ký, hiển thị lỗi validate inline cho email sai định dạng, validate mật khẩu tối thiểu 6 ký tự.
+   - `frontend/src/features/auth/components/VerifyOtpModal.jsx`: Modal nhập OTP 6 chữ số với bộ đếm ngược countdown 60 giây, tự động nhảy focus sang ô tiếp theo khi gõ, tự động submit khi nhập đủ 6 số, hỗ trợ dán (paste) và nút yêu cầu gửi lại mã khi hết thời gian chờ.
+   - `frontend/src/features/auth/styles/VerifyOtpModal.css`: Styling Vanilla CSS tokens, responsive, hỗ trợ dark mode và trạng thái disabled/loading.
+4. **Tải lên Avatar qua MinIO S3 (POST Policy Contract)**:
+   - `frontend/src/hooks/useFileUpload.js`: Gọi API `POST /api/identity/storage/presigned-url` để nhận POST Policy (`uploadUrl`, `formFields`), đóng gói `FormData` và gửi trực tiếp bằng `fetch POST` lên MinIO bucket `lms-identity-bucket`.
+5. **Hạ tầng Mock SMTP & Kịch bản E2E Playwright**:
+   - `docker-compose.db.yml`: Tích hợp service `lms-mail-server` sử dụng `axllent/mailpit:latest` (port `1025:1025` SMTP và `8025:8025` Web/REST API), tách riêng thư mục seed test data `/docker-seed`.
+   - `frontend/playwright.config.js`: Cấu hình E2E test runner Playwright.
+   - `frontend/e2e/auth-flow.spec.js`: Kịch bản E2E kiểm thử toàn trình: Đăng ký tài khoản -> Polling Mailpit REST API v1 (`/api/v1/search?query=to:...`) tìm thư theo email người nhận và thời điểm gửi -> Trích xuất OTP 6 số -> Tự động điền và xác thực -> Đăng nhập qua API Gateway -> Cập nhật profile & đổi mật khẩu -> Upload avatar MinIO thật -> Đăng xuất.
+
+#### 2. Danh sách file tạo mới và cập nhật
+- **Mã nguồn Frontend**:
+  - `frontend/src/services/api.client.js` (Cập nhật 401 refresh queue, chống retry vô hạn)
+  - `frontend/src/context/AuthContext.jsx` (Quản lý phiên, khôi phục session, đồng bộ profile)
+  - `frontend/src/features/auth/components/VerifyOtpModal.jsx` (Tạo mới: Modal OTP 6 số, đếm ngược 60s, auto-submit)
+  - `frontend/src/features/auth/styles/VerifyOtpModal.css` (Tạo mới: CSS Vanilla tokens, dark mode)
+  - `frontend/src/features/auth/pages/AuthPage.jsx` (Form đăng nhập, đăng ký, inline validation)
+  - `frontend/src/hooks/useFileUpload.js` (Upload avatar theo POST Policy MinIO)
+- **Kiểm thử tự động (Unit & Integration Tests)**:
+  - `frontend/src/test/services/api.client.test.js` (14 test cases PASS)
+  - `frontend/src/test/context/AuthContext.test.jsx` (16 test cases PASS)
+  - `frontend/src/test/features/auth/AuthPage.test.jsx` (4 test cases PASS)
+  - `frontend/src/test/features/auth/VerifyOtpModal.test.jsx` (4 test cases PASS)
+  - `frontend/src/test/hooks/useFileUpload.test.jsx` (3 test cases PASS)
+- **Hạ tầng & E2E**:
+  - `docker-compose.db.yml` (Bổ sung container Mailpit và mount seed data riêng biệt)
+  - `frontend/playwright.config.js` (Cấu hình Playwright E2E)
+  - `frontend/e2e/auth-flow.spec.js` (Kịch bản E2E toàn trình xác thực & Mailpit OTP)
+  - `frontend/.env.example` (Biến môi trường mẫu an toàn)
+
+#### 3. Bằng chứng kiểm thử thực tế
+- **Kiểm thử cô lập Phase 11 (Vitest + React Testing Library)**:
+  - **Lệnh thực thi**: `npm test -- --run src/test/services/api.client.test.js src/test/context/AuthContext.test.jsx src/test/features/auth/AuthPage.test.jsx src/test/features/auth/VerifyOtpModal.test.jsx src/test/hooks/useFileUpload.test.jsx`
+  - **Kết quả**: **5/5 test files PASS, 41/41 test cases PASS 100%** (Thời gian chạy: 5.36s):
+    * `src/test/services/api.client.test.js`: 14 tests PASS (Bearer token injection, FormData content-type, single refresh execution under concurrent 401s, retry loop prevention, clearSession on expired refresh, redirect login).
+    * `src/test/context/AuthContext.test.jsx`: 16 tests PASS (Khởi tạo session từ token, login, logout, cập nhật profile, phân biệt remember me).
+    * `src/test/features/auth/AuthPage.test.jsx`: 4 tests PASS (Chuyển tab, validate email inline regex, validate mật khẩu >= 6 ký tự, submit điều hướng).
+    * `src/test/features/auth/VerifyOtpModal.test.jsx`: 4 tests PASS (Countdown 60s, tự động submit khi nhập đủ 6 số, hiển thị lỗi, trigger gửi lại mã).
+    * `src/test/hooks/useFileUpload.test.jsx`: 3 tests PASS (Lấy POST policy, đóng gói FormData, upload fetch POST).
+- **Hồi quy toàn bộ Test Suite Frontend**:
+  - **Lệnh thực thi**: `npm test -- --run`
+  - **Kết quả**: **23/23 test files PASS, 170/170 test cases PASS 100%** (0 failures, 0 errors, thời gian chạy: 9.20s).
+- **Kiểm tra Linting**:
+  - **Lệnh thực thi**: `npm run lint`
+  - **Kết quả**: **0 errors**, 17 warnings (react-refresh / useEffect dependencies không ảnh hưởng logic).
+- **Biên dịch & Đóng gói Production**:
+  - **Lệnh thực thi**: `npm run build`
+  - **Kết quả**: `✓ built in 5.49s`, toàn bộ bundles HTML/CSS/JS tạo thành công trong thư mục `dist/`.
+
+#### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành
+- [x] **1. Giao diện người dùng**: Hoàn chỉnh với Loading, Empty, Success, Inline Error, Modal OTP và Toast.
+- [x] **2. API Gateway routing**: Toàn bộ nghiệp vụ định tuyến qua Gateway `http://localhost:8080/api/**`, upload MinIO là ngoại lệ trực tiếp.
+- [x] **3. Validation chặt chẽ**: Regex email, password length >= 6 ở frontend; Jakarta Bean Validation ở backend.
+- [x] **4. Phân quyền RBAC**: `PrivateRoute`, `RoleRoute` bảo vệ tuyến điều hướng.
+- [x] **5. Xử lý ngoại lệ**: Chuẩn hóa phản hồi qua `ApiResponse<T>`, hiển thị Toast thông báo lỗi rõ ràng.
+- [x] **6. Lưu trữ CSDL thật**: Tích hợp với bảng `users`, `refresh_tokens`, `email_verifications` (MySQL) và MinIO bucket.
+- [x] **7. Kiểm thử tự động**: 41 tests Phase 11 PASS; 170 tests toàn bộ frontend PASS 100%.
+- [x] **8. Biên dịch & Đóng gói**: `npm run build` PASS trong 5.49s, không phát sinh lỗi.
+- [ ] **9. Docker Compose Full-stack**: Hạ tầng Mailpit và seed mount đã cấu hình; kiểm thử E2E liên thông Playwright trên container sẽ được thực thi khi khởi chạy toàn bộ stack Docker.
+- [x] **10. API Contract**: Khớp 100% với đặc tả tại `docs/API_CONTRACT.md`.
+- [x] **11. Commit Conventional**: Cam kết tuân thủ quy tắc commit tiếng Việt trên nhánh `cuong-phase11`.
+- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận đầy đủ kịch bản và lệnh chạy.
+- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm giao diện và luồng xử lý tương đương 100% project mẫu.

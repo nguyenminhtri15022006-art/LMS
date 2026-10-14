@@ -1,0 +1,173 @@
+.otp-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
+}
+
+.otp-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 420px;
+  padding: 28px 24px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  text-align: center;
+}
+
+html[data-theme="dark"] .otp-modal-card {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
+.otp-modal-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+  color: #111827;
+}
+
+html[data-theme="dark"] .otp-modal-title {
+  color: #f9fafb;
+}
+
+.otp-modal-desc {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+}
+
+html[data-theme="dark"] .otp-modal-desc {
+  color: #9ca3af;
+}
+
+.otp-inputs-row {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.otp-digit-input {
+  width: 44px;
+  height: 52px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  color: #111827;
+  transition: all 0.2s ease;
+}
+
+.otp-digit-input:focus {
+  outline: none;
+  border-color: #2563eb;
+  background-color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+}
+
+html[data-theme="dark"] .otp-digit-input {
+  background-color: #374151;
+  border-color: #4b5563;
+  color: #ffffff;
+}
+
+html[data-theme="dark"] .otp-digit-input:focus {
+  border-color: #3b82f6;
+  background-color: #1f2937;
+}
+
+.otp-countdown-row {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 20px;
+}
+
+html[data-theme="dark"] .otp-countdown-row {
+  color: #9ca3af;
+}
+
+.otp-resend-btn {
+  background: none;
+  border: none;
+  color: #2563eb;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 4px 8px;
+}
+
+.otp-actions-row {
+  display: flex;
+  gap: 12px;
+}
+
+.otp-cancel-btn {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #374151;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.otp-cancel-btn:hover {
+  background: #f3f4f6;
+}
+
+html[data-theme="dark"] .otp-cancel-btn {
+  background: #374151;
+  color: #e5e7eb;
+  border-color: #4b5563;
+}
+
+.otp-submit-btn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.otp-submit-btn:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.otp-submit-btn:disabled {
+  background: #93c5fd;
+  cursor: not-allowed;
+}
+
+.otp-modal-alert {
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  margin-bottom: 16px;
+  font-weight: 500;
+}
+
+.otp-modal-alert.error {
+  background-color: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fca5a5;
+}
+
+.otp-modal-alert.success {
+  background-color: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #86efac;
+}

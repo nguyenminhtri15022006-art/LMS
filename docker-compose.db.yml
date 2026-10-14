@@ -14,6 +14,7 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/seed:/docker-seed:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD:-mysqladmin123} --silent"]
       interval: 10s
@@ -81,6 +82,17 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - lms-db-network
+
+  # 5. MAILPIT (Mock SMTP & REST API v1 cho Email OTP E2E Test)
+  mail-server:
+    image: axllent/mailpit:latest
+    container_name: lms-mail-server
+    restart: always
+    ports:
+      - "${SMTP_PORT:-1025}:1025"
+      - "${MAILPIT_PORT:-8025}:8025"
     networks:
       - lms-db-network
 

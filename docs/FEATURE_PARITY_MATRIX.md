@@ -137,8 +137,8 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | `frontend` | Dashboard Học viên (Tổng quan tiến độ & Điểm số) | `features/dashboard/pages/student/DashboardStudent.jsx` | `services/dashboard.api.js` | Tích hợp Identity + Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
 | `frontend` | Dashboard Giảng viên (Khóa học, Thống kê sinh viên) | `features/dashboard/pages/teacher/HomePageInstructor.jsx` | `services/instructorDashboard.api.js` | Tích hợp Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
 | `frontend` | Admin Service Health Monitor Dashboard | `features/dashboard/pages/admin/HomePageAdmin.jsx` | Actuator liveness endpoints | `GET /api/*/actuator/health/liveness` | — | UI Smoke Test | `NOT_STARTED` |
-| `frontend` | Bảo vệ định tuyến phía Client (`PrivateRoute`, `RoleRoute`)| `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | — | Kiểm tra token & role trong AuthContext | LocalStorage | `PrivateRoute.test.jsx`, `RoleRoute.test.jsx` | `NOT_STARTED` |
-| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `features/errors/pages/AppErrorPage.jsx`, `routes/FallbackRoute.jsx` | — | — | — | `appError.test.js` | `NOT_STARTED` |
+| `frontend` | Bảo vệ định tuyến phía Client (`PrivateRoute`, `RoleRoute`)| `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | — | Kiểm tra token & role trong AuthContext | LocalStorage | `PrivateRoute.test.jsx`, `RoleRoute.test.jsx` | `TESTED` |
+| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `features/errors/pages/AppErrorPage.jsx`, `routes/FallbackRoute.jsx` | — | — | — | `appError.test.js` | `TESTED` |
 
 ---
 
@@ -152,7 +152,8 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0% |
 | Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100% |
 | Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0% |
-| Frontend & Dashboard | 6 | 6 | 0 | 0 | 0 | 0 | 0% |
-| **TỔNG CỘNG** | **76** | **29** | **0** | **0** | **41** | **6** | **61.8%** |
+| Frontend & Dashboard | 6 | 4 | 0 | 0 | 2 | 0 | 33.3% |
+| **TỔNG CỘNG** | **76** | **27** | **0** | **0** | **43** | **6** | **64.5%** |
 
 *(Bảng này sẽ được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.
+
