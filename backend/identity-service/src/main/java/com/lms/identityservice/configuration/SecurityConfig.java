@@ -70,6 +70,7 @@ public class SecurityConfig {
                         auth -> auth
                                 .requestMatchers(PUBLIC_ENDPOINTS).permitAll()
                                 .requestMatchers(HttpMethod.GET, "/users/*/profile").permitAll()
+                                .requestMatchers("/admin/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                                 .anyRequest().authenticated());
 
         httpSecurity.addFilterBefore(gatewayHeaderFilter(), UsernamePasswordAuthenticationFilter.class)
@@ -112,9 +113,13 @@ public class SecurityConfig {
                 }
 
                 // Build Authentication from Header
-                List<GrantedAuthority> authorities = role != null && !role.isBlank()
-                        ? List.of(new SimpleGrantedAuthority(role))
-                        : List.of();
+                List<GrantedAuthority> authorities = List.of();
+                if (role != null && !role.isBlank()) {
+                    String r = role.trim();
+                    String withRole = r.startsWith("ROLE_") ? r : "ROLE_" + r;
+                    String withoutRole = r.startsWith("ROLE_") ? r.substring(5) : r;
+                    authorities = List.of(new SimpleGrantedAuthority(withRole), new SimpleGrantedAuthority(withoutRole));
+                }
 
                 GatewayAuthentication auth = new GatewayAuthentication(userId, email, role, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);

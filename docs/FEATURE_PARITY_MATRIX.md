@@ -43,12 +43,12 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | `identity-service` | Đăng xuất & Thu hồi Refresh Token | `layouts/StudentLayout/components/Header.jsx` | `AuthenticationController.java`, `TokenServiceImpl.java` | `POST /auth/logout` | Bảng `refresh_tokens` | `AuthenticationServiceImplTest.java` | `TESTED` |
 | `identity-service` | Quên mật khẩu & Đặt lại mật khẩu | `features/auth/pages/ForgotPasswordPage.jsx` | `EmailVerificationController.java`, `EmailVerificationServiceImpl.java` | `POST /auth/forgot-password`, `POST /auth/reset-password` | Bảng `email_verifications`, `users` | `IdentityFunctionalTest.java` | `TESTED` |
 | `identity-service` | Xem & Cập nhật Hồ sơ cá nhân | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `GET /users/myinfo`, `PUT /users/myinfo` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Tải lên ảnh đại diện cá nhân (Presigned URL) | `hooks/useFileUpload.js` | `StorageController.java`, `MinioStorageService.java` | `POST /storage/presigned-url` | MinIO bucket `lms-identity-bucket` | `useFileUpload.test.jsx` | `IMPLEMENTED` |
+| `identity-service` | Tải lên ảnh đại diện cá nhân (Presigned URL) | `hooks/useFileUpload.js` | `StorageController.java`, `StorageServiceImpl.java` | `POST /storage/presigned-url` | MinIO bucket `lms-identity-bucket` | `StorageServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
 | `identity-service` | Đổi mật khẩu tài khoản | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/password` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
 | `identity-service` | Đổi vai trò tài khoản (Role Request) | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/role` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Xem hồ sơ công khai của người dùng khác | `features/courses/pages/student/DetailCoursePage.jsx` | `UserController.java`, `UserServiceImpl.java` | `GET /users/{userId}/profile` | Bảng `users` | `UserServiceImplTest.java` | `IMPLEMENTED` |
-| `identity-service` | Quản trị danh sách người dùng & Trạng thái | `features/dashboard/components/admin/Management/UserManagement.jsx` | `AdminUserController.java`, `UserServiceImpl.java` | `GET /admin/users`, `PATCH /admin/users/{id}/active` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Quản trị viên tạo tài khoản Admin mới | `features/dashboard/components/admin/Management/AdminManagement.jsx` | `AdminUserController.java`, `UserServiceImpl.java` | `POST /admin/users/admins` | Bảng `users` | `IdentityApiIntegrationTest.java` | `IMPLEMENTED` |
+| `identity-service` | Xem hồ sơ công khai của người dùng khác | `features/courses/pages/student/DetailCoursePage.jsx` | `UserController.java`, `UserServiceImpl.java` | `GET /users/{userId}/profile` | Bảng `users` | `UserServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
+| `identity-service` | Quản trị danh sách người dùng & Trạng thái | `features/dashboard/components/admin/Management/UserManagement.jsx` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `GET /admin/users`, `PATCH /admin/users/{id}/active` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
+| `identity-service` | Quản trị viên tạo tài khoản Admin mới | `features/dashboard/components/admin/Management/AdminManagement.jsx` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `POST /admin/users/admins` | Bảng `users` | `UserServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
 | `identity-service` | API nội bộ cung cấp thông tin User cho service khác | — | `InternalUserController.java` | `GET /internal/user/{id}`, `POST /internal/users/batch`, `GET /internal/users/{userId}/exists` | Bảng `users` | `IdentityApiIntegrationTest.java` | `TESTED` |
 
 ---
@@ -147,12 +147,12 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | Phân hệ / Module | Tổng số chức năng | NOT_STARTED | IN_PROGRESS | IMPLEMENTED | TESTED | VERIFIED | % Hoàn thành thực tế |
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 100% |
-| Identity Service | 15 | 0 | 0 | 3 | 12 | 0 | 80% |
+| Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
 | Course Service | 15 | 15 | 0 | 0 | 0 | 0 | 0% |
 | Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0% |
 | Blog Service | 9 | 9 | 0 | 0 | 0 | 0 | 0% |
 | Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0% |
 | Frontend & Dashboard | 6 | 6 | 0 | 0 | 0 | 0 | 0% |
-| **TỔNG CỘNG** | **75** | **53** | **0** | **3** | **13** | **6** | **25.3%** |
+| **TỔNG CỘNG** | **75** | **53** | **0** | **0** | **16** | **6** | **29.3%** |
 
 *(Bảng này sẽ được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.

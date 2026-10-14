@@ -68,21 +68,32 @@ public class StorageServiceImpl implements StorageService {
         String objectName = folder + "/" + userId + "-" + UUID.randomUUID() + ext;
 
         try {
-            PostPolicy policy = new PostPolicy(bucketName,
-                    ZonedDateTime.now(ZoneOffset.UTC).plusMinutes(presignedExpiryMinutes));
+            String presignedPutUrl = minioClient.getPresignedObjectUrl(
+                    io.minio.GetPresignedObjectUrlArgs.builder()
+                            .method(io.minio.http.Method.PUT)
+                            .bucket(bucketName)
+                            .object(objectName)
+                            .expiry((int) (presignedExpiryMinutes * 60))
+                            .build()
+            );
 
-            policy.addEqualsCondition("key", objectName);
-            policy.addContentLengthRangeCondition(1, maxFileSizeBytes);
-            policy.addStartsWithCondition("Content-Type", "image/");
+            Map<String, String> formFields = null;
+            try {
+                PostPolicy policy = new PostPolicy(bucketName,
+                        ZonedDateTime.now(ZoneOffset.UTC).plusMinutes(presignedExpiryMinutes));
+                policy.addEqualsCondition("key", objectName);
+                policy.addContentLengthRangeCondition(1, maxFileSizeBytes);
+                policy.addStartsWithCondition("Content-Type", "image/");
 
-            Map<String, String> formFields = new HashMap<>(minioClient.getPresignedPostFormData(policy));
-            formFields.put("key", objectName);
+                formFields = new HashMap<>(minioClient.getPresignedPostFormData(policy));
+                formFields.put("key", objectName);
+            } catch (Exception ignored) {
+            }
 
-            String uploadUrl = minioPublicUrl + "/" + bucketName;
             String publicUrl = minioPublicUrl + "/" + bucketName + "/" + objectName;
 
             return PresignedUrlResponse.builder()
-                    .uploadUrl(uploadUrl)
+                    .uploadUrl(presignedPutUrl)
                     .formFields(formFields)
                     .publicUrl(publicUrl)
                     .build();

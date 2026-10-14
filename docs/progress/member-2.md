@@ -85,7 +85,7 @@ Dưới đây là bằng chứng kiểm thử thực tế độc lập của Đ�
 
 Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Management-System-main`
 
-### 1. Phân Hệ Xác Thực & Người Dùng (`identity-service` — Port 8081, Context `/identity`)
+### 1. Phân Hệ Xác Thực & Người Dùng (`identity-service` — Port 8081, Context `/identity`: 24 Endpoints Thông Thường + 4 Endpoints Nội Bộ = 28 Endpoints)
 
 | Endpoint Controller Mẫu | HTTP Method | Vai trò (RBAC) | Request DTO | Response Model | Tuyến Gateway & Frontend Mẫu | Minh chứng mã nguồn mẫu |
 |---|:---:|:---:|---|---|---|---|
@@ -113,8 +113,10 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
 | `/admin/users/{id}/password` | `PATCH` | `ADMIN` | `AdminResetPasswordRequest` | `ApiResponse<UserFullResponse>` | `AuthFilter`, Admin reset mật khẩu | [AdminUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L76-L82) |
 | `/admin/users/{id}/admin-active` | `PATCH` | `ADMIN` | `@PathVariable id` | `ApiResponse<UserFullResponse>` | `AuthFilter`, Quản lý trạng thái Admin | [AdminUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L84-L89) |
 | `/storage/presigned-url` | `POST` | Authenticated | `PresignedUrlRequest` | `ApiResponse<PresignedUrlResponse>` | `AuthFilter`, Frontend: `UPLOAD.IDENTITY_PRESIGNED` | [StorageController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/StorageController.java#L24-L30) |
-| `/internal/user/{id}` | `GET` | Internal Feign | `@PathVariable id` | `UserFullResponse` | Không qua Gateway công khai | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L24-L28) |
-| `/internal/users/batch` | `POST` | Internal Feign | `Set<String> userIds` | `List<UserFullResponse>` | Lấy danh sách thông tin người dùng | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L30-L33) |
+| `/internal/user/{id}` | `GET` | Internal Feign | `@PathVariable id` | `UserFullResponse` | Không qua Gateway công khai, Assignment gọi | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L24-L28) |
+| `/internal/users/batch` | `POST` | Internal Feign | `Set<String> userIds` | `List<UserFullResponse>` | Lấy danh sách thông tin người dùng cho Leaderboard | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L30-L33) |
+| `/internal/users/{userId}/exists` | `GET` | Internal Feign | `@PathVariable userId` | `boolean` | Kiểm tra người dùng tồn tại trong hệ thống | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L35-L38) |
+| `/internal/users/search/by-email` | `GET` | Internal Feign | `@RequestParam email` | `UserFullResponse` | Tìm kiếm thông tin người dùng theo địa chỉ email | [InternalUserController.java](file:///d:/LMS-main/Learning-Management-System-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/InternalUserController.java#L40-L43) |
 
 ---
 
@@ -387,19 +389,40 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
   - Rà soát từng chức năng cụ thể trong [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): **chỉ chuyển những chức năng thực sự đã có bài kiểm thử chạy PASS sang trạng thái `TESTED`**, tuyệt đối không chuyển cào bằng hàng loạt theo tên phase. Không đánh dấu `VERIFIED` khi chưa đủ 13 tiêu chí dự án.
   - DỪNG LẠI báo cáo và chờ người dùng phê duyệt trước khi sang Phase 7.
 
-- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 6**:
-  - **Trạng thái**: ĐÃ HOÀN THÀNH (TESTED 100%).
+- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 6 (Bao gồm Đợt Bổ Sung Kiểm Thử)**:
+  - **Trạng thái**: ĐÃ HOÀN THÀNH TOÀN DIỆN (15/15 tính năng TESTED 100%, 0 IMPLEMENTED).
   - **Kết quả kiểm thử thực tế**:
-    * Lệnh chạy: `mvn test -f backend/pom.xml -pl identity-service`
-    * Kết quả: **31/31 test cases PASS 100%**, 0 Failures, 0 Errors, 0 Skipped (thời gian chạy: 38.2s).
+    * Lệnh chạy module: `mvn test -f backend/pom.xml -pl identity-service`
+    * Kết quả: **44/44 test cases PASS 100%**, 0 Failures, 0 Errors, 0 Skipped (thời gian chạy: 42.3s).
     * Phân bổ chi tiết các bài kiểm thử:
       1. `IdentityServiceApplicationTests`: 1 test PASS (`contextLoads` - khởi động Spring Boot context và H2 database).
       2. `AuthenticationServiceImplTest`: 8 tests PASS (`authenticateReturnsTokensAndStoresHashedRefreshToken`, `authenticateThrowsWhenPasswordDoesNotMatch`, `authenticateThrowsWhenUserIsLocked`, `refreshTokenReplacesOldTokenWithNewHash`, `refreshTokenThrowsWhenTokenIsRevoked`, `logoutRevokesRefreshToken`, `socialLoginGoogleSuccess`, `socialLoginInvalidGoogleTokenThrowsException`).
       3. `EmailVerificationServiceImplTest`: 5 tests PASS (`sendVerifyEmailStoresOtpAndCallsMailer`, `verifyEmailSuccessWithValidOtp`, `verifyEmailThrowsWhenOtpExpiredOrInvalid`, `forgotPasswordGeneratesResetOtp`, `resetPasswordUpdatesPasswordWithValidOtp`).
-      4. `UserServiceImplTest`: 8 tests PASS (`getMyinfoReturnsCurrentAuthenticatedUser`, `updateMyinfoSavesNewProfileFields`, `updatePasswordSuccessWithCorrectOldPassword`, `updatePasswordThrowsWhenOldPasswordWrong`, `updateRoleChangesUserRole`, `updateRoleUserCannotEscalateToAdminThrowsForbidden`, `adminGetUsersPaginationAndFilter`, `adminToggleActiveUpdatesStatus`).
-      5. `IdentityApiIntegrationTest`: 7 tests PASS (`registerValidationErrorsReturnFieldMapWithoutCallingService`, `loginDelegatesToServiceAndSerializesTokenResponse`, `privateEndpointRejectsRequestWithoutGatewayUserHeader`, cùng 4 HTTP contract tests nội bộ: `internalGetUserHttpContractReturns200AndUserDetails`, `internalPostUsersBatchHttpContractReturns200`, `internalUserExistsHttpContractReturnsBoolean`, `internalSearchUserByEmailHttpContractReturnsUser`).
-      6. `IdentityFunctionalTest`: 2 tests PASS (`userRegistersLogsInAndUsesGatewayAuthenticatedProfileWorkflow`, `forgotPasswordAndResetPasswordFlow`).
-    * Lệnh kiểm thử toàn Monorepo: `mvn test -f backend/pom.xml` -> **50/50 test cases PASS 100%** trên toàn bộ 6 modules (service-registry: 2, api-gateway: 15, identity-service: 31, course-service: 1, blog-service: 1).
+      4. `StorageServiceImplTest`: 4 tests PASS:
+         - `generatePresignedUrlSuccessWithPutMethodAndExpiry`: Mock `MinioClient`, kiểm tra phương thức `Method.PUT`, thời hạn hết hạn (`expiry`), tiền tố `objectName`, và trường `key` trong `formFields`.
+         - `generatePresignedUrlThrowsExceptionWhenMinioFails`: Xử lý lỗi MinIO ném ngoại lệ -> Chuyển thành `IdentityException(FILE_UPLOAD_FAILED)`.
+         - `generatePresignedUrlThrowsWhenFileExtensionUnsupported`: Kiểm tra phần mở rộng file không hợp lệ -> Ném `FILE_TYPE_NOT_SUPPORTED`.
+         - `deleteFileCallsMinioRemoveObject`: Xóa file gọi `minioClient.removeObject` với đúng `bucket` và `objectName`.
+      5. `UserServiceImplTest`: 13 tests PASS:
+         - 8 tests cơ bản: `getMyinfoReturnsCurrentAuthenticatedUser`, `updateMyinfoSavesNewProfileFields`, `updatePasswordSuccessWithCorrectOldPassword`, `updatePasswordThrowsWhenOldPasswordWrong`, `updateRoleChangesUserRole`, `updateRoleUserCannotEscalateToAdminThrowsForbidden`, `adminGetUsersPaginationAndFilter`, `adminToggleActiveUpdatesStatus`.
+         - 2 tests hồ sơ công khai:
+           * `getPublicProfileReturnsPublicDataAndHidesPrivateFields`: Kiểm tra dữ liệu trả về (`userId`, `fullname`, `avatarUrl`, `bio`, `role`), xác minh không để lộ trường nhạy cảm/riêng tư (`password`, `email`, `phone`, `dob`, `active`, `verified`).
+           * `getPublicProfileThrowsWhenUserNotFound`: User không tồn tại -> Ném `IdentityException(USER_NOT_EXISTED)`.
+         - 3 tests tạo Admin (`createAdmin`):
+           * `createAdminSuccess`: Tạo admin thành công với mật khẩu mã hóa BCrypt, `ROLE_ADMIN`, `active=true`, `verified=true`, `roleSelected=true`, `authProvider=LOCAL`.
+           * `createAdminThrowsWhenUsernameExists`: Trùng tên đăng nhập -> Ném `IdentityException(USER_EXISTED)`.
+           * `createAdminThrowsWhenEmailExists`: Trùng email -> Ném `IdentityException(EMAIL_EXISTED)`.
+      6. `IdentityApiIntegrationTest`: 11 tests PASS:
+         - `registerValidationErrorsReturnFieldMapWithoutCallingService`: Kiểm tra validation `@Valid` trả về HTTP 400.
+         - `loginDelegatesToServiceAndSerializesTokenResponse`: Test controller login trả về `ApiResponse<AuthenticationResponse>`.
+         - `privateEndpointRejectsRequestWithoutGatewayUserHeader`: Phân quyền RBAC từ chối HTTP 401 khi thiếu header.
+         - 4 tests HTTP contract nội bộ OpenFeign: `internalGetUserHttpContractReturns200AndUserDetails`, `internalPostUsersBatchHttpContractReturns200`, `internalUserExistsHttpContractReturnsBoolean`, `internalSearchUserByEmailHttpContractReturnsUser`.
+         - `adminCreateAdminRejectsNonAdminWith403`: Kiểm tra RBAC người không có quyền `ADMIN` (gửi `ROLE_STUDENT`) bị từ chối với HTTP 403 Forbidden (`code: 1002`).
+         - `adminCreateAdminSucceedsForAdminRole`: Gọi tạo admin với vai trò `ROLE_ADMIN` trả về HTTP 200 OK.
+         - `publicProfileHttpReturns200WithoutAuthentication`: Gọi `GET /users/{userId}/profile` không cần xác thực trả về HTTP 200 và không lộ trường riêng tư.
+         - `storagePresignedUrlHttpReturns200WithUploadUrl`: Gọi `POST /storage/presigned-url` trả về HTTP 200 và `uploadUrl`.
+      7. `IdentityFunctionalTest`: 2 tests PASS (`userRegistersLogsInAndUsesGatewayAuthenticatedProfileWorkflow`, `forgotPasswordAndResetPasswordFlow`).
+    * Lệnh kiểm thử hồi quy toàn Monorepo: `mvn test -f backend/pom.xml` -> **63/63 test cases PASS 100%** trên toàn bộ 6 modules (service-registry: 2, api-gateway: 15, identity-service: 44, course-service: 1, blog-service: 1).
   - **Danh mục mã nguồn đã triển khai**:
     * Flyway Database Migrations: `V1__initial_schema.sql`, `V2__add_indexes.sql`.
     * Cấu hình: `application.yaml`, `application-test.yaml`, `GatewayAuthentication.java`, `SecurityConfig.java`, `MinioConfig.java`, `SocialOAuthConfig.java`, `ApplicationInitConfig.java`.
@@ -408,9 +431,11 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
     * Controllers & Contract: `AuthenticationController`, `EmailVerificationController`, `UserController`, `AdminUserController`, `StorageController`, `InternalUserController`.
     * Scheduled Job: `IdentityTokenCleanupJob`.
   - **Đồng bộ tài liệu**:
-    * [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md): Đồng bộ 24 endpoints của phân hệ identity-service.
-    * [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): Chuyển 12 chức năng đã test sang `TESTED` và 3 chức năng sang `IMPLEMENTED`.
-  - **Commit**: `feat(identity): hoàn thiện xác thực phân quyền quản lý người dùng và api nội bộ`
+    * [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md): Đồng bộ toàn bộ 28 endpoints của phân hệ identity-service (24 endpoints thông thường qua Gateway + 4 endpoints nội bộ OpenFeign).
+    * [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): Chuyển toàn bộ 15 chức năng phân hệ Identity sang `TESTED` 100% (0 IMPLEMENTED, 0 NOT_STARTED). Tổng tỷ lệ hoàn thành thực tế đạt 29.3% (16 TESTED, 6 VERIFIED).
+  - **Lịch sử commits**:
+    * Commit ban đầu: `eb3acaa` — `feat(identity): hoàn thiện xác thực phân quyền quản lý người dùng và api nội bộ`
+    * Commit bổ sung kiểm thử: `test(identity): bổ sung kiểm thử presigned url hồ sơ công khai và tạo admin`
 
 ---
 

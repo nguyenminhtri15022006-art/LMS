@@ -1,12 +1,15 @@
 package com.lms.identityservice.service.impl;
 
 import com.lms.identityservice.configuration.GatewayAuthentication;
+import com.lms.identityservice.dto.request.AdminCreateAdminRequest;
 import com.lms.identityservice.dto.request.UserRoleUpdateRequest;
 import com.lms.identityservice.dto.request.UserUpdatePasswordRequest;
 import com.lms.identityservice.dto.request.UserUpdateRequest;
 import com.lms.identityservice.dto.response.UserFullResponse;
+import com.lms.identityservice.dto.response.UserPublicProfileResponse;
 import com.lms.identityservice.dto.response.UserSummaryResponse;
 import com.lms.identityservice.entity.User;
+import com.lms.identityservice.enums.AuthProvider;
 import com.lms.identityservice.enums.RoleType;
 import com.lms.identityservice.exception.ErrorCode;
 import com.lms.identityservice.exception.IdentityException;
@@ -273,4 +276,126 @@ class UserServiceImplTest {
         verify(userRepository).save(user);
         verify(refreshTokenRepository).revokeAllByUserId("user-2");
     }
+
+    @Test
+    void getPublicProfileReturnsPublicDataAndHidesPrivateFields() {
+        User user = User.builder()
+                .userId("user-99")
+                .username("john_doe")
+                .password("secret_hashed_password")
+                .email("john@example.com")
+                .phone("0987654321")
+                .fullname("John Doe")
+                .avatarUrl("https://storage.example.com/avatar.png")
+                .bio("Software Engineer & Teacher")
+                .role(RoleType.INSTRUCTOR)
+                .active(true)
+                .verified(true)
+                .build();
+
+        when(userRepository.findById("user-99")).thenReturn(Optional.of(user));
+
+        UserPublicProfileResponse response = userService.getPublicProfile("user-99");
+
+        assertThat(response).isNotNull();
+        assertThat(response.getUserId()).isEqualTo("user-99");
+        assertThat(response.getFullname()).isEqualTo("John Doe");
+        assertThat(response.getAvatarUrl()).isEqualTo("https://storage.example.com/avatar.png");
+        assertThat(response.getBio()).isEqualTo("Software Engineer & Teacher");
+        assertThat(response.getRole()).isEqualTo("INSTRUCTOR");
+
+        // Verify class UserPublicProfileResponse does not expose sensitive fields (password, email, phone, etc.)
+        assertThat(UserPublicProfileResponse.class.getDeclaredFields())
+                .extracting("name")
+                .containsExactlyInAnyOrder("userId", "fullname", "avatarUrl", "bio", "role");
+    }
+
+    @Test
+    void getPublicProfileThrowsWhenUserNotFound() {
+        when(userRepository.findById("non-existent")).thenReturn(Optional.empty());
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> userService.getPublicProfile("non-existent"))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_EXISTED));
+    }
+
+    @Test
+    void createAdminSuccess() {
+        AdminCreateAdminRequest request = AdminCreateAdminRequest.builder()
+                .username("newadmin")
+                .password("Admin@123456")
+                .fullname("New Admin")
+                .email("newadmin@example.com")
+                .phone("0912345678")
+                .build();
+
+        when(userRepository.existsByUsername("newadmin")).thenReturn(false);
+        when(userRepository.existsByEmail("newadmin@example.com")).thenReturn(false);
+        when(passwordEncoder.encode("Admin@123456")).thenReturn("encoded_admin_pass");
+        when(userMapper.toUserFullResponse(any(User.class))).thenAnswer(invocation -> {
+            User saved = invocation.getArgument(0);
+            return UserFullResponse.builder()
+                    .userId(saved.getUserId())
+                    .username(saved.getUsername())
+                    .email(saved.getEmail())
+                    .fullname(saved.getFullname())
+                    .role(saved.getRole() != null ? saved.getRole().name() : null)
+                    .active(saved.getActive())
+                    .verified(saved.getVerified())
+                    .build();
+        });
+
+        UserFullResponse response = adminUserService.createAdmin(request);
+
+        assertThat(response).isNotNull();
+        assertThat(response.getUsername()).isEqualTo("newadmin");
+        assertThat(response.getEmail()).isEqualTo("newadmin@example.com");
+        assertThat(response.getRole()).isEqualTo("ADMIN");
+        assertThat(response.getActive()).isTrue();
+        assertThat(response.getVerified()).isTrue();
+
+        verify(userRepository).save(argThat(u ->
+                "newadmin".equals(u.getUsername()) &&
+                "encoded_admin_pass".equals(u.getPassword()) &&
+                RoleType.ADMIN.equals(u.getRole()) &&
+                Boolean.TRUE.equals(u.getActive()) &&
+                Boolean.TRUE.equals(u.getVerified()) &&
+                Boolean.TRUE.equals(u.getRoleSelected()) &&
+                AuthProvider.LOCAL.equals(u.getAuthProvider())
+        ));
+    }
+
+    @Test
+    void createAdminThrowsWhenUsernameExists() {
+        AdminCreateAdminRequest request = AdminCreateAdminRequest.builder()
+                .username("existing_admin")
+                .email("admin@example.com")
+                .build();
+
+        when(userRepository.existsByUsername("existing_admin")).thenReturn(true);
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> adminUserService.createAdmin(request))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.USER_EXISTED));
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void createAdminThrowsWhenEmailExists() {
+        AdminCreateAdminRequest request = AdminCreateAdminRequest.builder()
+                .username("newadmin")
+                .email("existing@example.com")
+                .build();
+
+        when(userRepository.existsByUsername("newadmin")).thenReturn(false);
+        when(userRepository.existsByEmail("existing@example.com")).thenReturn(true);
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> adminUserService.createAdmin(request))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.EMAIL_EXISTED));
+
+        verify(userRepository, never()).save(any());
+    }
 }
+

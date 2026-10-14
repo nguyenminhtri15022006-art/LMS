@@ -28,7 +28,7 @@ Mã phản hồi lỗi:
 
 ---
 
-## 1. Phân Hệ Xác Thực & Người Dùng (`identity-service`)
+## 1. Phân Hệ Xác Thực & Người Dùng (`identity-service` — 24 Endpoints Thông Thường + 4 Endpoints Nội Bộ = 28 Endpoints)
 
 ### 1.1 Quản Lý Xác Thực (`AuthenticationController` — `/auth`)
 - `POST /api/identity/auth/register` (Public)

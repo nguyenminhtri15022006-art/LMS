@@ -2,10 +2,14 @@ package com.lms.identityservice.controller;
 
 import com.lms.identityservice.configuration.SecurityConfig;
 import com.lms.identityservice.dto.response.AuthenticationResponse;
+import com.lms.identityservice.dto.response.PresignedUrlResponse;
 import com.lms.identityservice.dto.response.UserFullResponse;
+import com.lms.identityservice.dto.response.UserPublicProfileResponse;
+import com.lms.identityservice.service.AdminUserService;
 import com.lms.identityservice.service.AuthenticationService;
 import com.lms.identityservice.service.EmailVerificationService;
 import com.lms.identityservice.service.InternalUserService;
+import com.lms.identityservice.service.StorageService;
 import com.lms.identityservice.service.UserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,7 +32,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AuthenticationController.class,
         EmailVerificationController.class,
         UserController.class,
-        InternalUserController.class
+        InternalUserController.class,
+        AdminUserController.class,
+        StorageController.class
 })
 @Import(SecurityConfig.class)
 class IdentityApiIntegrationTest {
@@ -47,6 +53,12 @@ class IdentityApiIntegrationTest {
 
     @MockBean
     InternalUserService internalUserService;
+
+    @MockBean
+    AdminUserService adminUserService;
+
+    @MockBean
+    StorageService storageService;
 
     @Test
     void registerValidationErrorsReturnFieldMapWithoutCallingService() throws Exception {
@@ -177,5 +189,100 @@ class IdentityApiIntegrationTest {
                 .andExpect(jsonPath("$.email").value("student01@example.com"));
 
         verify(internalUserService).findByEmail("student01@example.com");
+    }
+
+    @Test
+    void adminCreateAdminRejectsNonAdminWith403() throws Exception {
+        mockMvc.perform(post("/admin/users/admins")
+                        .header("X-User-Id", "user-student")
+                        .header("X-User-Role", "ROLE_STUDENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "hacker_admin",
+                                  "password": "Password@123",
+                                  "fullname": "Hacker",
+                                  "email": "hacker@example.com"
+                                }
+                                """))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.code").value(1002));
+
+        verify(adminUserService, never()).createAdmin(any());
+    }
+
+    @Test
+    void adminCreateAdminSucceedsForAdminRole() throws Exception {
+        when(adminUserService.createAdmin(any())).thenReturn(UserFullResponse.builder()
+                .userId("admin-1")
+                .username("newadmin")
+                .email("admin@example.com")
+                .build());
+
+        mockMvc.perform(post("/admin/users/admins")
+                        .header("X-User-Id", "admin-root")
+                        .header("X-User-Role", "ROLE_ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "newadmin",
+                                  "password": "Password@123",
+                                  "fullname": "New Administrator",
+                                  "email": "admin@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000))
+                .andExpect(jsonPath("$.data.username").value("newadmin"));
+
+        verify(adminUserService).createAdmin(any());
+    }
+
+    @Test
+    void publicProfileHttpReturns200WithoutAuthentication() throws Exception {
+        when(userService.getPublicProfile("user-public-1")).thenReturn(UserPublicProfileResponse.builder()
+                .userId("user-public-1")
+                .fullname("Public Teacher")
+                .avatarUrl("https://storage.example.com/avatar.png")
+                .bio("Teacher bio")
+                .role("INSTRUCTOR")
+                .build());
+
+        mockMvc.perform(get("/users/user-public-1/profile"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000))
+                .andExpect(jsonPath("$.data.userId").value("user-public-1"))
+                .andExpect(jsonPath("$.data.fullname").value("Public Teacher"))
+                .andExpect(jsonPath("$.data.email").doesNotExist())
+                .andExpect(jsonPath("$.data.password").doesNotExist());
+
+        verify(userService).getPublicProfile("user-public-1");
+    }
+
+    @Test
+    void storagePresignedUrlHttpReturns200WithUploadUrl() throws Exception {
+        when(storageService.generatePresignedUrl(eq("avatar.png"), eq("image/png"), eq("avatars")))
+                .thenReturn(PresignedUrlResponse.builder()
+                        .uploadUrl("http://localhost:9000/bucket/avatars/uuid_avatar.png?sign=xyz")
+                        .publicUrl("http://localhost:9000/bucket/avatars/uuid_avatar.png")
+                        .build());
+
+        mockMvc.perform(post("/storage/presigned-url")
+                        .header("X-User-Id", "user-1")
+                        .header("X-User-Role", "ROLE_STUDENT")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "fileName": "avatar.png",
+                                  "fileType": "image/png",
+                                  "folder": "avatars"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000))
+                .andExpect(jsonPath("$.data.uploadUrl").exists())
+                .andExpect(jsonPath("$.data.publicUrl").value("http://localhost:9000/bucket/avatars/uuid_avatar.png"));
+
+        verify(storageService).generatePresignedUrl("avatar.png", "image/png", "avatars");
     }
 }
