@@ -29,6 +29,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -47,10 +48,9 @@ import java.util.Map;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {
+    private static final String[] PUBLIC_ENDPOINTS = {
             "/auth/**",
             // Internal endpoints — gọi từ service khác, không qua Gateway
             "/internal/**",
@@ -61,6 +61,10 @@ public class SecurityConfig {
     };
 
     private final ObjectMapper objectMapper;
+
+    public SecurityConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -104,6 +108,9 @@ public class SecurityConfig {
 
                 String userId = request.getHeader("X-User-Id");
                 String role = request.getHeader("X-User-Role");
+                if (role == null || role.isBlank()) {
+                    role = request.getHeader("X-User-Roles");
+                }
                 String email = request.getHeader("X-User-Email");
 
                 if (userId == null || userId.isBlank()) {
@@ -112,13 +119,18 @@ public class SecurityConfig {
                     return;
                 }
 
-                // Build Authentication from Header
-                List<GrantedAuthority> authorities = List.of();
+                // Build Authentication from Header (hỗ trợ cả X-User-Role, X-User-Roles và comma-separated roles)
+                List<GrantedAuthority> authorities = new ArrayList<>();
                 if (role != null && !role.isBlank()) {
-                    String r = role.trim();
-                    String withRole = r.startsWith("ROLE_") ? r : "ROLE_" + r;
-                    String withoutRole = r.startsWith("ROLE_") ? r.substring(5) : r;
-                    authorities = List.of(new SimpleGrantedAuthority(withRole), new SimpleGrantedAuthority(withoutRole));
+                    for (String r : role.split(",")) {
+                        String trimmed = r.trim();
+                        if (!trimmed.isEmpty()) {
+                            String withRole = trimmed.startsWith("ROLE_") ? trimmed : "ROLE_" + trimmed;
+                            String withoutRole = trimmed.startsWith("ROLE_") ? trimmed.substring(5) : trimmed;
+                            authorities.add(new SimpleGrantedAuthority(withRole));
+                            authorities.add(new SimpleGrantedAuthority(withoutRole));
+                        }
+                    }
                 }
 
                 GatewayAuthentication auth = new GatewayAuthentication(userId, email, role, authorities);

@@ -27,6 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -34,16 +35,19 @@ import java.util.Map;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {
+    private static final String[] PUBLIC_ENDPOINTS = {
             "/actuator/**",
             "/error",
             "/internal/**"
     };
 
     private final ObjectMapper objectMapper;
+
+    public SecurityConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -88,6 +92,9 @@ public class SecurityConfig {
 
                 String userId = request.getHeader("X-User-Id");
                 String role = request.getHeader("X-User-Role");
+                if (role == null || role.isBlank()) {
+                    role = request.getHeader("X-User-Roles");
+                }
                 String email = request.getHeader("X-User-Email");
 
                 if (userId == null || userId.isBlank()) {
@@ -96,9 +103,20 @@ public class SecurityConfig {
                     return;
                 }
 
-                List<GrantedAuthority> authorities = role != null && !role.isBlank()
-                        ? List.of(new SimpleGrantedAuthority(role))
-                        : List.of();
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                if (role != null && !role.isBlank()) {
+                    for (String r : role.split(",")) {
+                        String trimmed = r.trim();
+                        if (!trimmed.isEmpty()) {
+                            authorities.add(new SimpleGrantedAuthority(trimmed));
+                            if (!trimmed.startsWith("ROLE_")) {
+                                authorities.add(new SimpleGrantedAuthority("ROLE_" + trimmed));
+                            } else if (trimmed.length() > 5) {
+                                authorities.add(new SimpleGrantedAuthority(trimmed.substring(5)));
+                            }
+                        }
+                    }
+                }
 
                 GatewayAuthentication auth = new GatewayAuthentication(userId, email, role, authorities);
                 SecurityContextHolder.getContext().setAuthentication(auth);

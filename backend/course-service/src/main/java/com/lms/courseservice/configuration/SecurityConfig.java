@@ -35,16 +35,15 @@ import java.util.Map;
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
 
-    private final String[] PUBLIC_ENDPOINTS = {
+    private static final String[] PUBLIC_ENDPOINTS = {
             "/actuator/**",
             "/error",
             "/internal/**"
     };
 
-    private final String[] PUBLIC_GET_ENDPOINTS = {
+    private static final String[] PUBLIC_GET_ENDPOINTS = {
             "/categories",
             "/courses",
             "/courses/*",
@@ -55,6 +54,10 @@ public class SecurityConfig {
     };
 
     private final ObjectMapper objectMapper;
+
+    public SecurityConfig(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity httpSecurity) throws Exception {
@@ -96,6 +99,9 @@ public class SecurityConfig {
 
                 String userId = request.getHeader("X-User-Id");
                 String role = request.getHeader("X-User-Role");
+                if (role == null || role.isBlank()) {
+                    role = request.getHeader("X-User-Roles");
+                }
                 String email = request.getHeader("X-User-Email");
 
                 if (userId == null || userId.isBlank()) {
@@ -106,9 +112,16 @@ public class SecurityConfig {
 
                 List<GrantedAuthority> authorities = new ArrayList<>();
                 if (role != null && !role.isBlank()) {
-                    authorities.add(new SimpleGrantedAuthority(role));
-                    if (!role.startsWith("ROLE_")) {
-                        authorities.add(new SimpleGrantedAuthority("ROLE_" + role));
+                    for (String r : role.split(",")) {
+                        String trimmed = r.trim();
+                        if (!trimmed.isEmpty()) {
+                            authorities.add(new SimpleGrantedAuthority(trimmed));
+                            if (!trimmed.startsWith("ROLE_")) {
+                                authorities.add(new SimpleGrantedAuthority("ROLE_" + trimmed));
+                            } else if (trimmed.length() > 5) {
+                                authorities.add(new SimpleGrantedAuthority(trimmed.substring(5)));
+                            }
+                        }
                     }
                 }
 

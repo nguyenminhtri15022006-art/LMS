@@ -288,4 +288,28 @@ class IdentityApiIntegrationTest {
 
         verify(storageService).generatePresignedUrl("avatar.png", "image/png", "avatars");
     }
+
+    @Test
+    void gatewayContractSupportsXUserRolesHeader() throws Exception {
+        when(adminUserService.createAdmin(any())).thenReturn(UserFullResponse.builder()
+                .userId("admin-123")
+                .username("newadmin2")
+                .email("admin2@example.com")
+                .build());
+
+        mockMvc.perform(post("/admin/users/admins")
+                        .header("X-User-Id", "admin-root")
+                        .header("X-User-Roles", "ROLE_ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "username": "newadmin2",
+                                  "password": "Password@123",
+                                  "fullname": "New Administrator Two",
+                                  "email": "admin2@example.com"
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000));
+    }
 }

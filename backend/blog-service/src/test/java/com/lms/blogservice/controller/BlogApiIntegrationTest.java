@@ -4,7 +4,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lms.blogservice.configuration.SecurityConfig;
 import com.lms.blogservice.dto.response.InternalPostResponse;
 import com.lms.blogservice.enums.PostStatus;
-import com.lms.blogservice.service.*;
+import com.lms.blogservice.service.CommentService;
+import com.lms.blogservice.service.InternalBlogService;
+import com.lms.blogservice.service.PostService;
+import com.lms.blogservice.service.TagService;
+import com.lms.blogservice.service.VoteService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,5 +129,32 @@ class BlogApiIntegrationTest {
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.code").value(1000))
                 .andExpect(jsonPath("$.data").value(true));
+    }
+
+    @Test
+    @DisplayName("25. gatewayContractSupportsXUserRolesPluralHeader: Hỗ trợ header X-User-Roles cho RBAC")
+    void gatewayContractSupportsXUserRolesPluralHeader() throws Exception {
+        String body = """
+                {
+                    "name": "Docker & K8s",
+                    "slug": "docker-k8s"
+                }
+                """;
+
+        com.lms.blogservice.dto.response.TagResponse tagResponse = com.lms.blogservice.dto.response.TagResponse.builder()
+                .id(100L)
+                .name("Docker & K8s")
+                .slug("docker-k8s")
+                .build();
+        when(tagService.createTag(org.mockito.ArgumentMatchers.any())).thenReturn(tagResponse);
+
+        // Gửi X-User-Roles (số nhiều) thay vì X-User-Role với quyền ROLE_ADMIN
+        mockMvc.perform(post("/tags")
+                        .header("X-User-Id", "admin-user-999")
+                        .header("X-User-Roles", "ROLE_ADMIN")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.code").value(1000));
     }
 }

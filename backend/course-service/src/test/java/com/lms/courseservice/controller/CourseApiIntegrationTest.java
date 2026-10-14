@@ -153,4 +153,23 @@ class CourseApiIntegrationTest {
                 .andExpect(jsonPath("$.code").value(2003))
                 .andExpect(jsonPath("$.message").value("Bạn không phải giảng viên của khóa học này"));
     }
+
+    @Test
+    @DisplayName("25. gatewayContractSupportsXUserRolesHeader: Controller nhận diện vai trò hợp lệ qua header X-User-Roles")
+    void gatewayContractSupportsXUserRolesHeader() throws Exception {
+        CourseStructure structure = CourseStructure.builder()
+                .id("structure-999")
+                .courseId(savedCourse.getId())
+                .nodes(new java.util.ArrayList<>())
+                .updatedAt(LocalDateTime.now())
+                .build();
+        when(courseStructureRepository.findByCourseId(savedCourse.getId())).thenReturn(Optional.of(structure));
+
+        mockMvc.perform(get("/courses/" + savedCourse.getId() + "/structure")
+                        .header("X-User-Id", "student-user-456")
+                        .header("X-User-Roles", "ROLE_STUDENT")
+                        .header("X-User-Email", "student@example.com"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(1000));
+    }
 }

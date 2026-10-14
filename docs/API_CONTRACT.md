@@ -321,55 +321,93 @@ Mã phản hồi lỗi:
 
 ---
 
-## 4. Phân Hệ Diễn Đàn & Blog (`blog-service`)
+## 4. Phân Hệ Diễn Đàn & Blog (`blog-service` — 20 Endpoints Thông Thường + 2 Endpoints Nội Bộ = 22 Endpoints)
+
+> **Cơ chế xác thực & Gateway-Service Contract**:  
+> API Gateway chuyển tiếp danh tính người dùng xuống qua các headers:  
+> - `X-User-Id`: ID người dùng (UUID hoặc chuỗi định danh).  
+> - `X-User-Role` & `X-User-Roles`: Vai trò người dùng (`ROLE_STUDENT`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` hoặc danh sách phân tách bằng dấu phẩy). `blog-service` chấp nhận linh hoạt cả 2 headers và chuẩn hóa quyền với tiền tố `ROLE_`.  
+> - `X-User-Email`: Email của người dùng.  
+> - `X-Gateway-Authenticated`: Đánh dấu cờ `"true"` từ Gateway.  
 
 ### 4.1 Bài Viết Blog (`PostController` — `/posts`)
 - `GET /api/blog/posts/public` (Public)
-  - Query: `pageable`, `tagId`, `keyword`
+  - Query: `page`, `size`, `sort`, `tagId`, `keyword`
   - Out: `ApiResponse<Page<PostSummaryResponse>>`
 - `GET /api/blog/posts/public/{slug}` (Public)
-  - Out: `ApiResponse<PostResponse>` (tự động tăng `viewCount`)
+  - Path: `slug`
+  - Out: `ApiResponse<PostResponse>` (tự động tăng `viewCount` trong CSDL)
 - `GET /api/blog/posts/admin` (ADMIN)
-  - Query: `pageable`, `status`, `tagId`, `keyword`
+  - Query: `page`, `size`, `sort`, `status`, `tagId`, `keyword`
   - Out: `ApiResponse<Page<PostSummaryResponse>>`
-- `GET /api/blog/posts/{id}` (Authenticated) -> Out: `ApiResponse<PostResponse>`
+- `GET /api/blog/posts/{id}` (Authenticated)
+  - Path: `id`
+  - Out: `ApiResponse<PostResponse>`
 - `GET /api/blog/posts/me` (Authenticated)
-  - Query: `pageable`, `status`
-  - Out: `ApiResponse<Page<PostSummaryResponse>>`
+  - Query: `page`, `size`, `sort`, `status`
+  - Out: `ApiResponse<Page<PostSummaryResponse>>` (danh sách bài viết của chính tác giả)
 - `POST /api/blog/posts` (Authenticated)
-  - In: `@ModelAttribute @Valid CreatePostRequest` (`title`, `content`, `tagIds`, `thumbnail` multipart)
+  - In: `@ModelAttribute @Valid CreatePostRequest` (Content-Type: `multipart/form-data`)
+    * `title` (String, required, max 255)
+    * `content` (String Markdown, required)
+    * `tagIds` (Set<Long>, optional)
+    * `thumbnail` (MultipartFile, optional - tải lên MinIO bucket `lms-blog-bucket`)
   - Out: `ApiResponse<PostResponse>`
-- `PUT /api/blog/posts/{id}` (Authenticated)
-  - In: `@ModelAttribute @Valid UpdatePostRequest`
+- `PUT /api/blog/posts/{id}` (Authenticated — Author hoặc ADMIN)
+  - In: `@ModelAttribute @Valid UpdatePostRequest` (Content-Type: `multipart/form-data`)
+    * `title` (String, required, max 255)
+    * `content` (String Markdown, required)
+    * `tagIds` (Set<Long>, optional)
+    * `thumbnail` (MultipartFile, optional)
+    * `status` (PostStatus: `DRAFT`, `PUBLISHED`, `ARCHIVED`)
   - Out: `ApiResponse<PostResponse>`
-- `DELETE /api/blog/posts/{id}` (Authenticated) -> Out: `ApiResponse<String>`
+- `DELETE /api/blog/posts/{id}` (Authenticated — Author hoặc ADMIN)
+  - Path: `id`
+  - Out: `ApiResponse<String>`
 
 ### 4.2 Thẻ Gắn Blog (`TagController` — `/tags`)
 - `GET /api/blog/tags` (Public) -> Out: `ApiResponse<List<TagResponse>>`
 - `GET /api/blog/tags/{id}` (Public) -> Out: `ApiResponse<TagResponse>`
 - `GET /api/blog/tags/search` (Public) -> Query: `keyword`, Out: `ApiResponse<List<TagResponse>>`
-- `POST /api/blog/tags` (ADMIN) -> In: `CreateTagRequest`, Out: `ApiResponse<TagResponse>`
-- `PUT /api/blog/tags/{id}` (ADMIN) -> In: `UpdateTagRequest`, Out: `ApiResponse<TagResponse>`
-- `DELETE /api/blog/tags/{id}` (ADMIN) -> Out: `ApiResponse<String>`
+- `POST /api/blog/tags` (ADMIN)
+  - In: `CreateTagRequest` (`name`, `slug`)
+  - Out: `ApiResponse<TagResponse>`
+- `PUT /api/blog/tags/{id}` (ADMIN)
+  - In: `UpdateTagRequest` (`name`, `slug`)
+  - Out: `ApiResponse<TagResponse>`
+- `DELETE /api/blog/tags/{id}` (ADMIN)
+  - Path: `id`
+  - Out: `ApiResponse<String>`
 
 ### 4.3 Bình Luận Bài Viết (`CommentController` — `/posts/{postId}/comments`)
 - `GET /api/blog/posts/{postId}/comments` (Public)
-  - Query: `pageable`, Out: `ApiResponse<Page<CommentResponse>>`
+  - Query: `page`, `size`, `sort`
+  - Out: `ApiResponse<Page<CommentResponse>>` (cấu trúc cây phân cấp với danh sách `replies`)
 - `POST /api/blog/posts/{postId}/comments` (Authenticated)
-  - In: `CreateCommentRequest` (`content`, `parentId`), Out: `ApiResponse<CommentResponse>`
-- `PUT /api/blog/posts/{postId}/comments/{commentId}` (Authenticated)
-  - In: `UpdateCommentRequest` (`content`), Out: `ApiResponse<CommentResponse>`
-- `DELETE /api/blog/posts/{postId}/comments/{commentId}` (Authenticated) -> Out: `ApiResponse<String>`
+  - In: `CreateCommentRequest`
+    * `content` (String, required)
+    * `parentId` (Long, optional — dùng khi trả lời bình luận)
+  - Out: `ApiResponse<CommentResponse>`
+- `PUT /api/blog/posts/{postId}/comments/{commentId}` (Authenticated — Author)
+  - In: `UpdateCommentRequest` (`content`)
+  - Out: `ApiResponse<CommentResponse>`
+- `DELETE /api/blog/posts/{postId}/comments/{commentId}` (Authenticated — Author hoặc ADMIN)
+  - Out: `ApiResponse<String>`
 
 ### 4.4 Bình Chọn Bài Viết & Bình Luận (`VoteController`)
 - `POST /api/blog/posts/{postId}/vote` (Authenticated)
-  - In: `VoteRequest` (`voteType`: `UP`, `DOWN`), Out: `ApiResponse<VoteResponse>`
+  - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
+  - Out: `ApiResponse<VoteResponse>` (`targetId`, `targetType`, `userVote`, `upvoteCount`, `downvoteCount`)
+  - *Cơ chế*: Bấm cùng loại sẽ hủy vote (toggle); bấm đảo chiều chuyển đổi điểm hợp lệ; chống Lost Updates và Unique Key chống trùng lặp.
 - `POST /api/blog/posts/{postId}/comments/{commentId}/vote` (Authenticated)
-  - In: `VoteRequest` (`voteType`: `UP`, `DOWN`), Out: `ApiResponse<VoteResponse>`
+  - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
+  - Out: `ApiResponse<VoteResponse>`
 
 ### 4.5 Giao Tiếp Nội Bộ (`InternalBlogController` — `/internal`)
-- `GET /internal/posts/{postId}` -> Out: `ApiResponse<InternalPostResponse>`
-- `GET /internal/posts/{postId}/exists` -> Out: `ApiResponse<Boolean>`
+- `GET /internal/posts/{postId}` (Internal OpenFeign)
+  - Out: `ApiResponse<InternalPostResponse>` (`id`, `title`, `authorId`, `status`)
+- `GET /internal/posts/{postId}/exists` (Internal OpenFeign)
+  - Out: `ApiResponse<Boolean>`
 
 ---
 

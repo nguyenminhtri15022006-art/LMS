@@ -953,8 +953,64 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
   - Các chức năng backend thực sự đã có bài kiểm thử chạy PASS được chuyển sang trạng thái **`TESTED`** trong [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md) (chưa đánh dấu `VERIFIED` vì cần Đợt 3 hoàn thiện UI và kiểm thử Docker Compose theo đủ 13 tiêu chí dự án).
   - Dừng lại và trình báo cáo nghiệm thu chi tiết cho người dùng trước khi thực hiện bất kỳ thao tác Git commit/push nào.
 
-- **Commit message dự kiến**:
-  - `test(monorepo): kiểm thử tích hợp toàn diện backend identity course và blog`
+- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 10 (Backend Core Đợt 2)**:
+  - **Trạng thái thực thi**: HOÀN THÀNH 100%, lệnh `mvn clean test -f backend/pom.xml` BUILD SUCCESS (thời gian chạy: 01:58 min), không có lỗi compile hay lỗi kiểm thử.
+  - **Tổng hợp số lượng test cases từ Surefire XML Reports mới nhất** (`target/surefire-reports/TEST-*.xml` trên toàn bộ 6 modules):
+    * `service-registry`: 1 test suite, **2/2 tests PASS 100%** [15.155s] (`ServiceRegistryApplicationTests` - `contextLoads`, `eurekaAppsEndpointReturns200`)
+    * `api-gateway`: 4 test suites, **15/15 tests PASS 100%** [11.765s] (`ApiGatewayApplicationTests` 1, `AuthFilterTest` 6, `GatewayRouteConfigurationTest` 5, `JwtUtilTest` 3)
+    * `identity-service`: 7 test suites, **45/45 tests PASS 100%** [25.069s] (`IdentityServiceApplicationTests` 1, `AuthenticationServiceImplTest` 8, `EmailVerificationServiceImplTest` 5, `StorageServiceImplTest` 4, `UserServiceImplTest` 13, `IdentityApiIntegrationTest` 12, `IdentityFunctionalTest` 2)
+    * `course-service`: 14 test suites, **58/58 tests PASS 100%** [36.625s] (`CourseServiceApplicationTests` 1, `AnnouncementServiceImplTest` 3, `CategoryServiceImplTest` 4, `CourseServiceImplTest` 8, `CourseStructureServiceImplTest` 6, `EnrollmentConcurrencyTest` 1, `InternalCourseServiceImplTest` 7, `LessonProgressServiceImplTest` 3, `LessonServiceImplTest` 2, `ScheduleServiceImplTest` 4, `StorageServiceImplTest` 4, `CourseApiIntegrationTest` 5, `CourseFunctionalTest` 2, `InternalCourseApiIntegrationTest` 8)
+    * `blog-service`: 9 test suites, **27/27 tests PASS 100%** [28.906s] (`BlogServiceApplicationTests` 1, `CommentServiceImplTest` 3, `InternalBlogServiceImplTest` 2, `PostServiceImplTest` 6, `TagServiceImplTest` 3, `VoteConcurrencyTest` 1, `VoteServiceImplTest` 4, `BlogApiIntegrationTest` 6, `BlogFunctionalTest` 1)
+    * **Tổng cộng Monorepo**: **35 test suites, 147/147 test cases PASS 100%**, 0 Failures, 0 Errors, 0 Skipped.
+  - **Chuẩn hóa Hợp đồng Gateway–Microservices (`X-User-Role` & `X-User-Roles`)**:
+    * **Kiểm tra rủi ro**: Trong hệ thống Spring Cloud Gateway và microservices, một số thành phần dùng header `X-User-Role` (số ít), trong khi một số khác hoặc token có thể chứa nhiều vai trò `X-User-Roles` (số nhiều, phân tách bằng dấu phẩy). Nếu không chuẩn hóa hai chiều, các request downstream có thể bị từ chối 403 Forbidden ngoài ý muốn hoặc bị kẻ tấn công spoofing header.
+    * **Giải pháp chuẩn hóa tại `api-gateway`**:
+      - `AuthFilter.java`: Khi JWT hợp lệ, gateway inject đồng thời cả hai header `X-User-Role` (vai trò đầu tiên/chính) và `X-User-Roles` (chuỗi danh sách vai trò dạng `ROLE_STUDENT,ROLE_TEACHER`).
+      - Chống giả mạo (Anti-Spoofing): Trong `AuthFilter.removeGatewayAuthHeaders` và các cấu hình route công khai (`application.yaml`, `application-test.yaml`), bổ sung `RemoveRequestHeader=X-User-Roles` và `RemoveRequestHeader=X-User-Role` để triệt tiêu toàn bộ header do client tự ý gửi vào.
+      - `AuthFilterTest.java`: Bổ sung kiểm thử xác nhận inject cả 2 header và kiểm thử ghi đè/loại bỏ header `X-User-Roles` giả mạo.
+    * **Giải pháp tiếp nhận tại các microservices hạ nguồn (`identity-service`, `course-service`, `blog-service`)**:
+      - `SecurityConfig.java`: Bộ lọc `GatewayAuthenticationFilter` tiếp nhận `X-User-Role`, nếu thiếu sẽ tự động fallback sang `X-User-Roles`.
+      - Hỗ trợ phân tích chuỗi danh sách vai trò phân tách bằng dấu phẩy (comma-separated roles), ánh xạ sinh ra cả `ROLE_<NAME>` lẫn `<NAME>` để tương thích hoàn toàn với các biểu thức `@PreAuthorize("hasRole('...')")` và `hasAuthority('...')`.
+      - Viết bổ sung các bài kiểm thử HTTP Contract xác nhận hoạt động với header `X-User-Roles`:
+        + `IdentityApiIntegrationTest`: `gatewayContractSupportsXUserRolesHeader` (PASS).
+        + `CourseApiIntegrationTest`: `gatewayContractSupportsXUserRolesHeader` (PASS).
+        + `BlogApiIntegrationTest`: `gatewayContractSupportsXUserRolesPluralHeader` (PASS).
+  - **Đồng bộ hóa API Contract Blog Service trong [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md)**:
+    * Đồng bộ đầy đủ 22 endpoints (20 endpoints công khai/xác thực + 2 endpoints Feign nội bộ):
+      + 4.1 Quản lý Thẻ bài viết (`/tags`): 4 endpoints (GET list, POST create, PUT update, DELETE delete).
+      + 4.2 Quản lý Bài viết Blog (`/posts`): 7 endpoints (GET public pageable, GET slug, GET id, POST create multipart, PUT update, DELETE delete, GET me, GET admin).
+      + 4.3 Quản lý Bình luận (`/posts/{postId}/comments`): 3 endpoints (GET comments tree, POST comment, DELETE comment).
+      + 4.4 Hệ thống Bình chọn (`/posts/{postId}/vote`, `/posts/{postId}/comments/{commentId}/vote`): 2 endpoints.
+      + 4.5 API Nội bộ Blog (`/internal/posts/{postId}`, `/internal/posts/{postId}/exists`): 2 endpoints cho OpenFeign.
+  - **Báo Cáo Nghiệm Thu Backend Đợt 2**:
+    * Toàn bộ 3 microservices chính của Thành viên 2 (`identity-service`, `course-service`, `blog-service`) cùng hạ tầng dùng chung (`service-registry`, `api-gateway`) đã hoàn thành 100% logic nghiệp vụ phía Backend, kết nối CSDL, validation, bảo mật phân quyền RBAC, xử lý ngoại lệ tập trung và Feign contracts.
+    * Đạt 147/147 test cases tự động (unit, service, concurrency, mockmvc integration, functional, Feign contract) với tỷ lệ đỗ tuyệt đối 100%.
+  - **Tuyên Bố Các Thành Phần Chưa Kiểm Chứng Trên Hạ Tầng Thật (Bảo Lưu Thẩm Định Đợt 3 & Docker Compose)**:
+    Theo đúng nguyên tắc trung thực và quy định tại [AGENTS.md](file:///d:/LMS-main/AGENTS.md), toàn bộ các bài kiểm thử Đợt 2 được thực thi trên môi trường kiểm thử cô lập (H2 in-memory DB, Fongo/Mock MongoDB, Mockito, Spring Cloud Contract MockMvc). Các hạng mục sau **chưa được kiểm chứng trên hạ tầng thật** và bắt buộc phải được nghiệm thu trong môi trường Full-stack Docker Compose ở Đợt 3:
+    1. **CSDL MySQL InnoDB thật**:
+       - Mức độ cô lập giao dịch (`REPEATABLE READ`).
+       - Cơ chế khóa hàng (`SELECT ... FOR UPDATE`) và deadlock handling khi hàng nghìn người dùng đồng thời ghi danh (`EnrollmentConcurrency`) hoặc bấm vote (`VoteConcurrency`).
+       - Các trigger/foreign key constraints và character set `utf8mb4` của MySQL 8.0.
+    2. **MongoDB Replica Set thật**:
+       - Cấu trúc cây đề cương bài học `CourseStructure` lồng nhau đa cấp độ dưới tải đọc/ghi lớn của MongoDB thật.
+       - Lưu trữ và cập nhật atomicity của các collection `lessons`, `course_structures`.
+    3. **MinIO S3 Object Storage thật**:
+       - Tạo và ký Presigned URL upload trực tiếp từ trình duyệt web.
+       - Cơ chế ghép nối Multipart Upload cho video bài giảng dung lượng lớn (>100MB).
+       - Bucket access policy và quyền tải file công khai/riêng tư.
+    4. **Redis Cache thật**:
+       - Phân tán cache dữ liệu, giới hạn tốc độ truy cập (Rate Limiting).
+       - Cơ chế lưu trữ blacklist token và session caching phân tán.
+    5. **Dịch vụ Biên dịch & Chấm mã nguồn Judge0 / Sandbox**:
+       - Môi trường cô lập thực thi mã nguồn an toàn (thuộc phạm vi `assignment-service`).
+    6. **Các dịch vụ bên thứ ba (Google OAuth 2.0 SSO, Mail SMTP Server)**:
+       - Đăng nhập Google thật bằng Client ID / Client Secret thật.
+       - Gửi email OTP 6 số thực sự đến hộp thư người dùng qua SMTP Google/SendGrid.
+    7. **Giao diện Người Dùng Frontend & Kiểm Thử E2E**:
+       - Toàn bộ giao diện React 18 + Vite (Xác thực, Khóa học, Học trực tuyến, Blog diễn đàn, Dashboard Admin) sẽ được xây dựng và kết nối Gateway trong Đợt 3 để thỏa mãn đủ 13 tiêu chí nghiệm thu `VERIFIED`.
+
+- **Commit message**:
+  - `feat(backend): hoàn thành kiểm thử monorepo chuẩn hóa contract gateway và nghiệm thu đợt 2`
 
 ---
 

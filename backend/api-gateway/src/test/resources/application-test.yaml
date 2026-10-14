@@ -85,6 +85,7 @@ spring:
             - RemoveRequestHeader=Authorization
             - RemoveRequestHeader=X-User-Id
             - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Roles
             - RemoveRequestHeader=X-User-Email
             - RemoveRequestHeader=X-Gateway-Authenticated
 
@@ -142,6 +143,7 @@ spring:
             - RemoveRequestHeader=Authorization
             - RemoveRequestHeader=X-User-Id
             - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Roles
             - RemoveRequestHeader=X-User-Email
             - RemoveRequestHeader=X-Gateway-Authenticated
 
@@ -192,6 +194,7 @@ spring:
             - RemoveRequestHeader=Authorization
             - RemoveRequestHeader=X-User-Id
             - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Roles
             - RemoveRequestHeader=X-User-Email
             - RemoveRequestHeader=X-Gateway-Authenticated
 
