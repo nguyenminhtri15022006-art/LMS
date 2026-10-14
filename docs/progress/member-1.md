@@ -27,8 +27,8 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 |:---:|:---:|---|---|---|---|
 | [x] | **Đợt 1<br>(27/09)** | Khởi tạo cấu trúc tài liệu kỹ thuật gốc, khảo sát sâu Assignment & Chatbot LLM từ mẫu | `README.md`, `AGENTS.md`, `CONTRIBUTING.md`, `docs/*` | `docs: hoan thien ho so ky thuat rubric HCMUTE va phan cong Tri chu tri assignment chatbot` | Hash: `7a69d45` (Đã hoàn thành) |
 | [x] | **Đợt 2<br>(30/09 – 02/10)** | Thiết lập Maven Parent POM, Service Registry (Eureka), API Gateway, khung Assignment & Chatbot | `backend/pom.xml`, `backend/service-registry/*`, `backend/api-gateway/*`, `backend/assignment-service/*`, `backend/chatbot-service/*`, `docker-compose.db.yml` | `feat(infra): thiet lap eureka api gateway va khung assignment chatbot` | Hash: `a02474a` (Build & Test Passed) |
-| [ ] | **Đợt 3<br>(03/10 – 05/10)** | Triển khai Ngân hàng câu hỏi trắc nghiệm, Parser nhập CSV/TXT, Tạo đề thi Quiz và cơ chế khóa chống spam | `assignment-service/src/main/java/.../QuizServiceImpl.java`, `Question.java` | `feat(assignment): triển khai ngân hàng câu hỏi và tạo quiz` | Kế hoạch tiếp theo |
-| [ ] | **Đợt 4<br>(06/10 – 08/10)** | Triển khai Quản lý bài tập lập trình (Problem), bộ Testcase ẩn/hiện và lưu Submission vào MongoDB | `assignment-service/src/main/java/.../ProblemServiceImpl.java`, `Submission.java` | `feat(assignment): thêm quản lý bài tập lập trình và test cases` | |
+| [x] | **Đợt 3<br>(03/10 – 05/10)** | Triển khai Ngân hàng câu hỏi trắc nghiệm, Parser nhập CSV/TXT/DOCX, Tạo đề thi Quiz và cơ chế làm bài & chấm điểm | `assignment-service/src/main/java/.../QuizServiceImpl.java`, `Question.java` | `feat(assignment): add question bank and quiz management` | 67/67 Tests Passed |
+| [x] | **Đợt 4<br>(06/10 – 08/10)** | Triển khai Quản lý bài tập lập trình (Problem), bộ Testcase ẩn/hiện và lưu Submission vào MongoDB | `assignment-service/src/main/java/.../ProblemServiceImpl.java`, `Submission.java` | `feat(assignment): add coding problems and testcases` | Hash: `6d8c267` |
 | [ ] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../JudgeServiceImpl.java`, `SubmissionServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | |
 | [ ] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | |
 | [ ] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror 6, Giao diện làm bài Quiz đếm ngược và kết quả | `frontend/src/features/assignment/code-judge/*`, `frontend/src/features/assignment/quiz/*` | `feat(frontend): kết nối giao diện quiz và trình soạn thảo code judge` | |
@@ -169,5 +169,48 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Kết quả**:
    - Hoàn thành toàn diện Đợt 3: Đã có đầy đủ chức năng quản lý bài toán lập trình, bộ testcase, import file, lưu trữ submission MongoDB và chuẩn bị sẵn sàng cho tích hợp sâu với máy chấm Judge0.
 6. **Commit**:
-   - `feat(assignment): add coding problems and testcases`
+   - `feat(assignment): add coding problems and testcases` (Hash: `6d8c267`)
+
+---
+
+### [2026-10-14] — Đợt 4 (Tiếp theo): Triển Khai Ngân Hàng Câu Hỏi Trắc Nghiệm, Parser Đa Định Dạng & Quản Lý Quiz
+1. **Ngày thực hiện**: 14/10/2026
+2. **Công việc đã làm**:
+   - **Mô hình thực thể & Quan hệ CSDL (JPA)**:
+     - `Question.java`: Câu hỏi trắc nghiệm, độ khó, loại câu hỏi (`SINGLE_CHOICE`, `MULTIPLE_CHOICE`), giải thích đáp án, phân loại theo course/lesson.
+     - `Answer.java`: Các lựa chọn đáp án, cờ `isCorrect`, thứ tự hiển thị.
+     - `Quiz.java`: Đề thi trắc nghiệm, thời gian làm bài (`timeLimit`), số lần thi cho phép (`maxAttempts`), điểm qua môn (`passingScore`), tỷ lệ xáo trộn.
+     - `QuizQuestion.java`: Bảng liên kết trung gian giữa Quiz và Question, trọng số điểm từng câu.
+     - `QuizAttempt.java`: Phiên làm bài của học viên, tính điểm, thời gian bắt đầu và nộp bài.
+     - `QuizAnswerRecord.java`: Bản ghi câu trả lời từng câu của học viên trong một lần thi.
+     - `Grade.java`: Bảng điểm lưu trữ điểm số cao nhất của học viên theo Quiz.
+   - **Tầng Data Access (Repository)**:
+     - `QuestionRepository`, `QuizRepository`, `QuizQuestionRepository`, `QuizAttemptRepository`, `QuizAnswerRecordRepository`, `GradeRepository`.
+   - **Tầng Nghiệp vụ (Service & Impl)**:
+     - `QuestionServiceImpl`: CRUD câu hỏi trắc nghiệm, lọc theo khóa học, phân trang.
+     - `QuizServiceImpl`: Tạo đề thi, chỉnh sửa, publish, nhân bản Quiz, đồng bộ câu hỏi vào Quiz.
+     - `QuizAttemptServiceImpl`: Bắt đầu lượt thi (`startAttempt`), lưu nháp câu trả lời (`autoSave`), nộp bài thi (`submitAttempt`).
+     - `QuizGradingServiceImpl`: Chấm điểm tự động bài thi Quiz và ghi nhận điểm số vào Gradebook.
+     - `QuizTemplateServiceImpl`: Cung cấp file mẫu template nhập câu hỏi (CSV, TXT, DOCX).
+     - `QuestionImportFileServiceImpl`: Xử lý import hàng loạt câu hỏi từ file tải lên.
+     - `QuizAiPreviewServiceImpl`: Tích hợp AI sinh đề thi Quiz tự động.
+   - **Bộ Parser File Đa Định Dạng**:
+     - `CsvQuestionParser`: Đọc và bóc tách câu hỏi từ file CSV (Apache Commons CSV).
+     - `TxtQuestionParser`: Đọc cấu trúc câu hỏi từ văn bản thuần TXT.
+     - `DocxQuestionParser`: Đọc định dạng tài liệu Word DOCX (Apache POI OOXML).
+   - **Background Job**:
+     - `QuizAttemptCleanupJob`: Tự động thu hồi và chốt điểm các phiên làm bài quá hạn thời gian.
+   - **Tầng Điều khiển (Controller)**:
+     - `QuestionController` (`/questions/**`): API ngân hàng câu hỏi, import câu hỏi.
+     - `QuizController` (`/quizzes/**`): API tạo đề, làm bài, nộp bài thi và tra cứu kết quả thi.
+3. **File thay đổi / tạo mới**:
+   - 39 source files Java trong `backend/assignment-service/`
+   - 3 file template import trong `src/main/resources/templates/quiz-import/` (CSV, TXT, DOCX)
+   - 7 file kiểm thử Unit Test mới trong `src/test/java/`
+4. **Test đã chạy**:
+   - `mvn clean compile -pl assignment-service`: `BUILD SUCCESS` (145 source files compiled).
+   - `mvn test -pl assignment-service`: `BUILD SUCCESS` (Toàn bộ 67/67 unit test pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(assignment): add question bank and quiz management`
+
 
