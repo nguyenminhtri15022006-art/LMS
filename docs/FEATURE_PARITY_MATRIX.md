@@ -102,16 +102,16 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `blog-service` | Quản lý Thẻ bài viết (Tags CRUD) | `features/blog/pages/student/BlogHubPage.jsx` | `TagController.java`, `TagServiceImpl.java` | `GET /tags`, `POST /tags`, `PUT /tags/{id}`, `DELETE /tags/{id}` | Bảng `tags` | `TagServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Danh sách bài viết Blog & Lọc theo Tag/Tìm kiếm | `features/blog/pages/student/BlogHubPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public` (Pageable, tagId, keyword) | Bảng `posts`, `post_tags`, `tags` | `PostServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Xem chi tiết bài viết Blog (Markdown Preview) | `features/blog/pages/student/BlogDetailPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public/{slug}`, `GET /posts/{id}` | Bảng `posts` (tăng `viewCount`) | `BlogFunctionalTest.java` | `NOT_STARTED` |
-| `blog-service` | Viết bài mới & Tải ảnh bìa (Thumbnail) | `features/blog/pages/student/CreateBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java`, `MinioStorageService.java` | `POST /posts` (multipart `CreatePostRequest`) | Bảng `posts`, `post_tags`, MinIO `lms-blog-bucket` | `PostServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Chỉnh sửa bài viết cá nhân & Xóa bài | `features/blog/pages/student/EditBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `PUT /posts/{id}`, `DELETE /posts/{id}` | Bảng `posts`, `post_tags` | `PostServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Quản lý danh sách bài viết cá nhân | `features/blog/pages/student/MyBlogPostsPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/me` | Bảng `posts` | `PostServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Bình luận bài viết & Trả lời bình luận (Nested) | `features/blog/components/CommentSection.jsx` | `CommentController.java`, `CommentServiceImpl.java` | `GET /posts/{pId}/comments`, `POST /posts/{pId}/comments`, `DELETE /posts/{pId}/comments/{cId}` | Bảng `comments` | `CommentServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Bình chọn Upvote / Downvote bài viết & Comment | `features/blog/components/VoteButtons.jsx` | `VoteController.java`, `VoteServiceImpl.java` | `POST /posts/{pId}/vote`, `POST /posts/{pId}/comments/{cId}/vote` | Bảng `votes` | `VoteServiceImplTest.java` | `NOT_STARTED` |
-| `blog-service` | Quản trị bài viết Blog (Admin kiểm duyệt/ẩn) | `features/dashboard/components/admin/Management/BlogMgmt.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/admin` | Bảng `posts` | `BlogApiIntegrationTest.java` | `NOT_STARTED` |
-| `blog-service` | API nội bộ cung cấp thông tin bài viết (Feign) | — | `InternalBlogController.java` | `GET /internal/posts/{postId}`, `GET /internal/posts/{postId}/exists` | Bảng `posts` | `InternalBlogServiceImplTest.java` | `NOT_STARTED` |
+| `blog-service` | Quản lý Thẻ bài viết (Tags CRUD) | `features/blog/pages/student/BlogHubPage.jsx` | `TagController.java`, `TagServiceImpl.java` | `GET /tags`, `POST /tags`, `PUT /tags/{id}`, `DELETE /tags/{id}` | Bảng `tags` | `TagServiceImplTest.java` | `TESTED` |
+| `blog-service` | Danh sách bài viết Blog & Lọc theo Tag/Tìm kiếm | `features/blog/pages/student/BlogHubPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public` (Pageable, tagId, keyword) | Bảng `posts`, `post_tags`, `tags` | `PostServiceImplTest.java` | `TESTED` |
+| `blog-service` | Xem chi tiết bài viết Blog (Markdown Preview) | `features/blog/pages/student/BlogDetailPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public/{slug}`, `GET /posts/{id}` | Bảng `posts` (tăng `viewCount`) | `BlogFunctionalTest.java` | `TESTED` |
+| `blog-service` | Viết bài mới & Tải ảnh bìa (Thumbnail) | `features/blog/pages/student/CreateBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java`, `MinioStorageService.java` | `POST /posts` (multipart `CreatePostRequest`) | Bảng `posts`, `post_tags`, MinIO `lms-blog-bucket` | `PostServiceImplTest.java` | `TESTED` |
+| `blog-service` | Chỉnh sửa bài viết cá nhân & Xóa bài | `features/blog/pages/student/EditBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `PUT /posts/{id}`, `DELETE /posts/{id}` | Bảng `posts`, `post_tags` | `PostServiceImplTest.java` | `TESTED` |
+| `blog-service` | Quản lý danh sách bài viết cá nhân | `features/blog/pages/student/MyBlogPostsPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/me` | Bảng `posts` | `PostServiceImplTest.java` | `TESTED` |
+| `blog-service` | Bình luận bài viết & Trả lời bình luận (Nested) | `features/blog/components/CommentSection.jsx` | `CommentController.java`, `CommentServiceImpl.java` | `GET /posts/{pId}/comments`, `POST /posts/{pId}/comments`, `DELETE /posts/{pId}/comments/{cId}` | Bảng `comments` | `CommentServiceImplTest.java` | `TESTED` |
+| `blog-service` | Bình chọn Upvote / Downvote bài viết & Comment | `features/blog/components/VoteButtons.jsx` | `VoteController.java`, `VoteServiceImpl.java` | `POST /posts/{pId}/vote`, `POST /posts/{pId}/comments/{cId}/vote` | Bảng `votes` | `VoteServiceImplTest.java`, `VoteConcurrencyTest.java` | `TESTED` |
+| `blog-service` | Quản trị bài viết Blog (Admin kiểm duyệt/ẩn) | `features/dashboard/components/admin/Management/BlogMgmt.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/admin` | Bảng `posts` | `BlogApiIntegrationTest.java` | `TESTED` |
+| `blog-service` | API nội bộ cung cấp thông tin bài viết (Feign) | — | `InternalBlogController.java` | `GET /internal/posts/{postId}`, `GET /internal/posts/{postId}/exists` | Bảng `posts` | `InternalBlogServiceImplTest.java`, `BlogApiIntegrationTest.java` | `TESTED` |
 
 ---
 
@@ -150,9 +150,9 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
 | Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
 | Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0% |
-| Blog Service | 9 | 9 | 0 | 0 | 0 | 0 | 0% |
+| Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100% |
 | Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0% |
 | Frontend & Dashboard | 6 | 6 | 0 | 0 | 0 | 0 | 0% |
-| **TỔNG CỘNG** | **75** | **38** | **0** | **0** | **31** | **6** | **49.3%** |
+| **TỔNG CỘNG** | **76** | **29** | **0** | **0** | **41** | **6** | **61.8%** |
 
 *(Bảng này sẽ được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.

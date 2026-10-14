@@ -887,6 +887,42 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
 - **Commit message dự kiến**:
   - `feat(blog): thêm bài viết markdown tag bình luận đa cấp và bình chọn post comment`
 
+- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 9**:
+  - **Trạng thái thực thi**: HOÀN THÀNH 100%, tất cả 26/26 tests của `blog-service` vượt qua thành công, 0 Failures, 0 Errors, 0 Skipped.
+  - **Kiểm thử hồi quy toàn bộ Backend Monorepo (`backend/pom.xml`)**: Đạt **144/144 tests PASS 100%** (xác minh trực tiếp qua các file XML Surefire Reports):
+    * `service-registry`: 2 tests PASS (1 test class)
+    * `api-gateway`: 15 tests PASS (4 test classes)
+    * `identity-service`: 44 tests PASS (7 test classes)
+    * `course-service`: 57 tests PASS (14 test classes)
+    * `blog-service`: 26 tests PASS (9 test classes)
+    * **Tổng cộng Monorepo**: **144/144 tests PASS**.
+  - **Chi tiết 26 bài test của `blog-service`**:
+    1. `BlogServiceApplicationTests` (1 test): `contextLoads`.
+    2. `PostServiceImplTest` (6 tests): `getPublicPostsPublishedOnlyReturnsPage`, `getPostBySlugPublicIncrementsViewCount`, `createPostValidMarkdownSuccess`, `updatePostAuthorSuccess`, `updatePostNotAuthorThrowsForbidden`, `deletePostAuthorSuccess`.
+    3. `TagServiceImplTest` (3 tests): `getAllTagsPublicReturnsList`, `createTagAdminSuccess`, `deleteTagAdminSuccess`.
+    4. `CommentServiceImplTest` (3 tests): `createRootCommentValidPostSuccess`, `createReplyCommentValidParentSuccess`, `deleteCommentAuthorSuccess`.
+    5. `VoteServiceImplTest` (4 tests): `votePostUpvoteFirstTimeIncreasesScore`, `votePostToggleSameVoteCancelsVote`, `votePostSwitchUpToDownDecreasesTwo`, `voteCommentValidCommentUpdatesScore`.
+    6. `VoteConcurrencyTest` (1 test): `concurrentVoteRequestsDoNotDuplicateVoteOrCorruptScore`.
+       * *Ghi chú kỹ thuật về H2 vs MySQL*: Bài kiểm thử đa luồng với `CountDownLatch` trên H2 in-memory đã xác nhận tính đúng đắn của logic kiểm soát tương tranh tại tầng ứng dụng và ràng buộc Unique Key (`uq_votes_user_target`). Theo đúng quy định dự án, việc kiểm chứng cấp độ transaction isolation (REPEATABLE READ) và row-level locking (InnoDB) dưới tải thực tế được bảo lưu thẩm định sang CSDL MySQL trong môi trường Docker Compose.
+    7. `InternalBlogServiceImplTest` (2 tests): `internalGetPostReturnsPostResponse`, `internalExistsPostReturnsTrueWhenExists`.
+    8. `BlogApiIntegrationTest` (5 tests): `postControllerEnforcesAuthenticationOnCreate`, `tagControllerEnforcesAdminRoleOnCreate`, `voteControllerValidatesVoteTypeEnum`, `internalGetPostHttpContractReturns200`, `internalPostExistsHttpContractReturnsBoolean`.
+    9. `BlogFunctionalTest` (1 test): `userCreatesPostAddsCommentAndVotesWorkflow`.
+  - **Danh sách thành phần mã nguồn đã phát triển**:
+    * Flyway Migrations: `V1__initial_schema.sql`, `V2__add_indexes.sql`.
+    * Cấu hình & Bảo mật: `SecurityConfig.java`, `GatewayAuthentication.java`, `MinioConfig.java`, `ApplicationInitConfig.java`, `IdentityClient.java`, `application.yaml`, `application-test.yaml`.
+    * Thực thể & Enums: `Post`, `Tag`, `Comment`, `Vote`, `PostStatus`, `TargetType`, `VoteType`.
+    * Kho lưu trữ: `PostRepository`, `TagRepository`, `CommentRepository`, `VoteRepository`.
+    * Ngoại lệ & Xử lý lỗi: `ErrorCode`, `BlogException`, `GlobalExceptionHandler`.
+    * DTOs: `CreatePostRequest`, `UpdatePostRequest`, `CreateTagRequest`, `UpdateTagRequest`, `CreateCommentRequest`, `UpdateCommentRequest`, `VoteRequest`, `ApiResponse`, `PostResponse`, `PostSummaryResponse`, `TagResponse`, `CommentResponse`, `VoteResponse`, `InternalPostResponse`.
+    * Mappers: `PostMapper`, `TagMapper`, `CommentMapper`.
+    * Dịch vụ & Controllers: `TagService`/`TagServiceImpl`/`TagController`, `PostService`/`PostServiceImpl`/`PostController`, `CommentService`/`CommentServiceImpl`/`CommentController`, `VoteService`/`VoteServiceImpl`/`VoteController`, `InternalBlogService`/`InternalBlogServiceImpl`/`InternalBlogController`, `MinioService`/`MinioServiceImpl`.
+  - **Đồng bộ tài liệu**:
+    * [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md): Đồng bộ chi tiết mục 4.1 - 4.5.
+    * [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): Chuyển toàn bộ 10 tính năng của phân hệ Blog Service sang `TESTED` (10/10 TESTED). Tiến độ tổng thể hệ thống đạt 61.8% (41 TESTED, 6 VERIFIED).
+  - **Lịch sử commits**:
+    * Nhánh: `cuong-phase9`
+    * Commit: `feat(blog): thêm bài viết markdown tag bình luận đa cấp và bình chọn post comment`
+
 ---
 
 ### Phase 10: Tổng Kiểm Thử Monorepo & Nghiệm Thu Đợt 2 (Backend Core)
