@@ -20,6 +20,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -263,8 +264,9 @@ class IdentityApiIntegrationTest {
     void storagePresignedUrlHttpReturns200WithUploadUrl() throws Exception {
         when(storageService.generatePresignedUrl(eq("avatar.png"), eq("image/png"), eq("avatars")))
                 .thenReturn(PresignedUrlResponse.builder()
-                        .uploadUrl("http://localhost:9000/bucket/avatars/uuid_avatar.png?sign=xyz")
-                        .publicUrl("http://localhost:9000/bucket/avatars/uuid_avatar.png")
+                        .uploadUrl("http://localhost:9000/lms-identity-bucket")
+                        .formFields(Map.of("key", "avatars/user-1-uuid.png", "policy", "base64policy"))
+                        .publicUrl("http://localhost:9000/lms-identity-bucket/avatars/user-1-uuid.png")
                         .build());
 
         mockMvc.perform(post("/storage/presigned-url")
@@ -280,8 +282,9 @@ class IdentityApiIntegrationTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(1000))
-                .andExpect(jsonPath("$.data.uploadUrl").exists())
-                .andExpect(jsonPath("$.data.publicUrl").value("http://localhost:9000/bucket/avatars/uuid_avatar.png"));
+                .andExpect(jsonPath("$.data.uploadUrl").value("http://localhost:9000/lms-identity-bucket"))
+                .andExpect(jsonPath("$.data.formFields.key").value("avatars/user-1-uuid.png"))
+                .andExpect(jsonPath("$.data.publicUrl").value("http://localhost:9000/lms-identity-bucket/avatars/user-1-uuid.png"));
 
         verify(storageService).generatePresignedUrl("avatar.png", "image/png", "avatars");
     }

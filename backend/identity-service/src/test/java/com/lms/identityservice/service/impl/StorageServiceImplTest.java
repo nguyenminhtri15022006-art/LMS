@@ -54,32 +54,34 @@ class StorageServiceImplTest {
     }
 
     @Test
-    void generatePresignedUrlSuccessWithPutMethodAndExpiry() throws Exception {
-        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
-                .thenReturn("http://localhost:9000/lms-identity-bucket/avatars/user-1-uuid.png?token=signed");
+    void generatePresignedUrlSuccessWithPostPolicyAndBucketUploadUrl() throws Exception {
         when(minioClient.getPresignedPostFormData(any(PostPolicy.class)))
-                .thenReturn(Map.of("policy", "sample-policy-base64"));
+                .thenReturn(Map.of(
+                        "policy", "sample-policy-base64",
+                        "x-amz-algorithm", "AWS4-HMAC-SHA256",
+                        "x-amz-signature", "sample-signature"
+                ));
 
         PresignedUrlResponse response = storageService.generatePresignedUrl("avatar.png", "image/png", "avatars");
 
         assertThat(response).isNotNull();
-        assertThat(response.getUploadUrl()).contains("token=signed");
-        assertThat(response.getPublicUrl()).startsWith("http://localhost:9000/lms-identity-bucket/avatars/user-1-");
-        assertThat(response.getPublicUrl()).endsWith(".png");
+        // uploadUrl must be Bucket URL for browser fetch(uploadUrl, { method: 'POST', body: formData })
+        assertThat(response.getUploadUrl()).isEqualTo("http://localhost:9000/lms-identity-bucket");
         assertThat(response.getFormFields()).containsKey("key");
+        assertThat(response.getFormFields().get("key")).startsWith("avatars/user-1-");
+        assertThat(response.getFormFields().get("key")).endsWith(".png");
+        assertThat(response.getFormFields()).containsEntry("policy", "sample-policy-base64");
+        assertThat(response.getFormFields()).containsEntry("x-amz-signature", "sample-signature");
+        assertThat(response.getPublicUrl()).isEqualTo("http://localhost:9000/lms-identity-bucket/" + response.getFormFields().get("key"));
 
-        ArgumentCaptor<GetPresignedObjectUrlArgs> captor = ArgumentCaptor.forClass(GetPresignedObjectUrlArgs.class);
-        verify(minioClient).getPresignedObjectUrl(captor.capture());
-
-        GetPresignedObjectUrlArgs args = captor.getValue();
-        assertThat(args.method()).isEqualTo(Method.PUT);
-        assertThat(args.bucket()).isEqualTo("lms-identity-bucket");
-        assertThat(args.expiry()).isEqualTo(15 * 60);
+        // Verify MinIO PostPolicy was generated, not presigned PUT url
+        verify(minioClient).getPresignedPostFormData(any(PostPolicy.class));
+        verify(minioClient, never()).getPresignedObjectUrl(any());
     }
 
     @Test
     void generatePresignedUrlThrowsExceptionWhenMinioFails() throws Exception {
-        when(minioClient.getPresignedObjectUrl(any(GetPresignedObjectUrlArgs.class)))
+        when(minioClient.getPresignedPostFormData(any(PostPolicy.class)))
                 .thenThrow(new RuntimeException("MinIO network failure"));
 
         assertThatExceptionOfType(IdentityException.class)

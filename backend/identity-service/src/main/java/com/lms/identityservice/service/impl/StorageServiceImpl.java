@@ -68,32 +68,21 @@ public class StorageServiceImpl implements StorageService {
         String objectName = folder + "/" + userId + "-" + UUID.randomUUID() + ext;
 
         try {
-            String presignedPutUrl = minioClient.getPresignedObjectUrl(
-                    io.minio.GetPresignedObjectUrlArgs.builder()
-                            .method(io.minio.http.Method.PUT)
-                            .bucket(bucketName)
-                            .object(objectName)
-                            .expiry((int) (presignedExpiryMinutes * 60))
-                            .build()
-            );
+            PostPolicy policy = new PostPolicy(bucketName,
+                    ZonedDateTime.now(ZoneOffset.UTC).plusMinutes(presignedExpiryMinutes));
 
-            Map<String, String> formFields = null;
-            try {
-                PostPolicy policy = new PostPolicy(bucketName,
-                        ZonedDateTime.now(ZoneOffset.UTC).plusMinutes(presignedExpiryMinutes));
-                policy.addEqualsCondition("key", objectName);
-                policy.addContentLengthRangeCondition(1, maxFileSizeBytes);
-                policy.addStartsWithCondition("Content-Type", "image/");
+            policy.addEqualsCondition("key", objectName);
+            policy.addContentLengthRangeCondition(1, maxFileSizeBytes);
+            policy.addStartsWithCondition("Content-Type", "image/");
 
-                formFields = new HashMap<>(minioClient.getPresignedPostFormData(policy));
-                formFields.put("key", objectName);
-            } catch (Exception ignored) {
-            }
+            Map<String, String> formFields = new HashMap<>(minioClient.getPresignedPostFormData(policy));
+            formFields.put("key", objectName);
 
+            String uploadUrl = minioPublicUrl + "/" + bucketName;
             String publicUrl = minioPublicUrl + "/" + bucketName + "/" + objectName;
 
             return PresignedUrlResponse.builder()
-                    .uploadUrl(presignedPutUrl)
+                    .uploadUrl(uploadUrl)
                     .formFields(formFields)
                     .publicUrl(publicUrl)
                     .build();

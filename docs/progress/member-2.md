@@ -399,7 +399,7 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
       2. `AuthenticationServiceImplTest`: 8 tests PASS (`authenticateReturnsTokensAndStoresHashedRefreshToken`, `authenticateThrowsWhenPasswordDoesNotMatch`, `authenticateThrowsWhenUserIsLocked`, `refreshTokenReplacesOldTokenWithNewHash`, `refreshTokenThrowsWhenTokenIsRevoked`, `logoutRevokesRefreshToken`, `socialLoginGoogleSuccess`, `socialLoginInvalidGoogleTokenThrowsException`).
       3. `EmailVerificationServiceImplTest`: 5 tests PASS (`sendVerifyEmailStoresOtpAndCallsMailer`, `verifyEmailSuccessWithValidOtp`, `verifyEmailThrowsWhenOtpExpiredOrInvalid`, `forgotPasswordGeneratesResetOtp`, `resetPasswordUpdatesPasswordWithValidOtp`).
       4. `StorageServiceImplTest`: 4 tests PASS:
-         - `generatePresignedUrlSuccessWithPutMethodAndExpiry`: Mock `MinioClient`, kiểm tra phương thức `Method.PUT`, thời hạn hết hạn (`expiry`), tiền tố `objectName`, và trường `key` trong `formFields`.
+         - `generatePresignedUrlSuccessWithPostPolicyAndBucketUploadUrl`: Mock `MinioClient`, kiểm tra S3 PostPolicy, URL endpoint bucket cho frontend `POST FormData`, thời hạn hết hạn (`expiry`), tiền tố `objectName`, và trường `key`, `policy`, `x-amz-signature` trong `formFields`.
          - `generatePresignedUrlThrowsExceptionWhenMinioFails`: Xử lý lỗi MinIO ném ngoại lệ -> Chuyển thành `IdentityException(FILE_UPLOAD_FAILED)`.
          - `generatePresignedUrlThrowsWhenFileExtensionUnsupported`: Kiểm tra phần mở rộng file không hợp lệ -> Ném `FILE_TYPE_NOT_SUPPORTED`.
          - `deleteFileCallsMinioRemoveObject`: Xóa file gọi `minioClient.removeObject` với đúng `bucket` và `objectName`.

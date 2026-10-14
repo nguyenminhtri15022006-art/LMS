@@ -105,7 +105,17 @@ Mã phản hồi lỗi:
 ### 1.5 Lưu Trữ Avatar MinIO (`StorageController` — `/storage`)
 - `POST /api/identity/storage/presigned-url` (Authenticated)
   - In: `PresignedUrlRequest` (`fileName`, `fileType`, `folder`)
-  - Out: `ApiResponse<PresignedUrlResponse>`
+  - Out: `ApiResponse<PresignedUrlResponse>` (`uploadUrl`, `formFields`, `publicUrl`)
+  - **Đặc tả luồng upload tương thích Frontend (`useFileUpload.js`)**:
+    * **Cơ chế**: S3 Post Policy (Browser-based POST Upload qua `FormData`).
+    * **`uploadUrl`**: URL gốc của Bucket MinIO (`${minioPublicUrl}/${bucketName}`, ví dụ: `http://localhost:9000/lms-identity-bucket`).
+    * **`formFields`**: Map chứa chữ ký chính sách S3 PostPolicy (`key`, `policy`, `x-amz-algorithm`, `x-amz-credential`, `x-amz-date`, `x-amz-signature`).
+    * **`publicUrl`**: URL CDN/MinIO công khai để truy cập ảnh đại diện sau khi upload (`${minioPublicUrl}/${bucketName}/${objectName}`).
+    * **Yêu cầu gọi từ Client**:
+      - Client gửi: HTTP `POST` đến `uploadUrl` (Bucket URL).
+      - Header: `Content-Type: multipart/form-data; boundary=...` (trình duyệt tự sinh).
+      - Body: `FormData` đính kèm các trường trong `formFields`, `Content-Type: <fileType>`, và `file: <Blob/File>`.
+    * *(Lưu ý: Không dùng Presigned PUT URL cho Avatar Identity vì frontend `useFileUpload.js` gửi `POST FormData`, chỉ chấp nhận endpoint Bucket S3 PostPolicy).*
 
 ### 1.6 Giao Tiếp Nội Bộ (`InternalUserController` — `/internal`)
 - `GET /internal/user/{id}` (Internal Feign) -> Out: `UserFullResponse`
