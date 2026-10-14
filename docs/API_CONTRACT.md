@@ -181,16 +181,16 @@ Mã phản hồi lỗi:
 
 ### 2.5 Tiến Độ Bài Học (`LessonProgressController` — `/courses/{courseId}`)
 - `POST /api/course/courses/{courseId}/lessons/{lessonId}/complete` (Authenticated)
-  - In: `CompleteLessonRequest` (`watchedSeconds`, `isCompleted`), Out: `ApiResponse<Void>`
+  - In: `CompleteLessonRequest` (`lessonType`), Out: `ApiResponse<Void>`
 - `GET /api/course/courses/{courseId}/progress` (Authenticated) -> Out: `ApiResponse<CourseProgressResponse>`
 - `GET /api/course/courses/{courseId}/progress/average` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<Double>`
 
 ### 2.6 Lịch Học Google Meet (`ScheduleController` — `/courses/{courseId}/schedules`)
 - `GET /api/course/courses/{courseId}/schedules` (Authenticated) -> Out: `ApiResponse<List<ScheduleResponse>>`
 - `POST /api/course/courses/{courseId}/schedules` (INSTRUCTOR, ADMIN)
-  - In: `CreateScheduleRequest` (`title`, `startTime`, `endTime`, `meetUrl`), Out: `ApiResponse<ScheduleResponse>`
+  - In: `CreateScheduleRequest` (`title`, `startTime`, `endTime`, `note`), Out: `ApiResponse<ScheduleResponse>`
 - `PUT /api/course/courses/{courseId}/schedules/{scheduleId}` (INSTRUCTOR, ADMIN)
-  - In: `UpdateScheduleRequest`, Out: `ApiResponse<ScheduleResponse>`
+  - In: `UpdateScheduleRequest` (`title`, `startTime`, `endTime`, `note`), Out: `ApiResponse<ScheduleResponse>`
 - `DELETE /api/course/courses/{courseId}/schedules/{scheduleId}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
 
 ### 2.7 Bảng Tin Thông Báo (`AnnouncementController` — `/courses/{courseId}/announcements`)

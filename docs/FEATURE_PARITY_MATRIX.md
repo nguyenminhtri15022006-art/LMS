@@ -64,14 +64,14 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | `course-service` | Giảng viên chỉnh sửa khóa học & Đổi trạng thái | `features/courses/pages/teacher/EditCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `PUT /courses/{id}`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | `CourseServiceImplTest.java` | `TESTED` |
 | `course-service` | Quản lý cây bài học (Chapters/Lessons Structure) | `features/courses/pages/teacher/CourseManagementCenter.jsx` | `CourseStructureController.java`, `CourseStructureServiceImpl.java` | `GET /courses/{courseId}/structure`, `POST /structure/nodes`, `PUT /structure/reorder` | MongoDB `course_structures`, `lessons` | `CourseStructureServiceImplTest.java` | `TESTED` |
 | `course-service` | Quản lý nội dung bài học (Video & Document) | `features/courses/pages/student/CourseHubPage.jsx` | `LessonController.java`, `LessonServiceImpl.java` | `GET /courses/{cId}/lessons/{lId}`, `PUT /courses/{cId}/lessons/{lId}` | MongoDB `lessons` | `LessonServiceImplTest.java`, `CourseApiIntegrationTest.java` | `TESTED` |
-| `course-service` | Upload thumbnail khóa học & file bài giảng | `hooks/useFileUpload.js` | `StorageController.java`, `MinioStorageServiceImpl.java` | `POST /storage/presigned-url`, `POST /storage/multipart/initiate` | MinIO bucket `lms-course-bucket` | `StorageServiceImplTest.java` | `NOT_STARTED` |
-| `course-service` | Học viên đăng ký ghi danh khóa học | `features/courses/pages/student/DetailCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses/{id}/enroll` | Bảng `enrollments` | `CourseServiceImplTest.java` | `NOT_STARTED` |
-| `course-service` | Danh sách khóa học của tôi (Tạo & Ghi danh) | `features/courses/pages/student/MyCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my`, `GET /courses/enrolled` | Bảng `enrollments`, `courses` | `CourseServiceImplTest.java` | `NOT_STARTED` |
-| `course-service` | Đánh dấu bài học hoàn thành & Theo dõi tiến độ | `features/courses/pages/student/CourseHubPage.jsx` | `LessonProgressController.java`, `LessonProgressServiceImpl.java` | `POST /courses/{courseId}/lessons/{lessonId}/complete`, `GET /courses/{courseId}/progress`, `GET /courses/{courseId}/progress/average` | Bảng `lesson_progress` | `LessonProgressServiceImplTest.java` | `NOT_STARTED` |
-| `course-service` | Quản lý lịch học trực tuyến & Google Meet | `features/courses/pages/teacher/CourseManagementCenter.jsx` | `ScheduleController.java`, `ScheduleServiceImpl.java` | `GET /courses/{cId}/schedules`, `POST /schedules`, `PUT /schedules/{id}`, `DELETE /schedules/{id}` | Bảng `schedules` | `ScheduleServiceImplTest.java` | `NOT_STARTED` |
-| `course-service` | Quản lý thông báo trong khóa học | `features/courses/pages/student/DetailMyCoursePage.jsx` | `AnnouncementController.java`, `AnnouncementServiceImpl.java` | `GET /courses/{cId}/announcements`, `POST /announcements`, `DELETE /announcements/{id}` | Bảng `announcements` | `AnnouncementServiceImplTest.java` | `NOT_STARTED` |
+| `course-service` | Upload thumbnail khóa học & file bài giảng | `hooks/useFileUpload.js` | `StorageController.java`, `StorageServiceImpl.java` | `POST /storage/presigned-url`, `POST /storage/multipart/initiate` | MinIO bucket `lms-course-bucket` | `StorageServiceImplTest.java` | `TESTED` |
+| `course-service` | Học viên đăng ký ghi danh khóa học | `features/courses/pages/student/DetailCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses/{id}/enroll` | Bảng `enrollments` | `EnrollmentConcurrencyTest.java`, `CourseFunctionalTest.java` | `TESTED` |
+| `course-service` | Danh sách khóa học của tôi (Tạo & Ghi danh) | `features/courses/pages/student/MyCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my`, `GET /courses/enrolled` | Bảng `enrollments`, `courses` | `CourseServiceImplTest.java` | `TESTED` |
+| `course-service` | Đánh dấu bài học hoàn thành & Theo dõi tiến độ | `features/courses/pages/student/CourseHubPage.jsx` | `LessonProgressController.java`, `LessonProgressServiceImpl.java` | `POST /courses/{courseId}/lessons/{lessonId}/complete`, `GET /courses/{courseId}/progress`, `GET /courses/{courseId}/progress/average` | Bảng `lesson_progress` | `LessonProgressServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
+| `course-service` | Quản lý lịch học trực tuyến & Google Meet | `features/courses/pages/teacher/CourseManagementCenter.jsx` | `ScheduleController.java`, `ScheduleServiceImpl.java` | `GET /courses/{cId}/schedules`, `POST /schedules`, `PUT /schedules/{id}`, `DELETE /schedules/{id}` | Bảng `schedules` | `ScheduleServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
+| `course-service` | Quản lý thông báo trong khóa học | `features/courses/pages/student/DetailMyCoursePage.jsx` | `AnnouncementController.java`, `AnnouncementServiceImpl.java` | `GET /courses/{cId}/announcements`, `POST /announcements`, `DELETE /announcements/{id}` | Bảng `announcements` | `AnnouncementServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
 | `course-service` | Quản trị viên duyệt và quản lý toàn bộ khóa học | `features/dashboard/components/admin/Management/CourseManagement.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my/stats`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | `CourseApiIntegrationTest.java` | `TESTED` |
-| `course-service` | API nội bộ cung cấp thông tin khóa học (Feign) | — | `InternalCourseController.java` | `GET /internal/courses/{courseId}`, `GET /internal/courses/{courseId}/enrollments/{userId}`, `GET /internal/courses` | Bảng `courses` | `InternalCourseServiceImplTest.java` | `NOT_STARTED` |
+| `course-service` | API nội bộ cung cấp thông tin khóa học (Feign) | — | `InternalCourseController.java` | `GET /internal/courses/{courseId}`, `GET /internal/courses/{courseId}/enrollments/{userId}`, `GET /internal/courses` | Bảng `courses` | `InternalCourseServiceImplTest.java`, `InternalCourseApiIntegrationTest.java` | `TESTED` |
 
 ---
 
@@ -148,11 +148,11 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 |---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
 | Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 100% |
 | Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
-| Course Service | 15 | 7 | 0 | 0 | 8 | 0 | 53.3% |
+| Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
 | Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0% |
 | Blog Service | 9 | 9 | 0 | 0 | 0 | 0 | 0% |
 | Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0% |
 | Frontend & Dashboard | 6 | 6 | 0 | 0 | 0 | 0 | 0% |
-| **TỔNG CỘNG** | **75** | **45** | **0** | **0** | **24** | **6** | **40.0%** |
+| **TỔNG CỘNG** | **75** | **38** | **0** | **0** | **31** | **6** | **49.3%** |
 
 *(Bảng này sẽ được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.

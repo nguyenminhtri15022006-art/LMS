@@ -713,6 +713,51 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
 - **Commit message dự kiến**:
   - `feat(course): bổ sung ghi danh tiến độ học tập lịch học trực tuyến và minio storage`
 
+- **Kết Quả Thực Hiện Thực Tế & Nghiệm Thu Phase 8**:
+  - **Trạng thái**: ĐÃ HOÀN THÀNH TOÀN DIỆN (15/15 tính năng Course Service đạt `TESTED` 100%, 0 IMPLEMENTED, 0 NOT_STARTED).
+  - **Kết quả kiểm thử thực tế**:
+    * Lệnh chạy module: `mvn test -pl course-service -f backend/pom.xml`
+    * Kết quả: **57/57 test cases PASS 100%**, 0 Failures, 0 Errors, 0 Skipped (Thời gian chạy: 01:02 min).
+    * Phân bổ chi tiết 32 test cases của Phase 8:
+      1. `LessonProgressServiceImplTest` (3 tests PASS): `completeLessonValidStudentMarksCompleted`, `getCourseProgressEnrolledStudentReturnsPercentage`, `getAverageProgressInstructorReturnsAverage`.
+      2. `ScheduleServiceImplTest` (4 tests PASS): `createScheduleValidDataReturnsSchedule`, `createScheduleInvalidTimeThrowsException`, `updateScheduleOwnerSuccess`, `deleteScheduleOwnerSuccess`.
+      3. `AnnouncementServiceImplTest` (3 tests PASS): `createAnnouncementInstructorSuccess`, `getAnnouncementsEnrolledStudentReturnsList`, `deleteAnnouncementInstructorSuccess`.
+      4. `StorageServiceImplTest` (4 tests PASS): `generatePresignedUrlSuccess`, `initiateMultipartUploadLargeVideoReturnsUploadId`, `completeMultipartUploadValidPartsCombinesFile`, `deleteFileValidUrlDeletesFromMinio`.
+      5. `InternalCourseServiceImplTest` (7 tests PASS): `internalGetCourseReturnsCourseResponse`, `internalGetLessonReturnsLessonResponse`, `internalCheckEnrollmentEnrolledUserReturnsTrue`, `internalCheckEnrollmentUnenrolledUserReturnsFalse`, `internalCountStudentsReturnsCount`, `internalGetAllPublishedCoursesReturnsChatbotList`, `internalGetEnrolledCoursesReturnsChatbotList`.
+      6. `EnrollmentConcurrencyTest` (1 test PASS): `concurrentEnrollmentRequestsDoNotCreateDuplicateRecords` (10 luồng đồng thời ghi danh cùng một học viên; database kích hoạt unique constraint `uq_enrollments_user_course` ngăn chặn race condition, chỉ đúng 1 bản ghi được lưu thành công và các luồng còn lại bị từ chối sạch sẽ).
+         - *Lưu ý kỹ thuật*: Kiểm thử in-memory với H2 Database xác nhận tính bất biến của logic ứng dụng và tính toàn vẹn của ràng buộc unique constraint; việc kiểm thử transaction, isolation level (REPEATABLE READ) và row-level locking thực tế sẽ tiếp tục được bảo chứng trên MySQL trong Docker Compose.
+      7. `InternalCourseApiIntegrationTest` (8 HTTP contract tests PASS): `internalGetCourseHttpContractReturns200`, `internalGetLessonHttpContractReturns200`, `internalCheckEnrollmentHttpContractReturnsBoolean`, `internalCountStudentsHttpContractReturnsLong`, `internalCourseExistsHttpContractReturnsBoolean`, `internalLessonExistsHttpContractReturnsBoolean`, `internalGetAllCoursesHttpContractReturnsList`, `internalGetEnrolledCoursesHttpContractReturnsList`.
+      8. `CourseFunctionalTest` (2 end-to-end integration tests PASS): `studentEnrollsInCourseAndTracksProgressWorkflow` (học viên ghi danh -> theo dõi tiến độ ban đầu 0% -> hoàn thành bài học 1 -> tiến độ tăng lên 50%), `instructorPublishesAnnouncementAndSchedulesMeetingWorkflow` (giảng viên tạo thông báo & lịch học -> học viên đã ghi danh xem đầy đủ).
+    * Lệnh kiểm thử hồi quy toàn Monorepo: `mvn test -f backend/pom.xml` -> **121/121 test cases PASS 100%** trên toàn bộ 6 modules: `service-registry` (1 test), `api-gateway` (1 test), `identity-service` (61 tests), `course-service` (57 tests), `blog-service` (1 test).
+  - **Danh mục mã nguồn đã triển khai**:
+    * Cấu hình & Hạ tầng: `MinioConfig.java` (định nghĩa `@Primary minioClient` cho nội bộ cluster và `@Qualifier("publicMinioClient") publicMinioClient` cho presigned URL ra ngoài), cấu hình `application.yaml` và `application-test.yaml`.
+    * MySQL Entities & Repositories: `LessonProgress.java`, `Schedule.java`, `LessonProgressRepository.java`, `ScheduleRepository.java`, `AnnouncementRepository.java` (bổ sung `findByCourseId(String courseId, Pageable pageable)`).
+    * DTOs Request & Response:
+      - Requests: `CompleteLessonRequest`, `CompleteMultipartRequest`, `CreateAnnouncementRequest`, `CreateScheduleRequest`, `InitiateMultipartRequest`, `PresignedUrlRequest`, `UpdateScheduleRequest`.
+      - Responses: `AnnouncementResponse`, `ChatbotCourseResponse`, `CompleteMultipartResponse`, `CourseProgressResponse`, `InitiateMultipartResponse`, `InternalCourseResponse`, `InternalLessonResponse`, `PresignedUrlResponse`, `ScheduleResponse`.
+    * Mappers: `AnnouncementMapper.java`, `ScheduleMapper.java`.
+    * Services & Controllers:
+      - `LessonProgressService.java`, `LessonProgressServiceImpl.java`, `LessonProgressController.java`.
+      - `ScheduleService.java`, `ScheduleServiceImpl.java`, `ScheduleController.java`.
+      - `AnnouncementService.java`, `AnnouncementServiceImpl.java`, `AnnouncementController.java`.
+      - `StorageService.java`, `StorageServiceImpl.java`, `StorageController.java`.
+      - `InternalCourseService.java`, `InternalCourseServiceImpl.java`, `InternalCourseController.java`.
+    * File kiểm thử TDD:
+      - `LessonProgressServiceImplTest.java` (3 tests)
+      - `ScheduleServiceImplTest.java` (4 tests)
+      - `AnnouncementServiceImplTest.java` (3 tests)
+      - `StorageServiceImplTest.java` (4 tests)
+      - `InternalCourseServiceImplTest.java` (7 tests)
+      - `EnrollmentConcurrencyTest.java` (1 test)
+      - `InternalCourseApiIntegrationTest.java` (8 tests)
+      - `CourseFunctionalTest.java` (2 tests)
+  - **Đồng bộ tài liệu**:
+    * [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md): Đồng bộ chi tiết mục 2.1 - 2.9 (Tiến độ bài học, Lịch học Google Meet, Thông báo, Lưu trữ MinIO, 8 OpenFeign API nội bộ).
+    * [docs/FEATURE_PARITY_MATRIX.md](file:///d:/LMS-main/docs/FEATURE_PARITY_MATRIX.md): Chuyển 7 tính năng còn lại của phân hệ Course Service sang `TESTED`. Toàn bộ phân hệ Course Service đạt 15/15 tính năng `TESTED` (100%). Tiến độ tổng thể hệ thống đạt 49.3% (31 TESTED, 6 VERIFIED).
+  - **Lịch sử commits**:
+    * Nhánh: `cuong-dev`
+    * Commit: `feat(course): bổ sung ghi danh tiến độ học tập lịch học trực tuyến và minio storage`
+
 ---
 
 ### Phase 9: Diễn Đàn Blog Markdown, Tag, Bình Luận Lồng Nhau & Vote Post/Comment (`blog-service`)

@@ -29,3 +29,13 @@ eureka:
     enabled: false
     register-with-eureka: false
     fetch-registry: false
+
+minio:
+  url: http://localhost:9000
+  public-url: http://localhost:9000
+  region: us-east-1
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket-name: lms-course-bucket
+  presigned-expiry-minutes: 60
+

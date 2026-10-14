@@ -6,5 +6,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface AnnouncementRepository extends JpaRepository<Announcement, Long> {
+    Page<Announcement> findByCourseId(String courseId, Pageable pageable);
     Page<Announcement> findByCourseIdOrderByCreatedAtDesc(String courseId, Pageable pageable);
 }
