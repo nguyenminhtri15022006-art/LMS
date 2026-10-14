@@ -1,0 +1,75 @@
+# ==============================
+# JAVA & COMPILER
+# ==============================
+*.class
+*.log
+*.ctxt
+.mtj.tmp/
+*.jar
+*.war
+*.nar
+*.ear
+*.zip
+*.tar.gz
+*.rar
+hs_err_pid*
+replay_pid*
+
+# ==============================
+# MAVEN
+# ==============================
+target/
+pom.xml.tag
+pom.xml.releaseBackup
+pom.xml.versionsBackup
+pom.xml.next
+
+# ==============================
+# NODE / REACT / VITE
+# ==============================
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ==============================
+# ENVIRONMENT VARIABLES & SECRETS
+# ==============================
+.env
+.env.production
+.env.development
+.env.local
+!.env.example
+!frontend/.env.example
+
+# ==============================
+# IDE & EDITORS
+# ==============================
+.idea/
+*.iml
+*.iws
+*.ipr
+.vscode/
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.settings/
+
+# ==============================
+# OS & SYSTEM
+# ==============================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==============================
+# DOCKER & PERSISTENCE DATA
+# ==============================
+docker-data/
+minio_data/
