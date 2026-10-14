@@ -965,7 +965,7 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
   - **Chuẩn hóa Hợp đồng Gateway–Microservices (`X-User-Role` & `X-User-Roles`)**:
     * **Kiểm tra rủi ro**: Trong hệ thống Spring Cloud Gateway và microservices, một số thành phần dùng header `X-User-Role` (số ít), trong khi một số khác hoặc token có thể chứa nhiều vai trò `X-User-Roles` (số nhiều, phân tách bằng dấu phẩy). Nếu không chuẩn hóa hai chiều, các request downstream có thể bị từ chối 403 Forbidden ngoài ý muốn hoặc bị kẻ tấn công spoofing header.
     * **Giải pháp chuẩn hóa tại `api-gateway`**:
-      - `AuthFilter.java`: Khi JWT hợp lệ, gateway inject đồng thời cả hai header `X-User-Role` (vai trò đầu tiên/chính) và `X-User-Roles` (chuỗi danh sách vai trò dạng `ROLE_STUDENT,ROLE_TEACHER`).
+      - `AuthFilter.java`: Khi JWT hợp lệ, gateway inject đồng thời cả hai header `X-User-Role` (vai trò đầu tiên/chính) và `X-User-Roles` (chuỗi danh sách vai trò dạng `ROLE_STUDENT,ROLE_INSTRUCTOR`).
       - Chống giả mạo (Anti-Spoofing): Trong `AuthFilter.removeGatewayAuthHeaders` và các cấu hình route công khai (`application.yaml`, `application-test.yaml`), bổ sung `RemoveRequestHeader=X-User-Roles` và `RemoveRequestHeader=X-User-Role` để triệt tiêu toàn bộ header do client tự ý gửi vào.
       - `AuthFilterTest.java`: Bổ sung kiểm thử xác nhận inject cả 2 header và kiểm thử ghi đè/loại bỏ header `X-User-Roles` giả mạo.
     * **Giải pháp tiếp nhận tại các microservices hạ nguồn (`identity-service`, `course-service`, `blog-service`)**:
@@ -975,39 +975,71 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
         + `IdentityApiIntegrationTest`: `gatewayContractSupportsXUserRolesHeader` (PASS).
         + `CourseApiIntegrationTest`: `gatewayContractSupportsXUserRolesHeader` (PASS).
         + `BlogApiIntegrationTest`: `gatewayContractSupportsXUserRolesPluralHeader` (PASS).
-  - **Đồng bộ hóa API Contract Blog Service trong [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md)**:
-    * Đồng bộ đầy đủ 22 endpoints (20 endpoints công khai/xác thực + 2 endpoints Feign nội bộ):
-      + 4.1 Quản lý Thẻ bài viết (`/tags`): 4 endpoints (GET list, POST create, PUT update, DELETE delete).
-      + 4.2 Quản lý Bài viết Blog (`/posts`): 7 endpoints (GET public pageable, GET slug, GET id, POST create multipart, PUT update, DELETE delete, GET me, GET admin).
-      + 4.3 Quản lý Bình luận (`/posts/{postId}/comments`): 3 endpoints (GET comments tree, POST comment, DELETE comment).
-      + 4.4 Hệ thống Bình chọn (`/posts/{postId}/vote`, `/posts/{postId}/comments/{commentId}/vote`): 2 endpoints.
-      + 4.5 API Nội bộ Blog (`/internal/posts/{postId}`, `/internal/posts/{postId}/exists`): 2 endpoints cho OpenFeign.
+  - **Đính Chính & Đồng Bộ Hóa API Contract Blog Service Theo Controller Thực Tế Trong [docs/API_CONTRACT.md](file:///d:/LMS-main/docs/API_CONTRACT.md)**:
+    * Đồng bộ chính xác toàn bộ **22 endpoints** (20 endpoints công khai/xác thực + 2 endpoints Feign nội bộ) phân nhóm theo đúng 5 Controllers thực tế của `blog-service`:
+      + **`PostController` (`/posts`): 8 endpoints**
+        1. `GET /posts/public`: Lấy danh sách bài viết công khai phân trang (`PUBLISHED`, lọc theo `tagId`, `keyword`).
+        2. `GET /posts/public/{slug}`: Lấy chi tiết bài viết theo slug (công khai, tự động tăng `viewCount`).
+        3. `GET /posts/admin`: Quản trị viên xem toàn bộ bài viết (kể cả `DRAFT`, `HIDDEN`).
+        4. `GET /posts/{id}`: Xem chi tiết bài viết theo ID (yêu cầu đăng nhập).
+        5. `GET /posts/me`: Lấy danh sách bài viết của chính tác giả.
+        6. `POST /posts`: Tạo bài viết mới kèm ảnh bìa multipart tải lên MinIO `lms-blog-bucket`.
+        7. `PUT /posts/{id}`: Cập nhật nội dung, tiêu đề, tag, trạng thái bài viết (tác giả hoặc Admin).
+        8. `DELETE /posts/{id}`: Xóa bài viết (tác giả hoặc Admin).
+      + **`TagController` (`/tags`): 6 endpoints**
+        1. `GET /tags`: Lấy danh sách toàn bộ thẻ tag công khai.
+        2. `GET /tags/{id}`: Lấy chi tiết thẻ tag theo ID.
+        3. `GET /tags/search`: Tìm kiếm thẻ tag theo từ khóa (`keyword`).
+        4. `POST /tags`: Quản trị viên tạo thẻ tag mới (`hasRole('ADMIN')`).
+        5. `PUT /tags/{id}`: Quản trị viên cập nhật thẻ tag (`hasRole('ADMIN')`).
+        6. `DELETE /tags/{id}`: Quản trị viên xóa thẻ tag (`hasRole('ADMIN')`).
+      + **`CommentController` (`/posts/{postId}/comments`): 4 endpoints**
+        1. `GET /posts/{postId}/comments`: Lấy danh sách bình luận của bài viết dạng cây phân cấp (có `replies`).
+        2. `POST /posts/{postId}/comments`: Viết bình luận mới (hỗ trợ bình luận gốc hoặc trả lời theo `parentId`).
+        3. `PUT /posts/{postId}/comments/{commentId}`: Cập nhật nội dung bình luận (tác giả).
+        4. `DELETE /posts/{postId}/comments/{commentId}`: Xóa bình luận (tác giả hoặc Admin).
+      + **`VoteController`: 2 endpoints**
+        1. `POST /posts/{postId}/vote`: Bình chọn Upvote / Downvote bài viết (cơ chế toggle, đảo chiều, Native Query chống Lost Updates).
+        2. `POST /posts/{postId}/comments/{commentId}/vote`: Bình chọn Upvote / Downvote bình luận.
+      + **`InternalBlogController` (`/internal`): 2 endpoints**
+        1. `GET /internal/posts/{postId}`: Cung cấp thông tin tóm tắt bài viết cho Feign Client liên dịch vụ.
+        2. `GET /internal/posts/{postId}/exists`: Kiểm tra sự tồn tại của bài viết cho Feign Client.
   - **Báo Cáo Nghiệm Thu Backend Đợt 2**:
     * Toàn bộ 3 microservices chính của Thành viên 2 (`identity-service`, `course-service`, `blog-service`) cùng hạ tầng dùng chung (`service-registry`, `api-gateway`) đã hoàn thành 100% logic nghiệp vụ phía Backend, kết nối CSDL, validation, bảo mật phân quyền RBAC, xử lý ngoại lệ tập trung và Feign contracts.
     * Đạt 147/147 test cases tự động (unit, service, concurrency, mockmvc integration, functional, Feign contract) với tỷ lệ đỗ tuyệt đối 100%.
-  - **Tuyên Bố Các Thành Phần Chưa Kiểm Chứng Trên Hạ Tầng Thật (Bảo Lưu Thẩm Định Đợt 3 & Docker Compose)**:
-    Theo đúng nguyên tắc trung thực và quy định tại [AGENTS.md](file:///d:/LMS-main/AGENTS.md), toàn bộ các bài kiểm thử Đợt 2 được thực thi trên môi trường kiểm thử cô lập (H2 in-memory DB, Fongo/Mock MongoDB, Mockito, Spring Cloud Contract MockMvc). Các hạng mục sau **chưa được kiểm chứng trên hạ tầng thật** và bắt buộc phải được nghiệm thu trong môi trường Full-stack Docker Compose ở Đợt 3:
-    1. **CSDL MySQL InnoDB thật**:
+  - **Tuyên Bố Phân Định Rõ Ràng Các Thành Phần Chưa Kiểm Chứng Trên Hạ Tầng Thật**:
+    Theo đúng nguyên tắc minh bạch tại [AGENTS.md](file:///d:/LMS-main/AGENTS.md), toàn bộ các bài kiểm thử Đợt 2 được thực thi trên môi trường kiểm thử cô lập (H2 in-memory DB, Fongo/Mock MongoDB, Mockito, Spring Cloud Contract MockMvc). Các hạng mục sau **chưa được kiểm chứng trên hạ tầng thật** và được phân định rành mạch theo trách nhiệm của từng thành viên:
+
+    #### A. Phần chưa kiểm chứng trên hạ tầng thật thuộc phạm vi Thành viên 2 (Cường):
+    1. **CSDL MySQL 8.0 InnoDB thật** (cho `identity-service`, `course-service`, `blog-service`):
        - Mức độ cô lập giao dịch (`REPEATABLE READ`).
        - Cơ chế khóa hàng (`SELECT ... FOR UPDATE`) và deadlock handling khi hàng nghìn người dùng đồng thời ghi danh (`EnrollmentConcurrency`) hoặc bấm vote (`VoteConcurrency`).
-       - Các trigger/foreign key constraints và character set `utf8mb4` của MySQL 8.0.
-    2. **MongoDB Replica Set thật**:
+       - Các trigger/foreign key constraints và character set `utf8mb4_unicode_ci` của MySQL 8.0 thật.
+    2. **MongoDB Replica Set thật** (cho `course-service`):
        - Cấu trúc cây đề cương bài học `CourseStructure` lồng nhau đa cấp độ dưới tải đọc/ghi lớn của MongoDB thật.
        - Lưu trữ và cập nhật atomicity của các collection `lessons`, `course_structures`.
-    3. **MinIO S3 Object Storage thật**:
-       - Tạo và ký Presigned URL upload trực tiếp từ trình duyệt web.
+    3. **MinIO S3 Object Storage thật** (cho `identity-service`, `course-service`, `blog-service`):
+       - Tạo và ký Presigned URL upload trực tiếp từ trình duyệt web (`lms-identity-bucket`, `lms-course-bucket`, `lms-blog-bucket`).
        - Cơ chế ghép nối Multipart Upload cho video bài giảng dung lượng lớn (>100MB).
        - Bucket access policy và quyền tải file công khai/riêng tư.
-    4. **Redis Cache thật**:
-       - Phân tán cache dữ liệu, giới hạn tốc độ truy cập (Rate Limiting).
-       - Cơ chế lưu trữ blacklist token và session caching phân tán.
-    5. **Dịch vụ Biên dịch & Chấm mã nguồn Judge0 / Sandbox**:
-       - Môi trường cô lập thực thi mã nguồn an toàn (thuộc phạm vi `assignment-service`).
-    6. **Các dịch vụ bên thứ ba (Google OAuth 2.0 SSO, Mail SMTP Server)**:
-       - Đăng nhập Google thật bằng Client ID / Client Secret thật.
-       - Gửi email OTP 6 số thực sự đến hộp thư người dùng qua SMTP Google/SendGrid.
-    7. **Giao diện Người Dùng Frontend & Kiểm Thử E2E**:
-       - Toàn bộ giao diện React 18 + Vite (Xác thực, Khóa học, Học trực tuyến, Blog diễn đàn, Dashboard Admin) sẽ được xây dựng và kết nối Gateway trong Đợt 3 để thỏa mãn đủ 13 tiêu chí nghiệm thu `VERIFIED`.
+    4. **Tích hợp dịch vụ bên thứ ba thật** (cho `identity-service`):
+       - Đăng nhập Google OAuth 2.0 thật bằng Client ID / Client Secret thật từ Google Cloud Console.
+       - Gửi email OTP 6 số thực sự đến hộp thư người dùng qua SMTP Google / SendGrid.
+    5. **Giao diện Người Dùng Frontend (5 Phân Hệ của Thành viên 2)**:
+       - Toàn bộ giao diện React 18 + Vite (Xác thực & Hồ sơ, Khám phá & Trình học trực tuyến, Quản trị Giảng viên, Blog Diễn đàn, Dashboard Admin) sẽ được xây dựng và kết nối Gateway trong Đợt 3 để thỏa mãn đủ 13 tiêu chí nghiệm thu `VERIFIED`.
+
+    #### B. Phần thuộc phạm vi & trách nhiệm của Thành viên 1 (Nguyễn Minh Trí) — Tuyệt đối không thuộc phạm vi của Thành viên 2:
+    1. **Phân hệ Bài tập, Trắc nghiệm & Chấm Code (`assignment-service`)**:
+       - Cài đặt và cấu hình dịch vụ biên dịch & chấm mã nguồn tự động Judge0 / Sandbox execution.
+       - CSDL ngân hàng câu hỏi (`questions`, `answers`), bài thi Quiz (`quizzes`, `quiz_attempts`, `grades`), bài toán lập trình (`problems`, `test_cases`, MongoDB `submissions`).
+       - Chấm điểm mã nguồn tự động, tính điểm trắc nghiệm, và bảng xếp hạng Leaderboard.
+    2. **Phân hệ Trợ lý ảo & Tự sinh nội dung (`chatbot-service`)**:
+       - Kết nối và kiểm soát API mô hình ngôn ngữ lớn (External LLM API: Gemini / OpenAI).
+       - Lưu trữ lịch sử phiên hội thoại trên MongoDB (`chat_sessions`, `chat_messages`).
+       - Kiểm soát hạn ngạch tin nhắn AI trên Redis (`RateLimiterServiceImpl`).
+       - Tự động sinh câu hỏi trắc nghiệm và bộ testcase từ văn bản.
+    3. **Giao diện Frontend của Thành viên 1**:
+       - Toàn bộ các trang làm bài trắc nghiệm, nộp bài code, xem kết quả chấm Judge0, bảng xếp hạng Leaderboard, và Widget Chatbot AI.
 
 - **Commit message**:
   - `feat(backend): hoàn thành kiểm thử monorepo chuẩn hóa contract gateway và nghiệm thu đợt 2`

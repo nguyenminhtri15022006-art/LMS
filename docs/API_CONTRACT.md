@@ -330,7 +330,7 @@ Mã phản hồi lỗi:
 > - `X-User-Email`: Email của người dùng.  
 > - `X-Gateway-Authenticated`: Đánh dấu cờ `"true"` từ Gateway.  
 
-### 4.1 Bài Viết Blog (`PostController` — `/posts`)
+### 4.1 Bài Viết Blog (`PostController` — `/posts`: 8 Endpoints)
 - `GET /api/blog/posts/public` (Public)
   - Query: `page`, `size`, `sort`, `tagId`, `keyword`
   - Out: `ApiResponse<Page<PostSummaryResponse>>`
@@ -365,7 +365,7 @@ Mã phản hồi lỗi:
   - Path: `id`
   - Out: `ApiResponse<String>`
 
-### 4.2 Thẻ Gắn Blog (`TagController` — `/tags`)
+### 4.2 Thẻ Gắn Blog (`TagController` — `/tags`: 6 Endpoints)
 - `GET /api/blog/tags` (Public) -> Out: `ApiResponse<List<TagResponse>>`
 - `GET /api/blog/tags/{id}` (Public) -> Out: `ApiResponse<TagResponse>`
 - `GET /api/blog/tags/search` (Public) -> Query: `keyword`, Out: `ApiResponse<List<TagResponse>>`
@@ -379,7 +379,7 @@ Mã phản hồi lỗi:
   - Path: `id`
   - Out: `ApiResponse<String>`
 
-### 4.3 Bình Luận Bài Viết (`CommentController` — `/posts/{postId}/comments`)
+### 4.3 Bình Luận Bài Viết (`CommentController` — `/posts/{postId}/comments`: 4 Endpoints)
 - `GET /api/blog/posts/{postId}/comments` (Public)
   - Query: `page`, `size`, `sort`
   - Out: `ApiResponse<Page<CommentResponse>>` (cấu trúc cây phân cấp với danh sách `replies`)
@@ -394,7 +394,7 @@ Mã phản hồi lỗi:
 - `DELETE /api/blog/posts/{postId}/comments/{commentId}` (Authenticated — Author hoặc ADMIN)
   - Out: `ApiResponse<String>`
 
-### 4.4 Bình Chọn Bài Viết & Bình Luận (`VoteController`)
+### 4.4 Bình Chọn Bài Viết & Bình Luận (`VoteController`: 2 Endpoints)
 - `POST /api/blog/posts/{postId}/vote` (Authenticated)
   - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
   - Out: `ApiResponse<VoteResponse>` (`targetId`, `targetType`, `userVote`, `upvoteCount`, `downvoteCount`)
@@ -403,7 +403,7 @@ Mã phản hồi lỗi:
   - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
   - Out: `ApiResponse<VoteResponse>`
 
-### 4.5 Giao Tiếp Nội Bộ (`InternalBlogController` — `/internal`)
+### 4.5 Giao Tiếp Nội Bộ (`InternalBlogController` — `/internal`: 2 Endpoints)
 - `GET /internal/posts/{postId}` (Internal OpenFeign)
   - Out: `ApiResponse<InternalPostResponse>` (`id`, `title`, `authorId`, `status`)
 - `GET /internal/posts/{postId}/exists` (Internal OpenFeign)
