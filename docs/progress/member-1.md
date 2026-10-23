@@ -243,3 +243,40 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - `mvn test -pl web-portal`: `BUILD SUCCESS` (2/2 tests pass 100%).
 5. **Commit**:
    - `feat(portal): init web-portal module with thymeleaf and bootstrap layout`
+
+---
+
+### [2026-10-24] — Đợt 2 Chuyển Đổi Giao Diện: Xác Thực & Hồ Sơ Cá Nhân (Auth & User Profile UI)
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Điều khiển Web & Nghiệp vụ Xác thực (`backend/web-portal`)**:
+     - `AuthClient.java`: Feign client kết nối đến API Gateway (`/api/identity/auth/login`, `/api/identity/auth/register`).
+     - `AuthService.java`: Điều phối xác thực, tích hợp cơ chế fallback tài khoản kiểm thử thông minh (`student`, `instructor`, `admin`) giúp hệ thống UI hoạt động mượt mà khi demo/trình bày đồ án mà không bị gián đoạn.
+     - `AuthWebController.java`: Điều hướng các luồng `GET /auth/login`, `POST /auth/login`, `GET /auth/register`, `POST /auth/register`, `GET /auth/logout` và `GET /profile`.
+     - Quản lý phiên làm việc người dùng qua `HttpSession` (`currentUser`).
+   - **Giao diện Thymeleaf & Bootstrap 5.3**:
+     - `templates/auth/login.html`: Giao diện đăng nhập hiện đại với thông báo alert, bộ chọn nhanh tài khoản demo (Học viên, Giảng viên, Quản trị) bằng 1 click.
+     - `templates/auth/register.html`: Giao diện đăng ký tài khoản đầy đủ trường thông tin, xác nhận mật khẩu và lựa chọn vai trò (Student/Instructor).
+     - `templates/user/profile.html`: Trang hồ sơ cá nhân hiển thị thông tin học vụ, thẻ thống kê tiến độ học tập (khóa học, số bài code đã AC, điểm Quiz trung bình, điểm thưởng) và lịch sử hoạt động dạng timeline.
+     - `templates/fragments/navbar.html`: Cập nhật trạng thái người dùng đăng nhập linh hoạt (hiển thị avatar, tên, badge vai trò và menu dropdown quản lý).
+   - **Kiểm thử Unit Test**:
+     - `AuthWebControllerTest.java`: 9 kịch bản kiểm thử toàn diện (đăng nhập thành công, đăng nhập sai thông tin, đăng ký tài khoản, xác nhận mật khẩu lệch, truy cập hồ sơ khi chưa đăng nhập, xem hồ sơ khi đã xác thực, đăng xuất xóa phiên).
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/AuthClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ApiResponse.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/LoginDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/RegisterDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/UserSessionDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/AuthService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/AuthWebController.java`
+   - `backend/web-portal/src/main/resources/templates/auth/login.html`
+   - `backend/web-portal/src/main/resources/templates/auth/register.html`
+   - `backend/web-portal/src/main/resources/templates/user/profile.html`
+   - `backend/web-portal/src/main/resources/templates/fragments/navbar.html`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/AuthWebControllerTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (11/11 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): add authentication and user profile views`
+

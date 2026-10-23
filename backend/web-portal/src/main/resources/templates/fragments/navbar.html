@@ -15,7 +15,7 @@
         <div class="collapse navbar-collapse" id="mainNavbar">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0 ms-lg-3">
                 <li class="nav-item">
-                    <a class="nav-link active" th:href="@{/}">
+                    <a class="nav-link" th:href="@{/}">
                         <i class="bi bi-house-door me-1"></i>Trang chủ
                     </a>
                 </li>
@@ -40,13 +40,65 @@
                     </a>
                 </li>
             </ul>
-            <div class="d-flex align-items-center gap-2">
+
+            <!-- Unauthenticated State -->
+            <div th:if="${session.currentUser == null}" class="d-flex align-items-center gap-2">
                 <a th:href="@{/auth/login}" class="btn btn-outline-light btn-sm px-3">
                     <i class="bi bi-box-arrow-in-right me-1"></i>Đăng nhập
                 </a>
                 <a th:href="@{/auth/register}" class="btn btn-primary btn-sm px-3 fw-semibold">
                     <i class="bi bi-person-plus me-1"></i>Đăng ký
                 </a>
+            </div>
+
+            <!-- Authenticated State -->
+            <div th:if="${session.currentUser != null}" class="d-flex align-items-center gap-3">
+                <div class="dropdown">
+                    <button class="btn btn-outline-secondary text-white dropdown-toggle d-flex align-items-center gap-2 py-1 px-3 rounded-pill border-secondary" type="button" id="userMenuButton" data-bs-toggle="dropdown" aria-expanded="false">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 28px; height: 28px; font-size: 13px;">
+                            <span th:text="${#strings.substring(session.currentUser.fullname != null ? session.currentUser.fullname : session.currentUser.username, 0, 1)}">U</span>
+                        </div>
+                        <span class="small fw-semibold" th:text="${session.currentUser.fullname != null ? session.currentUser.fullname : session.currentUser.username}">Nguyễn Văn A</span>
+                        <span class="badge bg-info text-dark" style="font-size: 10px;" th:text="${session.currentUser.role}">STUDENT</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="userMenuButton">
+                        <li class="dropdown-header">
+                            <div class="fw-bold text-dark" th:text="${session.currentUser.fullname}">User Fullname</div>
+                            <small class="text-muted" th:text="${session.currentUser.email}">user@ute.edu.vn</small>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/profile}">
+                                <i class="bi bi-person text-primary"></i>Hồ sơ cá nhân
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/profile/my-courses}">
+                                <i class="bi bi-book text-success"></i>Khóa học của tôi
+                            </a>
+                        </li>
+                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}"><hr class="dropdown-divider"></li>
+                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}" class="dropdown-header text-uppercase fs-7 text-secondary">
+                            Giảng viên
+                        </li>
+                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}">
+                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/questions}">
+                                <i class="bi bi-bank text-warning"></i>Ngân hàng câu hỏi
+                            </a>
+                        </li>
+                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}">
+                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/problems}">
+                                <i class="bi bi-code-square text-danger"></i>Quản lý bài tập code
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item d-flex align-items-center gap-2 text-danger" th:href="@{/auth/logout}">
+                                <i class="bi bi-box-arrow-right"></i>Đăng xuất
+                            </a>
+                        </li>
+                    </ul>
+                </div>
             </div>
         </div>
     </div>
