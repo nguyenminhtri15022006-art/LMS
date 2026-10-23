@@ -25,6 +25,7 @@
         <module>assignment-service</module>
         <module>blog-service</module>
         <module>chatbot-service</module>
+        <module>web-portal</module>
     </modules>
 
     <properties>

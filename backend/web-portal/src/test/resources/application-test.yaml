@@ -1,0 +1,10 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: web-portal-test
+
+eureka:
+  client:
+    enabled: false
