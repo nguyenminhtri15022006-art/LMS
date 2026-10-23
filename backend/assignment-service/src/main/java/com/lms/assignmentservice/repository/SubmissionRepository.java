@@ -57,6 +57,13 @@ public interface SubmissionRepository extends MongoRepository<Submission, String
     // Kiểm tra student đã AC problem này chưa (dùng cho progress tracking)
     boolean existsByUserIdAndProblemIdAndStatus(String userId, Integer problemId, String status);
 
+    // Bảng xếp hạng submission theo problem (tốc độ thực thi nhanh nhất)
+    List<Submission> findByProblemIdAndStatusOrderByExecTimeMsAsc(
+            Integer problemId,
+            String status,
+            Pageable pageable
+    );
+
     // Tất cả submission của student trong một course (dùng tính gradebook)
     @Query("{ 'user_id': ?0, 'course_id': ?1 }")
     List<Submission> findByUserIdAndCourseId(String userId, String courseId);

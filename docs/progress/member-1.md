@@ -30,7 +30,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 3<br>(03/10 – 05/10)** | Triển khai Ngân hàng câu hỏi trắc nghiệm, Parser nhập CSV/TXT/DOCX, Tạo đề thi Quiz và cơ chế làm bài & chấm điểm | `assignment-service/src/main/java/.../QuizServiceImpl.java`, `Question.java` | `feat(assignment): add question bank and quiz management` | 67/67 Tests Passed |
 | [x] | **Đợt 4<br>(06/10 – 08/10)** | Triển khai Quản lý bài tập lập trình (Problem), bộ Testcase ẩn/hiện và lưu Submission vào MongoDB | `assignment-service/src/main/java/.../ProblemServiceImpl.java`, `Submission.java` | `feat(assignment): add coding problems and testcases` | Hash: `6d8c267` |
 | [x] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../Judge0Engine.java`, `SubmissionJudgingServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | Hash: 4b43cef (69/69 Tests Passed) |
-| [ ] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | |
+| [x] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | Hash: cab13b4 (75/75 Tests Passed) |
 | [ ] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror 6, Giao diện làm bài Quiz đếm ngược và kết quả | `frontend/src/features/assignment/code-judge/*`, `frontend/src/features/assignment/quiz/*` | `feat(frontend): kết nối giao diện quiz và trình soạn thảo code judge` | |
 | [ ] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `frontend/src/components/ui/ChatBot.jsx` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | |
 | [ ] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | |
@@ -473,4 +473,70 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
 5. **Commit**:
    - `feat(judge): tích hợp trình chấm code tự động qua judge0`
+
+---
+
+### [2026-10-24] — Đợt 6 Cốt Lõi: Triển Khai Bảng Điểm Tổng Hợp (Gradebook), Lịch Sử Thi Quiz & Bảng Xếp Hạng Leaderboard
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Bảng Điểm Tổng Hợp Gradebook (`backend/assignment-service`)**:
+     - `GradeRepository.java`: Bổ sung các truy vấn bảng điểm `findByCourseId`, `findByUserIdAndCourseId`, `findByUserId`, và tổng hợp leaderboard theo course/global.
+     - `GradebookEntryResponse.java` & `CourseGradeSummaryResponse.java`: Mô hình DTO trả về bảng điểm chi tiết, thống kê số lượng sinh viên, số lượng quiz và điểm trung bình toàn khóa.
+     - `GradeService.java` & `GradeServiceImpl.java`: Hiện thực nghiệp vụ phân quyền (`isAdminOrInstructor`), xuất bảng điểm theo khóa học cho giảng viên, bảng điểm cá nhân (`getMyGrades`) cho học viên và tóm tắt điểm số khóa học.
+     - `GradeController.java`: Cung cấp REST endpoints:
+       - `GET /grades/course/{courseId}`: Bảng điểm toàn bộ học viên theo khóa học.
+       - `GET /grades/course/{courseId}/summary`: Tóm tắt thống kê điểm trung bình khóa học.
+       - `GET /grades/my`: Điểm số Quiz của chính học viên đang đăng nhập.
+   - **Tầng Bảng Xếp Hạng Leaderboard (`backend/assignment-service`)**:
+     - `SubmissionRepository.java`: Bổ sung truy vấn `findByProblemIdAndStatusOrderByExecTimeMsAsc` tìm các lượt nộp bài AC nhanh nhất theo bài toán.
+     - `LeaderboardItemResponse.java` & `ProblemLeaderboardEntryResponse.java`: DTOs bảng xếp hạng sinh viên kèm xếp hạng thứ tự (Rank) và huy hiệu vinh danh (GOLD, SILVER, BRONZE, TOP_STUDENT).
+     - `LeaderboardService.java` & `LeaderboardServiceImpl.java`:
+       - `getCourseLeaderboard`: Xếp hạng sinh viên theo khóa học dựa trên tổng điểm Quiz và số bài tập lập trình đã giải quyết thành công (AC).
+       - `getGlobalLeaderboard`: Xếp hạng sinh viên toàn trường HCMUTE theo thời gian thực (hỗ trợ cơ chế dữ liệu khởi tạo sinh động).
+       - `getProblemLeaderboard`: Xếp hạng giải thuật toán cho từng bài tập code dựa trên thời gian thực thi (execution time ms) và bộ nhớ (memory used KB).
+     - `LeaderboardController.java`:
+       - `GET /leaderboard`: Bảng xếp hạng toàn hệ thống.
+       - `GET /leaderboard/courses/{courseId}`: Bảng xếp hạng theo từng môn học.
+       - `GET /leaderboard/problems/{problemId}`: Bảng xếp hạng bài tập code.
+     - `CodeJudgeController.java`: Bổ sung mapping endpoint `GET /submissions/leaderboard/{problemId}` theo đúng đặc tả API Contract.
+   - **Tầng Điều Khiển Lịch Sử Thi Quiz (`backend/assignment-service`)**:
+     - `QuizAttemptController.java`: Hoàn thiện kết nối toàn bộ chu trình làm bài và lịch sử thi:
+       - `POST /quizzes/{quizId}/attempts`: Khởi động/tiếp tục làm bài thi Quiz.
+       - `GET /quizzes/{quizId}/attempts/{attemptId}`: Lấy đề thi đang trong tiến trình làm bài.
+       - `PUT /quizzes/{quizId}/attempts/{attemptId}/auto-save`: Tự động lưu bản nháp đáp án của học viên.
+       - `POST /quizzes/{quizId}/attempts/{attemptId}/practice-check`: Kiểm tra đáp án nhanh cho chế độ luyện tập.
+       - `POST /quizzes/{quizId}/attempts/{attemptId}/submit`: Nộp bài thi, tự động tính điểm và cập nhật Gradebook.
+       - `GET /quizzes/{quizId}/attempts/{attemptId}/result`: Tra cứu kết quả và giải thích đáp án.
+       - `GET /quizzes/{quizId}/attempts`: Xem lịch sử tất cả các lần thi của học viên.
+   - **Đồng Bộ Giao Diện Web Portal (`backend/web-portal`)**:
+     - `LeaderboardClient.java`: OpenFeign client kết nối Gateway `/api/assignment/leaderboard`.
+     - `LeaderboardService.java`: Tích hợp gọi Gateway Leaderboard với cơ chế fallback mẫu mượt mà.
+   - **Kiểm Thử Tự Động (Unit Tests)**:
+     - `GradeServiceImplTest.java`: 3 kịch bản kiểm thử (kiểm tra quyền truy cập bảng điểm, tra cứu điểm cá nhân học viên, tính toán tóm tắt điểm số khóa học).
+     - `LeaderboardServiceImplTest.java`: 3 kịch bản kiểm thử (tổng hợp điểm và gán huy hiệu theo khóa học, bảng xếp hạng toàn cầu, bảng xếp hạng thuật toán theo tốc độ thực thi).
+3. **File thay đổi / tạo mới**:
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/controller/GradeController.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/controller/LeaderboardController.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/controller/QuizAttemptController.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/controller/CodeJudgeController.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/dto/response/GradebookEntryResponse.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/dto/response/CourseGradeSummaryResponse.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/dto/response/LeaderboardItemResponse.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/dto/response/ProblemLeaderboardEntryResponse.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/repository/GradeRepository.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/repository/SubmissionRepository.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/service/GradeService.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/service/LeaderboardService.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/service/impl/GradeServiceImpl.java`
+   - `backend/assignment-service/src/main/java/com/lms/assignmentservice/service/impl/LeaderboardServiceImpl.java`
+   - `backend/assignment-service/src/test/java/com/lms/assignmentservice/service/impl/GradeServiceImplTest.java`
+   - `backend/assignment-service/src/test/java/com/lms/assignmentservice/service/impl/LeaderboardServiceImplTest.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/LeaderboardClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/LeaderboardService.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl assignment-service`: `BUILD SUCCESS` (Toàn bộ 75/75 tests pass 100%, 0 failures, 0 errors).
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(assignment): triển khai bảng điểm gradebook và leaderboard`
 

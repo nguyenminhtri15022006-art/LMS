@@ -1,6 +1,11 @@
 package com.lms.webportal.service;
 
+import com.lms.webportal.client.LeaderboardClient;
+import com.lms.webportal.dto.ApiResponse;
 import com.lms.webportal.dto.LeaderboardEntryDto;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -8,7 +13,27 @@ import java.util.List;
 @Service
 public class LeaderboardService {
 
+    private static final Logger log = LoggerFactory.getLogger(LeaderboardService.class);
+
+    @Autowired(required = false)
+    private LeaderboardClient leaderboardClient;
+
     public List<LeaderboardEntryDto> getLeaderboard(String period) {
+        if (leaderboardClient != null) {
+            try {
+                ApiResponse<List<LeaderboardEntryDto>> response = leaderboardClient.getLeaderboard(20);
+                if (response != null && response.getResult() != null && !response.getResult().isEmpty()) {
+                    return response.getResult();
+                }
+            } catch (Exception e) {
+                log.warn("Không kết nối được LeaderboardClient, sử dụng dữ liệu vinh danh mặc định: {}", e.getMessage());
+            }
+        }
+
+        return getDefaultLeaderboard();
+    }
+
+    private List<LeaderboardEntryDto> getDefaultLeaderboard() {
         return List.of(
                 LeaderboardEntryDto.builder()
                         .rank(1)

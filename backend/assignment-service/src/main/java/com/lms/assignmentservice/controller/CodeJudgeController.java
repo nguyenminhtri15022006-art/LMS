@@ -3,9 +3,11 @@ package com.lms.assignmentservice.controller;
 import com.lms.assignmentservice.dto.ApiResponse;
 import com.lms.assignmentservice.dto.request.CreateSubmissionRequest;
 import com.lms.assignmentservice.dto.request.RunCodeRequest;
+import com.lms.assignmentservice.dto.response.ProblemLeaderboardEntryResponse;
 import com.lms.assignmentservice.dto.response.RunCodeResponse;
 import com.lms.assignmentservice.dto.response.SubmissionResponse;
 import com.lms.assignmentservice.enums.SubmissionStatus;
+import com.lms.assignmentservice.service.LeaderboardService;
 import com.lms.assignmentservice.service.SubmissionService;
 import jakarta.validation.Valid;
 import lombok.AccessLevel;
@@ -17,6 +19,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/submissions")
 @RequiredArgsConstructor
@@ -25,6 +29,7 @@ import org.springframework.web.bind.annotation.*;
 public class CodeJudgeController {
 
     SubmissionService submissionService;
+    LeaderboardService leaderboardService;
 
     @PostMapping
     ApiResponse<SubmissionResponse> submitCode(@RequestBody @Valid CreateSubmissionRequest request) {
@@ -64,6 +69,15 @@ public class CodeJudgeController {
 
         return ApiResponse.<Page<SubmissionResponse>>builder()
                 .data(submissionService.getHistory(problemId, targetUserId, status, pageable))
+                .build();
+    }
+
+    @GetMapping("/leaderboard/{problemId}")
+    ApiResponse<List<ProblemLeaderboardEntryResponse>> getProblemLeaderboard(
+            @PathVariable Integer problemId,
+            @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        return ApiResponse.<List<ProblemLeaderboardEntryResponse>>builder()
+                .data(leaderboardService.getProblemLeaderboard(problemId, limit))
                 .build();
     }
 }
