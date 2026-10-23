@@ -214,3 +214,32 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - `feat(assignment): add question bank and quiz management`
 
 
+
+---
+
+### [2026-10-24] — Đợt 1 Chuyển Đổi Giao Diện: Khởi Tạo Web Portal Thymeleaf & Bootstrap 5
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Module Mới `backend/web-portal`**:
+     - Cấu hình Maven module con trong Parent POM: `spring-boot-starter-web`, `spring-boot-starter-thymeleaf`, `spring-cloud-starter-netflix-eureka-client`, `spring-cloud-starter-openfeign`.
+     - Cấu hình cổng chạy port `8086`, kết nối Gateway (port 8080) và Eureka Server (port 8761).
+   - **Tầng View Thymeleaf & Layout Bootstrap 5.3**:
+     - `templates/layouts/base.html`: Khung layout chuẩn tích hợp CDN Bootstrap 5.3.3, Bootstrap Icons 1.11.3 và font Inter.
+     - `templates/fragments/navbar.html`: Thanh điều hướng responsive (Logo EduLearn, menu Khóa học, Luyện code, Thi Quiz, Diễn đàn).
+     - `templates/fragments/footer.html`: Chân trang thông tin đồ án Lập trình Web HCMUTE.
+   - **Trang Chủ (`templates/home/index.html`) & Controller**:
+     - `HomeController.java`: Cung cấp dữ liệu thống kê, danh sách tính năng cốt lõi.
+     - `index.html`: Hero banner giới thiệu nền tảng, thanh thống kê số liệu, thẻ giới thiệu 4 tính năng chính (Code Judge, Quiz, Course, AI Chatbot).
+     - Static assets: `static/css/style.css`, `static/js/main.js`.
+   - **Kiểm thử Unit Test**:
+     - `WebPortalApplicationTests.java`: Khởi động context thành công.
+     - `HomeControllerTest.java`: Kiểm thử MockMvc `GET /` trả về HTTP 200, đúng view `home/index` và chứa các thành phần cốt lõi.
+3. **File thay đổi / tạo mới**:
+   - `backend/pom.xml` (thêm module `web-portal`)
+   - Toàn bộ source code module `backend/web-portal/`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn clean compile -pl web-portal`: `BUILD SUCCESS`.
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (2/2 tests pass 100%).
+5. **Commit**:
+   - `feat(portal): init web-portal module with thymeleaf and bootstrap layout`
