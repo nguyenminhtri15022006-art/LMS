@@ -31,7 +31,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 4<br>(06/10 – 08/10)** | Triển khai Quản lý bài tập lập trình (Problem), bộ Testcase ẩn/hiện và lưu Submission vào MongoDB | `assignment-service/src/main/java/.../ProblemServiceImpl.java`, `Submission.java` | `feat(assignment): add coding problems and testcases` | Hash: `6d8c267` |
 | [x] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../Judge0Engine.java`, `SubmissionJudgingServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | Hash: 4b43cef (69/69 Tests Passed) |
 | [x] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | Hash: cab13b4 (75/75 Tests Passed) |
-| [ ] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror 6, Giao diện làm bài Quiz đếm ngược và kết quả | `frontend/src/features/assignment/code-judge/*`, `frontend/src/features/assignment/quiz/*` | `feat(frontend): kết nối giao diện quiz và trình soạn thảo code judge` | |
+| [x] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror, Giao diện làm bài Quiz đếm ngược và kết quả | `backend/web-portal/src/main/resources/templates/...` | `feat(portal): kết nối giao diện quiz và trình soạn thảo code judge` | Hash: 1ef04b8 (36/36 Tests Passed) |
 | [ ] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `frontend/src/components/ui/ChatBot.jsx` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | |
 | [ ] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | |
 | [ ] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | |
@@ -539,4 +539,33 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
 5. **Commit**:
    - `feat(assignment): triển khai bảng điểm gradebook và leaderboard`
+
+---
+
+### [2026-10-24] — Đợt 7 Cốt Lõi: Tích Hợp Trình Soạn Thảo CodeMirror & Giao Diện Làm Bài Quiz Đếm Ngược
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tích Hợp Trình Soạn Thảo Code (Code Editor với CodeMirror)**:
+     - Nhúng thư viện CodeMirror cùng giao diện tối Dracula (`dracula.min.css`) và bộ font lập trình mono (`JetBrains Mono`, `Fira Code`, `Consolas`).
+     - Tự động thay đổi cú pháp highlight (syntax mode) theo ngôn ngữ được chọn: C++ (`text/x-c++src`), Java (`text/x-java`), Python (`python`).
+     - Hỗ trợ số dòng code (line numbers), thụt dòng tự động (auto-indent), bọc dòng thông minh (line wrapping) và phím tắt Tab tiêu chuẩn.
+     - Cơ chế tự động đồng bộ mã nguồn 2 chiều (`codeEditor.save()`) với form nộp bài Spring MVC.
+     - Tích hợp nút **Chạy thử** (Trial Runner) với hiệu ứng tải giả lập kết quả thực thi testcase mẫu thời gian thực trước khi chính thức nộp bài chấm.
+   - **Giao Diện Phòng Thi Trắc Nghiệm Trực Tuyến Đếm Ngược (`take.html`)**:
+     - Thanh điều hướng trên cùng cố định (Sticky Header) với đồng hồ bấm giờ đếm ngược (Countdown Timer) chính xác từng giây.
+     - Cơ chế tự động cảnh báo và tự động gửi bài thi (`auto-submit`) khi hết thời gian làm bài.
+     - Ma trận danh sách số thứ tự câu hỏi (Palette navigation) đổi màu khi đã chọn đáp án và hỗ trợ cuộn mượt (`scrollIntoView`) đến câu hỏi tương ứng.
+     - Modal / Alert xác nhận nộp bài tránh thao tác nhầm lẫn.
+   - **Giao Diện Kết Quả Thi & Giải Thích Chi Tiết (`result.html`)**:
+     - Huy hiệu Đạt / Chưa Đạt, tổng kết điểm số trên thang điểm 10, phân tích số câu đúng/sai và thời gian làm bài.
+     - Xem lại toàn bộ câu hỏi với đáp án đúng (xanh lá), đáp án đã chọn (đỏ nếu sai) và hộp giải thích sư phạm.
+   - **Kiểm Thử Tự Động**:
+     - Toàn bộ các kịch bản kiểm thử MockMvc trong `QuizWebControllerTest` và `ProblemWebControllerTest` đều pass 100%.
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/resources/templates/problems/solve.html`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): kết nối giao diện quiz và trình soạn thảo code judge`
 
