@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Quy Chế Bài Thi - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Breadcrumb -->
+        <nav aria-label="breadcrumb" class="mb-4">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/}" class="text-decoration-none">Trang chủ</a></li>
+                <li class="breadcrumb-item"><a th:href="@{/quizzes}" class="text-decoration-none">Bộ đề thi Quiz</a></li>
+                <li class="breadcrumb-item active" aria-current="page" th:text="${quiz.title}">Chi tiết</li>
+            </ol>
+        </nav>
+
+        <div class="row justify-content-center">
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+                    <div class="card-header bg-primary text-white text-center py-4">
+                        <div class="display-6 mb-2">
+                            <i class="bi bi-patch-question-fill"></i>
+                        </div>
+                        <h3 class="fw-bold mb-1" th:text="${quiz.title}">Kiến Trúc Microservices</h3>
+                        <div class="d-flex justify-content-center gap-2 mt-2">
+                            <span class="badge bg-light text-dark rounded-pill px-3 py-1" th:text="${quiz.category}">Microservices</span>
+                            <span th:if="${quiz.difficulty == 'EASY'}" class="badge bg-success rounded-pill px-3 py-1">Độ khó: Dễ</span>
+                            <span th:if="${quiz.difficulty == 'MEDIUM'}" class="badge bg-warning text-dark rounded-pill px-3 py-1">Độ khó: Trung bình</span>
+                            <span th:if="${quiz.difficulty == 'HARD'}" class="badge bg-danger rounded-pill px-3 py-1">Độ khó: Nâng cao</span>
+                        </div>
+                    </div>
+
+                    <div class="card-body p-4 p-md-5">
+                        <h5 class="fw-bold mb-3">Mô tả bài kiểm tra:</h5>
+                        <p class="text-secondary leading-relaxed mb-4" th:text="${quiz.description}">
+                            Mô tả chi tiết nội dung khảo thí...
+                        </p>
+
+                        <!-- Exam Specifications Grid -->
+                        <div class="row g-3 mb-4 text-center">
+                            <div class="col-sm-6 col-md-3">
+                                <div class="bg-light p-3 rounded-4">
+                                    <div class="text-primary fs-3 mb-1"><i class="bi bi-clock"></i></div>
+                                    <div class="fw-bold text-dark" th:text="${quiz.durationMinutes + ' Phút'}">15 Phút</div>
+                                    <div class="small text-muted">Thời gian làm bài</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <div class="bg-light p-3 rounded-4">
+                                    <div class="text-success fs-3 mb-1"><i class="bi bi-question-circle"></i></div>
+                                    <div class="fw-bold text-dark" th:text="${quiz.questionCount + ' Câu'}">5 Câu</div>
+                                    <div class="small text-muted">Số lượng câu hỏi</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <div class="bg-light p-3 rounded-4">
+                                    <div class="text-warning fs-3 mb-1"><i class="bi bi-award"></i></div>
+                                    <div class="fw-bold text-dark" th:text="${quiz.totalScore + ' Điểm'}">10 Điểm</div>
+                                    <div class="small text-muted">Điểm tối đa</div>
+                                </div>
+                            </div>
+                            <div class="col-sm-6 col-md-3">
+                                <div class="bg-light p-3 rounded-4">
+                                    <div class="text-info fs-3 mb-1"><i class="bi bi-check2-all"></i></div>
+                                    <div class="fw-bold text-dark" th:text="${quiz.passScore + ' Điểm'}">5 Điểm</div>
+                                    <div class="small text-muted">Điểm đạt (Pass)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Rules Checklist -->
+                        <div class="card border rounded-3 p-3 mb-4 bg-light bg-opacity-50">
+                            <h6 class="fw-bold text-dark mb-2"><i class="bi bi-shield-exclamation text-warning me-2"></i>Quy chế thi trực tuyến:</h6>
+                            <ul class="small text-muted mb-0 d-flex flex-column gap-2">
+                                <li>Hệ thống bắt đầu tính giờ ngay khi bạn bấm nút <strong>"Bắt đầu làm bài"</strong>.</li>
+                                <li>Mỗi câu hỏi có các phương án lựa chọn khách quan A, B, C, D (chọn 1 phương án đúng nhất).</li>
+                                <li>Khi hết thời gian quy định, hệ thống sẽ <strong>tự động thu bài</strong> và chốt điểm.</li>
+                                <li>Sau khi nộp bài, bạn sẽ được xem ngay điểm số và lời giải thích chi tiết cho từng câu hỏi.</li>
+                            </ul>
+                        </div>
+
+                        <!-- CTA Actions -->
+                        <div class="d-flex flex-wrap gap-3 justify-content-center">
+                            <a th:href="@{/quizzes}" class="btn btn-outline-secondary rounded-pill px-4">
+                                <i class="bi bi-arrow-left me-1"></i>Quay lại danh sách
+                            </a>
+                            <a th:href="@{/quizzes/{id}/take(id=${quiz.quizId})}" class="btn btn-primary rounded-pill px-5 fw-bold shadow">
+                                <i class="bi bi-pencil-fill me-2"></i>Bắt Đầu Làm Bài Ngay
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

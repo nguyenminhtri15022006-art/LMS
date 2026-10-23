@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Ngân Hàng Câu Hỏi - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Header -->
+        <div class="row align-items-center mb-4">
+            <div class="col-lg-7">
+                <span class="badge bg-warning bg-opacity-25 border border-warning border-opacity-50 text-dark px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-bank me-1"></i>Hệ Thống Quản Lý Đề Thi &amp; Ngân Hàng Câu Hỏi
+                </span>
+                <h1 class="fw-bold mb-2">Ngân Hàng Câu Hỏi Trắc Nghiệm</h1>
+                <p class="text-muted mb-0">Hỗ trợ giảng viên biên soạn câu hỏi, gắn thẻ phân loại, gán trọng số điểm và import tự động từ tài liệu DOCX/CSV.</p>
+            </div>
+            <div class="col-lg-5 mt-3 mt-lg-0 text-lg-end">
+                <div class="d-flex gap-2 justify-content-lg-end">
+                    <button type="button" class="btn btn-outline-primary rounded-pill px-3 fw-semibold" onclick="alert('Tính năng Import file CSV/DOCX đang hoạt động qua Assignment Service!')">
+                        <i class="bi bi-file-earmark-arrow-up me-1"></i>Import File
+                    </button>
+                    <button type="button" class="btn btn-primary rounded-pill px-4 fw-semibold" onclick="alert('Mở form tạo câu hỏi mới!')">
+                        <i class="bi bi-plus-lg me-1"></i>Thêm Câu Hỏi Mới
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+            <div class="d-flex flex-wrap gap-2 align-items-center">
+                <span class="small text-muted fw-semibold me-2"><i class="bi bi-funnel me-1"></i>Chuyên đề:</span>
+                <a th:href="@{/questions(category='ALL')}"
+                   class="btn btn-sm rounded-pill px-3"
+                   th:classappend="${selectedCategory == 'ALL'} ? 'btn-primary' : 'btn-outline-secondary'">Tất cả</a>
+                <a th:href="@{/questions(category='Microservices')}"
+                   class="btn btn-sm rounded-pill px-3"
+                   th:classappend="${selectedCategory == 'Microservices'} ? 'btn-primary' : 'btn-outline-secondary'">Microservices</a>
+                <a th:href="@{/questions(category='Web Development')}"
+                   class="btn btn-sm rounded-pill px-3"
+                   th:classappend="${selectedCategory == 'Web Development'} ? 'btn-primary' : 'btn-outline-secondary'">Web Development</a>
+                <a th:href="@{/questions(category='Algorithms')}"
+                   class="btn btn-sm rounded-pill px-3"
+                   th:classappend="${selectedCategory == 'Algorithms'} ? 'btn-primary' : 'btn-outline-secondary'">Algorithms</a>
+            </div>
+        </div>
+
+        <!-- Questions List Table -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr class="small text-uppercase text-secondary">
+                            <th class="ps-4 py-3" style="width: 70px;">Mã</th>
+                            <th class="py-3">Nội dung câu hỏi &amp; Đáp án</th>
+                            <th class="py-3" style="width: 160px;">Chuyên đề</th>
+                            <th class="py-3" style="width: 120px;">Độ khó</th>
+                            <th class="py-3" style="width: 120px;">Đáp án đúng</th>
+                            <th class="text-end pe-4 py-3" style="width: 120px;">Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="q : ${questions}">
+                            <td class="ps-4 font-monospace small fw-bold text-muted" th:text="${'#' + q.questionId}">#101</td>
+                            <td>
+                                <div class="fw-semibold text-dark mb-2" th:text="${q.content}">
+                                    Nội dung câu hỏi trắc nghiệm...
+                                </div>
+                                <div class="d-flex flex-wrap gap-2 small text-muted">
+                                    <span th:each="opt : ${q.options}"
+                                          class="badge border font-monospace"
+                                          th:classappend="${opt.key == q.correctAnswer} ? 'bg-success-subtle text-success border-success' : 'bg-light text-secondary'"
+                                          th:text="${opt.key + ': ' + opt.content}">
+                                        A: Lựa chọn
+                                    </span>
+                                </div>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-1" th:text="${q.category}">Microservices</span>
+                            </td>
+                            <td>
+                                <span th:if="${q.difficulty == 'EASY'}" class="badge bg-success-subtle text-success rounded-pill">Dễ</span>
+                                <span th:if="${q.difficulty == 'MEDIUM'}" class="badge bg-warning-subtle text-warning rounded-pill">Trung bình</span>
+                                <span th:if="${q.difficulty == 'HARD'}" class="badge bg-danger-subtle text-danger rounded-pill">Khó</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-success px-3 py-2 rounded-pill font-monospace fw-bold" th:text="${'Đáp án ' + q.correctAnswer}">Đáp án B</span>
+                            </td>
+                            <td class="text-end pe-4">
+                                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill" onclick="alert('Xem chi tiết câu hỏi!')">
+                                    <i class="bi bi-eye"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <tr th:if="${#lists.isEmpty(questions)}">
+                            <td colspan="6" class="text-center py-5 text-muted">
+                                <i class="bi bi-folder-x fs-1 d-block mb-2"></i>
+                                Không có câu hỏi nào thuộc chuyên đề này trong ngân hàng.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

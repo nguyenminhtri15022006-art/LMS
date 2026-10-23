@@ -351,5 +351,49 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(portal): add coding problems and online judge views`
 
+---
+
+### [2026-10-24] — Đợt 5 Chuyển Đổi Giao Diện: Thi Trắc Nghiệm Trực Tuyến & Ngân Hàng Câu Hỏi (Quiz Exam & Question Bank UI)
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Điều khiển Web & Dịch vụ Khảo Thí (`backend/web-portal`)**:
+     - `QuizDto.java`, `QuizQuestionDto.java`, `QuizOptionDto.java`, `QuizSubmitDto.java`, `QuizResultDto.java`, `QuestionResultDto.java`: Cấu trúc DTOs mô tả đầy đủ đề thi Quiz, câu hỏi trắc nghiệm, các lựa chọn A/B/C/D, phiếu nộp bài thi và phiếu kết quả chấm điểm.
+     - `QuizClient.java`: OpenFeign client kết nối `assignment-service` qua API Gateway (`/api/v1/assignments/quizzes`).
+     - `QuizService.java`: Kho đề thi Quiz thực tế (Kiến trúc Microservices, Spring Boot 3 & REST API, Cấu trúc Dữ liệu & Giải thuật) và Ngân hàng câu hỏi trắc nghiệm tổng hợp; thuật toán chấm điểm tự động, tính tỷ lệ chính xác, đối chiếu đáp án học viên vs đáp án đúng và trích xuất lời giải thích chi tiết.
+     - `QuizWebController.java`: Điều hướng `GET /quizzes` (danh sách đề thi, lọc chuyên đề, độ khó), `GET /quizzes/{id}` (quy chế phòng thi), `GET /quizzes/{id}/take` (phòng thi trực tuyến với đồng hồ đếm ngược), `POST /quizzes/{id}/submit` (xác thực phiên người dùng, thu bài thi và chốt điểm), `GET /quizzes/{id}/result` (trang công bố điểm thi và xem lại đáp án) và `GET /questions` (giao diện quản lý ngân hàng câu hỏi giảng viên).
+   - **Giao diện Thymeleaf & Bootstrap 5.3**:
+     - `templates/quizzes/list.html`: Danh mục đề thi dạng thẻ bài hiện đại, thẻ chuyên đề, độ khó, thời lượng thi, số câu hỏi, điểm cao nhất đã đạt.
+     - `templates/quizzes/overview.html`: Trang thông tin quy chế thi chi tiết, thời gian quy định, điểm tối đa, điểm đạt (pass score) và các cảnh báo học vụ trước khi bắt đầu.
+     - `templates/quizzes/take.html`: Phòng thi trực tuyến chuyên nghiệp:
+       - Thanh cố định trên cùng: Đồng hồ đếm ngược thời gian thực (JavaScript countdown timer tự động nộp bài khi hết giờ).
+       - Bảng câu hỏi: Tùy chọn A/B/C/D tương tác trực quan, hiệu ứng chuyển màu khi chọn đáp án.
+       - Sidebar ma trận câu hỏi: Bảng số thứ tự câu hỏi đổi màu xanh khi đã trả lời và hỗ trợ cuộn mượt (smooth scroll) đến câu hỏi tương ứng.
+     - `templates/quizzes/result.html`: Bảng công bố kết quả thi rực rỡ (điểm số /10, huy hiệu Đạt/Chưa Đạt, số câu đúng/sai, thời gian làm bài), bảng xem lại từng câu hỏi với nhãn đáp án đúng (màu xanh), đáp án học viên đã chọn (màu đỏ nếu sai) và hộp giải thích chi tiết.
+     - `templates/questions/bank.html`: Giao diện ngân hàng câu hỏi dành cho Giảng viên/Quản trị viên, hỗ trợ duyệt theo chuyên đề, xem trước các đáp án và thao tác thêm/import câu hỏi.
+   - **Kiểm thử Unit Test**:
+     - `QuizWebControllerTest.java`: 8 kịch bản kiểm thử toàn diện (danh sách đề thi, trang tổng quan quy chế, xử lý đề thi không tồn tại, chặn vào thi khi chưa đăng nhập, phòng thi trực tuyến khi có phiên, nộp bài tính điểm, trang kết quả thi, ngân hàng câu hỏi).
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuizOptionDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuizQuestionDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuestionResultDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuizResultDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuizSubmitDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/QuizDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/QuizClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/QuizService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/QuizWebController.java`
+   - `backend/web-portal/src/main/resources/templates/quizzes/list.html`
+   - `backend/web-portal/src/main/resources/templates/quizzes/overview.html`
+   - `backend/web-portal/src/main/resources/templates/quizzes/take.html`
+   - `backend/web-portal/src/main/resources/templates/quizzes/result.html`
+   - `backend/web-portal/src/main/resources/templates/questions/bank.html`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/QuizWebControllerTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 33/33 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): add quiz examination and question bank views`
+
+
 
 
