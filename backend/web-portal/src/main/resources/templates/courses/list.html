@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Khám Phá Khóa Học - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-7">
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold mb-2">Chương Trình Đào Tạo</span>
+                <h1 class="fw-bold mb-2">Khám Phá Các Khóa Học Lập Trình</h1>
+                <p class="text-muted mb-0">Hệ thống bài giảng từ cơ bản đến nâng cao, bám sát rubric đồ án và công nghệ thực tế.</p>
+            </div>
+            <div class="col-lg-5 mt-3 mt-lg-0">
+                <form th:action="@{/courses}" method="get" class="d-flex gap-2">
+                    <div class="input-group">
+                        <span class="input-group-text bg-white border-end-0 text-muted"><i class="bi bi-search"></i></span>
+                        <input type="text" name="keyword" th:value="${filter.keyword}" class="form-control border-start-0" placeholder="Tìm tên khóa học, công nghệ...">
+                    </div>
+                    <button type="submit" class="btn btn-primary fw-semibold px-4">Tìm</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Filters Bar -->
+        <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="small text-muted fw-semibold me-2"><i class="bi bi-funnel me-1"></i>Danh mục:</span>
+                    <a th:href="@{/courses(category='ALL', keyword=${filter.keyword}, difficulty=${filter.difficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${filter.category == null or filter.category == '' or filter.category == 'ALL'} ? 'btn-primary' : 'btn-outline-secondary'">
+                        Tất cả
+                    </a>
+                    <a th:each="cat : ${categories}"
+                       th:href="@{/courses(category=${cat}, keyword=${filter.keyword}, difficulty=${filter.difficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${filter.category == cat} ? 'btn-primary' : 'btn-outline-secondary'"
+                       th:text="${cat}">
+                        Danh mục
+                    </a>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted fw-semibold">Độ khó:</span>
+                    <div class="btn-group btn-group-sm">
+                        <a th:href="@{/courses(difficulty='ALL', keyword=${filter.keyword}, category=${filter.category})}"
+                           class="btn"
+                           th:classappend="${filter.difficulty == null or filter.difficulty == '' or filter.difficulty == 'ALL'} ? 'btn-dark' : 'btn-outline-secondary'">
+                            Tất cả
+                        </a>
+                        <a th:href="@{/courses(difficulty='BEGINNER', keyword=${filter.keyword}, category=${filter.category})}"
+                           class="btn"
+                           th:classappend="${filter.difficulty == 'BEGINNER'} ? 'btn-success' : 'btn-outline-secondary'">
+                            Cơ bản
+                        </a>
+                        <a th:href="@{/courses(difficulty='INTERMEDIATE', keyword=${filter.keyword}, category=${filter.category})}"
+                           class="btn"
+                           th:classappend="${filter.difficulty == 'INTERMEDIATE'} ? 'btn-warning' : 'btn-outline-secondary'">
+                            Trung cấp
+                        </a>
+                        <a th:href="@{/courses(difficulty='ADVANCED', keyword=${filter.keyword}, category=${filter.category})}"
+                           class="btn"
+                           th:classappend="${filter.difficulty == 'ADVANCED'} ? 'btn-danger' : 'btn-outline-secondary'">
+                            Nâng cao
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Course Grid -->
+        <div class="row g-4" th:if="${not #lists.isEmpty(courses)}">
+            <div class="col-md-6 col-lg-4" th:each="c : ${courses}">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden hover-lift transition">
+                    <!-- Thumbnail with Badges -->
+                    <div class="position-relative">
+                        <img th:src="${c.thumbnailUrl}" class="card-img-top object-fit-cover" style="height: 190px;" alt="Course Thumbnail">
+                        <span class="position-absolute top-0 start-0 m-3 badge bg-dark bg-opacity-75 rounded-pill" th:text="${c.category}">Web Development</span>
+                        <span th:if="${c.difficulty == 'BEGINNER'}" class="position-absolute top-0 end-0 m-3 badge bg-success rounded-pill">Cơ bản</span>
+                        <span th:if="${c.difficulty == 'INTERMEDIATE'}" class="position-absolute top-0 end-0 m-3 badge bg-warning text-dark rounded-pill">Trung cấp</span>
+                        <span th:if="${c.difficulty == 'ADVANCED'}" class="position-absolute top-0 end-0 m-3 badge bg-danger rounded-pill">Nâng cao</span>
+                    </div>
+
+                    <div class="card-body p-4 d-flex flex-column">
+                        <!-- Rating & Reviews -->
+                        <div class="d-flex align-items-center gap-2 mb-2">
+                            <span class="text-warning small"><i class="bi bi-star-fill"></i> <strong th:text="${c.rating}">4.9</strong></span>
+                            <span class="text-muted small">(<span th:text="${c.reviewsCount}">140</span> đánh giá)</span>
+                            <span class="ms-auto text-muted small"><i class="bi bi-people me-1"></i><span th:text="${c.studentsEnrolled}">850</span></span>
+                        </div>
+
+                        <!-- Title & Description -->
+                        <h5 class="fw-bold mb-2">
+                            <a th:href="@{/courses/{id}(id=${c.id})}" class="text-dark text-decoration-none hover-primary" th:text="${c.title}">
+                                Tiêu đề khóa học
+                            </a>
+                        </h5>
+                        <p class="text-muted small flex-grow-1" th:text="${c.shortDescription}">
+                            Mô tả ngắn gọn về khóa học...
+                        </p>
+
+                        <!-- Tags -->
+                        <div class="d-flex flex-wrap gap-1 mb-3">
+                            <span th:each="t : ${c.tags}" class="badge bg-light text-secondary border font-monospace small" style="font-size: 11px;" th:text="${t}">Tag</span>
+                        </div>
+
+                        <hr class="my-2">
+
+                        <!-- Footer: Instructor & CTA -->
+                        <div class="d-flex justify-content-between align-items-center pt-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center" style="width: 32px; height: 32px; font-size: 14px;">
+                                    <i class="bi bi-person-fill"></i>
+                                </div>
+                                <span class="small fw-semibold text-secondary" th:text="${c.instructorName}">Giảng viên</span>
+                            </div>
+                            <a th:href="@{/courses/{id}(id=${c.id})}" class="btn btn-outline-primary btn-sm rounded-pill px-3 fw-semibold">
+                                Chi tiết <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Empty State -->
+        <div th:if="${#lists.isEmpty(courses)}" class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+            <div class="display-4 text-muted mb-3"><i class="bi bi-journal-x"></i></div>
+            <h4 class="fw-bold">Không tìm thấy khóa học phù hợp</h4>
+            <p class="text-muted">Vui lòng thử lại với từ khóa tìm kiếm hoặc bộ lọc danh mục khác.</p>
+            <div>
+                <a th:href="@{/courses}" class="btn btn-primary rounded-pill px-4">Xem tất cả khóa học</a>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

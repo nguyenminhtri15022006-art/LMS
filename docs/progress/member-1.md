@@ -280,3 +280,38 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(portal): add authentication and user profile views`
 
+---
+
+### [2026-10-24] — Đợt 3 Chuyển Đổi Giao Diện: Danh Mục Khóa Học & Trình Xem Bài Học (Course Catalog & Lesson Viewer UI)
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Điều khiển Web & Dịch vụ Khóa học (`backend/web-portal`)**:
+     - `CourseDto.java`, `ChapterDto.java`, `LessonDto.java`, `CourseFilterDto.java`: Hệ thống DTOs mô tả đầy đủ thông tin khóa học, mục tiêu học tập (outcomes), cấu trúc chương hồi và loại bài học (Video, Lý thuyết, Lab thực hành code, Quiz).
+     - `CourseClient.java`: OpenFeign client kết nối Course Service qua API Gateway (`/api/v1/courses`).
+     - `CourseService.java`: Điều phối truy vấn khóa học, tích hợp cơ chế fallback kho dữ liệu phong phú (các khóa học trọng điểm HCMUTE: Spring Boot Microservices, Cấu trúc Dữ liệu & Giải thuật, Web Thymeleaf & Bootstrap 5, Cloud Native Docker) và chức năng ghi nhận đăng ký khóa học (`enroll`).
+     - `CourseWebController.java`: Điều hướng `GET /courses` (lọc từ khóa, phân loại danh mục, độ khó), `GET /courses/{id}` (trang chi tiết & đề cương), `POST /courses/{id}/enroll` (đăng ký khóa học), `GET /courses/{id}/lessons/{lessonId}` (trình xem bài học và điều hướng bài trước/sau).
+   - **Giao diện Thymeleaf & Bootstrap 5.3**:
+     - `templates/courses/list.html`: Giao diện danh mục khóa học chuẩn responsive, thanh tìm kiếm từ khóa, bộ lọc danh mục dạng pills, lọc theo cấp độ (Cơ bản, Trung cấp, Nâng cao), thẻ khóa học hiện đại hiển thị số bài học, thời lượng, số học viên, sao đánh giá và thẻ giảng viên.
+     - `templates/courses/detail.html`: Trang chi tiết khóa học gồm banner giới thiệu, danh sách mục tiêu kỹ năng đạt được (outcomes), mô tả chi tiết, đề cương bài giảng Accordion theo từng chương và thẻ hành động đăng ký / vào học trực tiếp.
+     - `templates/courses/lesson.html`: Giao diện học tập tập trung (distraction-free), hỗ trợ khung nhúng video bài giảng tỉ lệ 16:9, tài liệu đọc lý thuyết / ghi chú thực hành, thanh tiến độ điều hướng bài trước / bài kế tiếp và sidebar danh mục bài học đồng bộ.
+   - **Kiểm thử Unit Test**:
+     - `CourseWebControllerTest.java`: 7 kịch bản kiểm thử toàn diện (truy vấn danh sách, lọc theo từ khóa, xem chi tiết khóa học, xử lý mã khóa học không tồn tại, kiểm tra chặn đăng ký khi chưa đăng nhập, đăng ký thành công khi có phiên đăng nhập, trình phát bài học).
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/LessonDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ChapterDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/CourseDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/CourseFilterDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/CourseClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/CourseService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/CourseWebController.java`
+   - `backend/web-portal/src/main/resources/templates/courses/list.html`
+   - `backend/web-portal/src/main/resources/templates/courses/detail.html`
+   - `backend/web-portal/src/main/resources/templates/courses/lesson.html`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/CourseWebControllerTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (18/18 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): add course catalog and lesson viewer views`
+
+
