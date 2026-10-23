@@ -29,7 +29,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 2<br>(30/09 – 02/10)** | Thiết lập Maven Parent POM, Service Registry (Eureka), API Gateway, khung Assignment & Chatbot | `backend/pom.xml`, `backend/service-registry/*`, `backend/api-gateway/*`, `backend/assignment-service/*`, `backend/chatbot-service/*`, `docker-compose.db.yml` | `feat(infra): thiet lap eureka api gateway va khung assignment chatbot` | Hash: `a02474a` (Build & Test Passed) |
 | [x] | **Đợt 3<br>(03/10 – 05/10)** | Triển khai Ngân hàng câu hỏi trắc nghiệm, Parser nhập CSV/TXT/DOCX, Tạo đề thi Quiz và cơ chế làm bài & chấm điểm | `assignment-service/src/main/java/.../QuizServiceImpl.java`, `Question.java` | `feat(assignment): add question bank and quiz management` | 67/67 Tests Passed |
 | [x] | **Đợt 4<br>(06/10 – 08/10)** | Triển khai Quản lý bài tập lập trình (Problem), bộ Testcase ẩn/hiện và lưu Submission vào MongoDB | `assignment-service/src/main/java/.../ProblemServiceImpl.java`, `Submission.java` | `feat(assignment): add coding problems and testcases` | Hash: `6d8c267` |
-| [ ] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../JudgeServiceImpl.java`, `SubmissionServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | |
+| [x] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../Judge0Engine.java`, `SubmissionJudgingServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | Hash: 4b43cef (69/69 Tests Passed) |
 | [ ] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | |
 | [ ] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror 6, Giao diện làm bài Quiz đếm ngược và kết quả | `frontend/src/features/assignment/code-judge/*`, `frontend/src/features/assignment/quiz/*` | `feat(frontend): kết nối giao diện quiz và trình soạn thảo code judge` | |
 | [ ] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `frontend/src/components/ui/ChatBot.jsx` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | |
@@ -442,7 +442,35 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(portal): add ai chatbot and leaderboard views`
 
+---
 
-
-
+### [2026-10-24] — Đợt 5 Cốt Lõi: Tích Hợp Judge0 API Engine Chấm Code Tự Động & Xử Lý ThreadPool Bất Đồng Bộ
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tích Hợp Judge0 Engine Chấm Code Tự Động (`backend/assignment-service`)**:
+     - `Judge0Engine.java`: Hiện thực `JudgeEngine` tích hợp máy chấm Judge0:
+       - Ánh xạ định danh ngôn ngữ: C (50), C++ (54), Java (62), Python (71), JavaScript (63), TypeScript (74), Go (60), Rust (73).
+       - Cơ chế mã hóa Base64 hai chiều (chuẩn MIME RFC 2045) với chunking 20 test cases/mẻ nhằm tránh tràn giới hạn HTTP URI request length.
+       - Cơ chế Polling kết quả có giới hạn (`maxPollAttempts`, `pollIntervalMs`), xử lý lỗi 4xx ngắt sớm và ánh xạ trạng thái sang `AC`, `WA`, `TLE`, `MLE`, `CE`, `RE`, `IE`.
+       - Xử lý trích xuất compile error và runtime error snippet hiển thị trực quan cho học viên.
+     - `SubmissionJudgingServiceImpl.java`: Điều phối tác vụ chấm code bất đồng bộ `@Async("judgeExecutor")` thông qua ThreadPool định tuyến riêng biệt, ghi nhận điểm và cập nhật số bài đã AC (`incrementTotalAccept`).
+     - `AsyncConfig.java`: Cấu hình `ThreadPoolTaskExecutor` chuyên dụng cho luồng chấm (`corePoolSize=4`, `maxPoolSize=8`, `queueCapacity=100`, prefix `judge-worker-`).
+   - **Đồng Bộ Giao Diện Web Portal (`backend/web-portal`)**:
+     - `ProblemClient.java`: Cung cấp Feign Client mapping `/api/assignment/submissions` (`submitToJudge`) kết nối trực tiếp tầng Judge backend thông qua API Gateway.
+     - `ProblemService.java`: Nâng cấp hàm `submitCode` kết nối linh hoạt giữa máy chấm thực tế Gateway và cơ chế fallback giả lập mượt mà.
+   - **Kiểm Thử Toàn Diện (Unit & Integration Tests)**:
+     - Bổ sung các kịch bản kiểm thử mới cho `Judge0EngineTest.java`:
+       - `judgeAcceptedSubmissionReturnsFullScore`: Kiểm thử nộp code C đúng logic, trả về AC 100 điểm, thời gian và bộ nhớ hợp lệ.
+       - `judgeTimeLimitExceededMapsToTLE`: Kiểm thử vòng lặp vô tận, máy chấm ngắt và trả về đúng trạng thái TLE.
+       - Đảm bảo các test case biên khác (CE, RE, lỗi HTTP 400 client) đều được bảo chứng 100%.
+3. **File thay đổi / tạo mới**:
+   - `backend/assignment-service/src/test/java/com/lms/assignmentservice/judge/impl/Judge0EngineTest.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/ProblemClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/ProblemService.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl assignment-service`: `BUILD SUCCESS` (Toàn bộ 69/69 tests pass 100%, 0 failures, 0 errors).
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(judge): tích hợp trình chấm code tự động qua judge0`
 

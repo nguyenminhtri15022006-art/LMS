@@ -132,6 +132,71 @@ class Judge0EngineTest {
         server.verify();
     }
 
+    @Test
+    void judgeAcceptedSubmissionReturnsFullScore() {
+        String sourceCode = "int main(void) { return 0; }";
+        String stdout = "Hello World\n";
+
+        expectSubmit(sourceCode);
+        expectPoll("""
+                {
+                  "submissions": [
+                    {
+                      "token": "tok1",
+                      "status": { "id": 3, "description": "Accepted" },
+                      "stdout": "%s",
+                      "stderr": null,
+                      "compile_output": null,
+                      "time": "0.012",
+                      "memory": 2048,
+                      "message": null
+                    }
+                  ]
+                }
+                """.formatted(base64(stdout)));
+
+        JudgeResult result = engine.judge(buildRequest(sourceCode));
+
+        assertThat(result.getOverallStatus()).isEqualTo(SubmissionStatus.AC);
+        assertThat(result.getTotalScore()).isEqualTo(100);
+        assertThat(result.getMaxExecTimeMs()).isEqualTo(12);
+        assertThat(result.getMaxMemoryKb()).isEqualTo(2048);
+        assertThat(result.getTestCaseResults()).hasSize(1);
+        assertThat(result.getTestCaseResults().getFirst().getStatus()).isEqualTo(SubmissionStatus.AC);
+        server.verify();
+    }
+
+    @Test
+    void judgeTimeLimitExceededMapsToTLE() {
+        String sourceCode = "while(1);";
+
+        expectSubmit(sourceCode);
+        expectPoll("""
+                {
+                  "submissions": [
+                    {
+                      "token": "tok1",
+                      "status": { "id": 5, "description": "Time Limit Exceeded" },
+                      "stdout": null,
+                      "stderr": null,
+                      "compile_output": null,
+                      "time": "2.000",
+                      "memory": 1024,
+                      "message": null
+                    }
+                  ]
+                }
+                """);
+
+        JudgeResult result = engine.judge(buildRequest(sourceCode));
+
+        assertThat(result.getOverallStatus()).isEqualTo(SubmissionStatus.TLE);
+        assertThat(result.getTotalScore()).isEqualTo(0);
+        assertThat(result.getTestCaseResults()).hasSize(1);
+        assertThat(result.getTestCaseResults().getFirst().getStatus()).isEqualTo(SubmissionStatus.TLE);
+        server.verify();
+    }
+
     private void expectSubmit(String sourceCode) {
         server.expect(requestTo(BASE_URL + "/submissions/batch?base64_encoded=true&wait=false"))
                 .andExpect(method(HttpMethod.POST))

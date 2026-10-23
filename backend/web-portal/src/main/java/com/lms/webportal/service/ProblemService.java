@@ -245,13 +245,21 @@ public class ProblemService {
     public SubmissionResultDto submitCode(CodeSubmitDto submitDto, String userId) {
         if (problemClient != null) {
             try {
-                ApiResponse<SubmissionResultDto> response = problemClient.submitCode(submitDto.getProblemId(), submitDto, userId);
+                ApiResponse<SubmissionResultDto> response = problemClient.submitToJudge(submitDto, userId);
                 if (response != null && response.getResult() != null) {
                     submissionHistory.add(0, response.getResult());
                     return response.getResult();
                 }
             } catch (Exception e) {
-                log.warn("Không thể kết nối máy chấm Gateway, kích hoạt động cơ giả lập chấm bài: {}", e.getMessage());
+                try {
+                    ApiResponse<SubmissionResultDto> response = problemClient.submitCode(submitDto.getProblemId(), submitDto, userId);
+                    if (response != null && response.getResult() != null) {
+                        submissionHistory.add(0, response.getResult());
+                        return response.getResult();
+                    }
+                } catch (Exception ex) {
+                    log.warn("Không thể kết nối máy chấm Gateway, kích hoạt động cơ giả lập chấm bài: {}", ex.getMessage());
+                }
             }
         }
 

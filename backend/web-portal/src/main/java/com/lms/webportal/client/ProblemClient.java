@@ -27,4 +27,15 @@ public interface ProblemClient {
             @RequestBody CodeSubmitDto submitDto,
             @RequestHeader(value = "X-User-Id", required = false) String userId
     );
+
+    @PostMapping("/api/assignment/submissions")
+    ApiResponse<SubmissionResultDto> submitToJudge(
+            @RequestBody CodeSubmitDto submitDto,
+            @RequestHeader(value = "X-User-Id", required = false) String userId
+    );
+
+    @GetMapping("/api/assignment/submissions/{id}")
+    ApiResponse<SubmissionResultDto> getSubmission(
+            @PathVariable("id") String id
+    );
 }
