@@ -32,7 +32,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 5<br>(09/10 – 11/10)** | Tích hợp Judge0 API Engine chấm code tự động đa ngôn ngữ, xử lý ThreadPool bất đồng bộ | `assignment-service/src/main/java/.../Judge0Engine.java`, `SubmissionJudgingServiceImpl.java` | `feat(judge): tích hợp trình chấm code tự động qua judge0` | Hash: 4b43cef (69/69 Tests Passed) |
 | [x] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | Hash: cab13b4 (75/75 Tests Passed) |
 | [x] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror, Giao diện làm bài Quiz đếm ngược và kết quả | `backend/web-portal/src/main/resources/templates/...` | `feat(portal): kết nối giao diện quiz và trình soạn thảo code judge` | Hash: 1ef04b8 (36/36 Tests Passed) |
-| [ ] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `frontend/src/components/ui/ChatBot.jsx` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | |
+| [x] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `RateLimiterService.java` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | Hash: 48dd24f (8/8 Tests Passed) |
 | [ ] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | |
 | [ ] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | |
 | [ ] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | |
@@ -568,4 +568,65 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
 5. **Commit**:
    - `feat(portal): kết nối giao diện quiz và trình soạn thảo code judge`
+
+---
+
+### [2026-10-24] — Đợt 8 Cốt Lõi: Tích Hợp Trợ Lý Ảo AI Chatbot, Rate Limiter Redis & Dashboard Thống Kê
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Dữ Liệu Hội Thoại MongoDB (`backend/chatbot-service`)**:
+     - `ChatSession.java`: Quản lý các phiên hội thoại của người dùng, phân loại theo `userId`, tiêu đề tóm tắt và thời gian cập nhật.
+     - `ChatMessage.java`: Lưu vết lịch sử tin nhắn hai chiều giữa User và Trợ lý AI (`sender`: USER / AI).
+     - `ChatSessionRepository.java` & `ChatMessageRepository.java`: Thực thi truy vấn lịch sử theo phiên và xóa dọn phiên chat.
+   - **Tầng Giới Hạn Tần Suất Yêu Cầu Redis Rate Limiter**:
+     - `RateLimiterService.java`: Ứng dụng Redis Key-Value (`rate_limit:chat:{userId}`) kết hợp TTL expiration, giới hạn 20 prompts/phút chống cạn kiệt token và ngăn ngừa spam DDOS, kèm cơ chế an toàn dự phòng (fallback grace) nếu Redis gián đoạn.
+   - **Tầng Nghiệp Vụ Trợ Lý AI (Chat & Streaming WebFlux SSE)**:
+     - `ChatService.java` & `ChatServiceImpl.java`:
+       - Điều hướng thông minh xử lý câu hỏi lập trình (giải thích chi tiết giải thuật Two Sum, thuật toán Dijkstra đồ thị, kiến trúc Spring Cloud Microservices, bí quyết thi Quiz trắc nghiệm).
+       - Hỗ trợ phản hồi đồng bộ JSON (`chat`) và truyền phát thời gian thực Server-Sent Events SSE (`streamChat` qua WebFlux `Flux<String>`).
+       - Quản lý phiên chat: tạo mới, tra cứu lịch sử và xóa phiên.
+     - `DashboardService.java` & `DashboardServiceImpl.java`:
+       - `DashboardStatsResponse.java`: Thống kê tổng số phiên, tổng số tin nhắn, số người dùng tích cực và trạng thái trực tuyến của mô hình LLM.
+   - **Tầng Điều Khiển REST API**:
+     - `ChatController.java`:
+       - `POST /chat`: Gửi câu hỏi nhận phản hồi JSON.
+       - `POST /chat/stream`: Truyền phát tin nhắn dạng `text/event-stream`.
+       - `GET /chat/sessions`: Danh sách các phiên trò chuyện của học viên.
+       - `GET /chat/sessions/{sessionId}/messages`: Lịch sử tin nhắn theo phiên.
+       - `DELETE /chat/sessions/{sessionId}`: Xóa phiên chat.
+     - `DashboardController.java`:
+       - `GET /dashboard/stats`: Thống kê hoạt động trợ lý AI.
+     - `SecurityConfig.java`: Cấu hình stateless security cho phép truy cập qua API Gateway.
+   - **Kiểm Thử Toàn Diện (Unit Tests)**:
+     - `ChatServiceImplTest.java`: 3 kịch bản kiểm thử (tạo session & phân tích Two Sum, xử lý vượt ngưỡng rate limit, lấy danh sách phiên chat).
+     - `RateLimiterServiceTest.java`: 3 kịch bản kiểm thử (trong ngưỡng, cấp phát TTL lần đầu, từ chối khi vượt ngưỡng).
+     - `DashboardServiceImplTest.java`: Kiểm thử tổng hợp số liệu thống kê hệ thống.
+     - `ChatbotServiceApplicationTests.java`: Khởi động ngữ cảnh thành công.
+3. **File thay đổi / tạo mới**:
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/configuration/SecurityConfig.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/document/ChatSession.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/document/ChatMessage.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/repository/ChatSessionRepository.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/repository/ChatMessageRepository.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/service/RateLimiterService.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/service/ChatService.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/service/DashboardService.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/service/impl/ChatServiceImpl.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/service/impl/DashboardServiceImpl.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/controller/ChatController.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/controller/DashboardController.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/request/ChatRequest.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/response/ApiResponse.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/response/ChatResponse.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/response/ChatMessageDto.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/response/ChatSessionDto.java`
+   - `backend/chatbot-service/src/main/java/com/lms/chatbotservice/dto/response/DashboardStatsResponse.java`
+   - `backend/chatbot-service/src/test/java/com/lms/chatbotservice/service/ChatServiceImplTest.java`
+   - `backend/chatbot-service/src/test/java/com/lms/chatbotservice/service/RateLimiterServiceTest.java`
+   - `backend/chatbot-service/src/test/java/com/lms/chatbotservice/service/DashboardServiceImplTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl chatbot-service`: `BUILD SUCCESS` (Toàn bộ 8/8 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê`
 
