@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{::extraJs})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Trợ Lý AI - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="row align-items-center mb-4">
+            <div class="col-lg-8">
+                <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-robot me-1"></i>EduLearn AI Tutor
+                </span>
+                <h1 class="fw-bold mb-2">Trợ Lý Ảo Hỗ Trợ Học Tập &amp; Luyện Code</h1>
+                <p class="text-muted mb-0">Hỏi đáp kiến thức về Spring Boot, Microservices, giải thích độ phức tạp thuật toán và gỡ lỗi (debug) mã nguồn 24/7.</p>
+            </div>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left: Suggestion Chips & Capabilities -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                    <h6 class="fw-bold text-dark mb-3">
+                        <i class="bi bi-lightbulb text-warning me-2"></i>Câu Hỏi Gợi Ý Nhanh
+                    </h6>
+                    <div class="d-flex flex-column gap-2">
+                        <button type="button" class="btn btn-outline-light text-dark text-start border rounded-3 p-2 small hover-primary"
+                                onclick="fillPrompt('Hướng dẫn giải bài toán Two Sum bằng Hash Map?')">
+                            <i class="bi bi-chat-left-dots text-primary me-2"></i>Giải bài toán Two Sum bằng Hash Map?
+                        </button>
+                        <button type="button" class="btn btn-outline-light text-dark text-start border rounded-3 p-2 small hover-primary"
+                                onclick="fillPrompt('Token Offloading tại API Gateway hoạt động thế nào?')">
+                            <i class="bi bi-chat-left-dots text-primary me-2"></i>Token Offloading tại API Gateway?
+                        </button>
+                        <button type="button" class="btn btn-outline-light text-dark text-start border rounded-3 p-2 small hover-primary"
+                                onclick="fillPrompt('Phân tích độ phức tạp thuật toán Dijkstra với Priority Queue?')">
+                            <i class="bi bi-chat-left-dots text-primary me-2"></i>Độ phức tạp thuật toán Dijkstra?
+                        </button>
+                        <button type="button" class="btn btn-outline-light text-dark text-start border rounded-3 p-2 small hover-primary"
+                                onclick="fillPrompt('Cách làm bài thi trắc nghiệm Quiz đạt điểm cao?')">
+                            <i class="bi bi-chat-left-dots text-primary me-2"></i>Cách thi Quiz đạt điểm tối đa?
+                        </button>
+                    </div>
+                </div>
+
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <h6 class="fw-bold text-dark mb-3">
+                        <i class="bi bi-shield-check text-success me-2"></i>Tính Năng Nổi Bật
+                    </h6>
+                    <ul class="small text-muted list-unstyled mb-0 d-flex flex-column gap-2">
+                        <li><i class="bi bi-check2 text-primary me-2"></i>Tích hợp mô hình AI LLM DeepSeek / Gemini</li>
+                        <li><i class="bi bi-check2 text-primary me-2"></i>Hỗ trợ phân tích mã nguồn C++, Java, Python</li>
+                        <li><i class="bi bi-check2 text-primary me-2"></i>Giải thích lỗi biên dịch và Runtime Error</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Right: Interactive Chat Workspace -->
+            <div class="col-lg-8">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white d-flex flex-column" style="height: 600px;">
+                    <!-- Chat Header -->
+                    <div class="card-header bg-white border-bottom py-3 px-4 d-flex align-items-center justify-content-between">
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 36px; height: 36px;">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div>
+                                <h6 class="fw-bold mb-0">Hội Thoại Trợ Lý AI</h6>
+                                <small class="text-success"><i class="bi bi-circle-fill me-1" style="font-size: 8px;"></i>Sẵn sàng phản hồi</small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Messages Viewport -->
+                    <div id="fullChatMessages" class="card-body p-4 overflow-auto flex-grow-1 d-flex flex-column gap-3 bg-light">
+                        <div class="d-flex gap-3">
+                            <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                                <i class="bi bi-robot"></i>
+                            </div>
+                            <div class="bg-white p-3 rounded-4 shadow-sm border text-secondary" style="max-width: 85%;">
+                                <p class="mb-0">Xin chào! Tôi là <strong>Trợ lý AI EduLearn</strong>. Tôi có thể hỗ trợ bạn giải thích lý thuyết lập trình, tối ưu thuật toán hoặc hướng dẫn phương pháp giải các bài tập code. Hãy nhập câu hỏi bên dưới nhé!</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Input Box -->
+                    <div class="card-footer bg-white p-3 border-top">
+                        <form id="fullChatForm" onsubmit="sendFullChatMessage(event)" class="d-flex gap-2">
+                            <input type="text" id="fullChatInput" class="form-control rounded-pill px-4"
+                                   placeholder="Hỏi bất kỳ điều gì về lập trình, thuật toán, microservices..." required autofocus>
+                            <button type="submit" class="btn btn-primary rounded-pill px-4 fw-semibold shadow-sm">
+                                <i class="bi bi-send-fill me-1"></i>Gửi
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block th:fragment="extraJs">
+    <script>
+        function fillPrompt(text) {
+            document.getElementById('fullChatInput').value = text;
+            document.getElementById('fullChatInput').focus();
+        }
+
+        async function sendFullChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('fullChatInput');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            const container = document.getElementById('fullChatMessages');
+
+            // User Message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'd-flex justify-content-end mb-2';
+            userMsg.innerHTML = `<div class="bg-primary text-white p-3 rounded-4 shadow-sm" style="max-width: 85%;">${escapeHtml(prompt)}</div>`;
+            container.appendChild(userMsg);
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+
+            // Typing Indicator
+            const typing = document.createElement('div');
+            typing.id = 'fullTyping';
+            typing.className = 'd-flex gap-3';
+            typing.innerHTML = `
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div class="bg-white p-3 rounded-4 shadow-sm border text-muted fst-italic">Trợ lý AI đang suy nghĩ câu trả lời...</div>
+            `;
+            container.appendChild(typing);
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                const res = await fetch('/api/portal/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, sessionId: 'portal-page-session' })
+                });
+                const data = await res.json();
+                typing.remove();
+
+                const aiMsg = document.createElement('div');
+                aiMsg.className = 'd-flex gap-3';
+                aiMsg.innerHTML = `
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 36px; height: 36px;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-white p-3 rounded-4 shadow-sm border text-secondary" style="max-width: 85%;">
+                        ${data.reply ? data.reply.replace(/\\n/g, '<br>') : 'Không có phản hồi.'}
+                    </div>
+                `;
+                container.appendChild(aiMsg);
+                container.scrollTop = container.scrollHeight;
+            } catch (err) {
+                typing.remove();
+                const errDiv = document.createElement('div');
+                errDiv.className = 'text-center small text-danger my-1';
+                errDiv.textContent = 'Lỗi kết nối tới trợ lý AI.';
+                container.appendChild(errDiv);
+            }
+        }
+
+        function escapeHtml(text) {
+            var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</th:block>
+</body>
+</html>

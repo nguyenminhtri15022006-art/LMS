@@ -394,6 +394,55 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(portal): add quiz examination and question bank views`
 
+---
+
+### [2026-10-24] — Đợt 6 Chuyển Đổi Giao Diện: Trợ Lý AI Chatbot & Bảng Xếp Hạng Học Tập (AI Chatbot & Leaderboard UI)
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Điều khiển Web & Dịch vụ Trợ Lý AI & Vinh Danh (`backend/web-portal`)**:
+     - `ChatMessageDto.java`, `ChatRequestDto.java`, `ChatResponseDto.java`, `LeaderboardEntryDto.java`: Hệ thống DTOs biểu diễn hội thoại AI và dữ liệu xếp hạng sinh viên.
+     - `ChatbotClient.java`: OpenFeign client kết nối `chatbot-service` qua API Gateway (`/api/v1/chat`).
+     - `ChatbotService.java`: Trợ lý gia sư AI tích hợp phân tích yêu cầu lập trình thông minh (hướng dẫn kỹ thuật giải Two Sum, giải thích kiến trúc Spring Cloud Microservices, thuật toán đồ thị Dijkstra, mẹo làm bài thi Quiz).
+     - `LeaderboardService.java`: Cung cấp bảng tổng sắp thành tích sinh viên HCMUTE (số bài code giải được, điểm trung bình Quiz, điểm tích lũy và danh hiệu Huy hiệu Vàng, Bạc, Đồng, Top Coder).
+     - `ChatWebController.java`: Cung cấp API `POST /api/portal/chat` cho widget chat tương tác và `GET /chat` cho không gian trợ lý AI chuyên sâu.
+     - `LeaderboardWebController.java`: Điều hướng `GET /leaderboard` (lọc theo chu kỳ Toàn thời gian, Tháng này, Tuần này).
+   - **Giao diện Thymeleaf & Bootstrap 5.3**:
+     - `templates/fragments/chatbot_widget.html`: Widget chatbot AI nổi cố định (Floating Widget) góc dưới bên phải mọi màn hình:
+       - Nút tròn biểu tượng robot hỗ trợ bật/tắt popup chat nhanh.
+       - Giao diện tin nhắn hai chiều, hiệu ứng gõ phím ("Đang suy nghĩ..."), xử lý gửi nhận bất đồng bộ qua Fetch API.
+     - `templates/chat/index.html`: Không gian trợ lý AI toàn màn hình: các thẻ gợi ý câu hỏi nhanh 1-click, giới thiệu tính năng AI và khung hội thoại rộng rãi.
+     - `templates/leaderboard/index.html`: Bảng vinh danh học tập chuẩn quốc tế:
+       - Bục vinh danh Top 3 Podium (Quán quân Vàng ở giữa nổi bật kèm vương miện, Á quân Bạc bên trái, Quý quân Đồng bên phải).
+       - Bảng danh sách thứ hạng đầy đủ (#1 đến #6+), tiến độ bài code, điểm Quiz và huy hiệu thành tích.
+     - `templates/layouts/base.html`: Nhúng `chatbotWidget` vào layout cơ sở để sẵn sàng phục vụ sinh viên trên toàn hệ thống.
+     - `templates/fragments/navbar.html`: Bổ sung liên kết điều hướng trực tiếp đến "Xếp hạng" và "Trợ lý AI".
+   - **Kiểm thử Unit Test**:
+     - `ChatWebControllerTest.java`: Kiểm thử tải giao diện chat toàn màn hình và API `POST /api/portal/chat` trả về JSON phản hồi thông minh.
+     - `LeaderboardWebControllerTest.java`: Kiểm thử truy cập `GET /leaderboard` trả về HTTP 200, đúng view `leaderboard/index` và danh sách Top 1/2/3.
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ChatMessageDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ChatRequestDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ChatResponseDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/LeaderboardEntryDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/ChatbotClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/ChatbotService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/LeaderboardService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/ChatWebController.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/LeaderboardWebController.java`
+   - `backend/web-portal/src/main/resources/templates/fragments/chatbot_widget.html`
+   - `backend/web-portal/src/main/resources/templates/chat/index.html`
+   - `backend/web-portal/src/main/resources/templates/leaderboard/index.html`
+   - `backend/web-portal/src/main/resources/templates/layouts/base.html`
+   - `backend/web-portal/src/main/resources/templates/fragments/navbar.html`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/ChatWebControllerTest.java`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/LeaderboardWebControllerTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 36/36 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): add ai chatbot and leaderboard views`
+
+
 
 
 
