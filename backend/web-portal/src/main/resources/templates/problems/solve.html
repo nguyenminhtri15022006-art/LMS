@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{::extraJs})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">EduLearn Code Judge</title>
+</head>
+<body>
+<div th:fragment="content" class="bg-light min-vh-100 py-3">
+    <div class="container-fluid px-lg-4">
+        <!-- Top Workspace Bar -->
+        <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3 bg-white p-3 rounded-4 shadow-sm border">
+            <div class="d-flex align-items-center gap-3">
+                <a th:href="@{/problems}" class="btn btn-outline-secondary btn-sm rounded-pill px-3">
+                    <i class="bi bi-arrow-left me-1"></i>Danh sách bài
+                </a>
+                <h5 class="fw-bold mb-0 text-dark" th:text="${problem.problemId + '. ' + problem.title}">1. Two Sum</h5>
+                <span th:if="${problem.difficulty == 'EASY'}" class="badge bg-success-subtle text-success rounded-pill px-3 py-2">Dễ</span>
+                <span th:if="${problem.difficulty == 'MEDIUM'}" class="badge bg-warning-subtle text-warning rounded-pill px-3 py-2">Trung bình</span>
+                <span th:if="${problem.difficulty == 'HARD'}" class="badge bg-danger-subtle text-danger rounded-pill px-3 py-2">Khó</span>
+            </div>
+
+            <div class="d-flex align-items-center gap-3">
+                <span class="small text-muted font-monospace"><i class="bi bi-clock me-1"></i><span th:text="${problem.timeLimitMs + 'ms'}">1000ms</span></span>
+                <span class="small text-muted font-monospace"><i class="bi bi-memory me-1"></i><span th:text="${problem.memoryLimitMb + 'MB'}">256MB</span></span>
+                <span class="badge bg-primary rounded-pill px-3 py-2"><i class="bi bi-award me-1"></i><span th:text="${problem.score + ' điểm'}">100 điểm</span></span>
+            </div>
+        </div>
+
+        <div class="row g-3">
+            <!-- Left Pane: Problem Description & Submissions -->
+            <div class="col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden h-100 bg-white d-flex flex-column" style="min-height: 650px;">
+                    <div class="card-header bg-white border-bottom pt-3 px-4">
+                        <ul class="nav nav-tabs card-header-tabs" id="problemTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-semibold" id="desc-tab" data-bs-toggle="tab" data-bs-target="#descPane" type="button" role="tab">
+                                    <i class="bi bi-file-text me-1"></i>Mô Tả Bài Toán
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-semibold" id="history-tab" data-bs-toggle="tab" data-bs-target="#historyPane" type="button" role="tab">
+                                    <i class="bi bi-clock-history me-1"></i>Lịch Sử Nộp Bài
+                                    <span class="badge bg-secondary rounded-pill ms-1" th:text="${#lists.size(submissions)}">0</span>
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="card-body p-4 flex-grow-1 overflow-auto" style="max-height: 750px;">
+                        <div class="tab-content" id="problemTabContent">
+                            <!-- Tab 1: Description -->
+                            <div class="tab-pane fade show active" id="descPane" role="tabpanel">
+                                <div class="problem-desc lh-lg text-secondary mb-4">
+                                    <div th:utext="${#strings.replace(problem.description, '&#10;', '<br>')}">
+                                        Nội dung bài toán...
+                                    </div>
+                                </div>
+
+                                <!-- Examples -->
+                                <h6 class="fw-bold text-dark mb-3"><i class="bi bi-lightbulb text-warning me-2"></i>Ví Dụ Mẫu:</h6>
+                                <div class="card bg-light border-0 rounded-3 p-3 mb-3" th:each="ex, iterStat : ${problem.examples}">
+                                    <div class="fw-bold small text-muted mb-2" th:text="${'Ví dụ ' + (iterStat.index + 1) + ':'}">Ví dụ 1:</div>
+                                    <div class="font-monospace small mb-1">
+                                        <strong>Input:</strong> <span th:text="${ex.input}">nums = [2,7,11,15], target = 9</span>
+                                    </div>
+                                    <div class="font-monospace small mb-1">
+                                        <strong>Output:</strong> <span class="text-success fw-bold" th:text="${ex.output}">[0,1]</span>
+                                    </div>
+                                    <div class="small text-muted" th:if="${ex.explanation != null}">
+                                        <strong>Giải thích:</strong> <span th:text="${ex.explanation}">Giải thích...</span>
+                                    </div>
+                                </div>
+
+                                <!-- Tags -->
+                                <div class="mt-4 pt-3 border-top">
+                                    <span class="small text-muted fw-semibold me-2">Thẻ chuyên đề:</span>
+                                    <span th:each="t : ${problem.tags}" class="badge bg-light text-secondary border font-monospace me-1" th:text="${t}">Array</span>
+                                </div>
+                            </div>
+
+                            <!-- Tab 2: Submission History -->
+                            <div class="tab-pane fade" id="historyPane" role="tabpanel">
+                                <div class="table-responsive" th:if="${not #lists.isEmpty(submissions)}">
+                                    <table class="table table-sm table-hover align-middle">
+                                        <thead class="table-light small text-secondary">
+                                            <tr>
+                                                <th>Thời gian</th>
+                                                <th>Trạng thái</th>
+                                                <th>Ngôn ngữ</th>
+                                                <th>Thời gian chạy</th>
+                                                <th>Bộ nhớ</th>
+                                                <th>Điểm</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr th:each="sub : ${submissions}">
+                                                <td class="small text-muted" th:text="${sub.submittedAt}">2026-10-24 00:00</td>
+                                                <td>
+                                                    <span th:if="${sub.status == 'AC'}" class="badge bg-success">Accepted (AC)</span>
+                                                    <span th:if="${sub.status == 'WA'}" class="badge bg-danger">Wrong Answer (WA)</span>
+                                                    <span th:if="${sub.status == 'TLE'}" class="badge bg-warning text-dark">Time Limit (TLE)</span>
+                                                    <span th:if="${sub.status == 'CE'}" class="badge bg-secondary">Compile Error (CE)</span>
+                                                </td>
+                                                <td class="small fw-semibold" th:text="${sub.language}">CPP</td>
+                                                <td class="small font-monospace" th:text="${sub.execTimeMs + ' ms'}">14 ms</td>
+                                                <td class="small font-monospace" th:text="${sub.memoryUsedKb + ' KB'}">2048 KB</td>
+                                                <td class="small fw-bold text-primary" th:text="${sub.score + '/100'}">100/100</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div th:if="${#lists.isEmpty(submissions)}" class="text-center py-5 text-muted">
+                                    <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+                                    Bạn chưa có bài nộp nào cho bài toán này. Hãy viết code và bấm "Nộp Bài Chấm"!
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Pane: Code Editor & Execution Results -->
+            <div class="col-lg-6">
+                <form th:action="@{/problems/{id}/submit(id=${problem.problemId})}" th:object="${codeSubmitDto}" method="post" id="codeForm">
+                    <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-dark text-white d-flex flex-column" style="min-height: 650px;">
+                        <!-- Editor Toolbar -->
+                        <div class="card-header bg-dark border-secondary d-flex flex-wrap align-items-center justify-content-between py-2 px-3">
+                            <div class="d-flex align-items-center gap-2">
+                                <label for="languageSelect" class="small text-white-50 fw-semibold mb-0"><i class="bi bi-terminal me-1"></i>Ngôn ngữ:</label>
+                                <select id="languageSelect" th:field="*{language}" class="form-select form-select-sm bg-secondary text-white border-0 py-1" style="width: 130px;"
+                                        th:onchange="'window.location.href=\'/problems/' + ${problem.problemId} + '?lang=\' + this.value'">
+                                    <option value="CPP" th:selected="${selectedLang == 'CPP'}">C++ (G++ 17)</option>
+                                    <option value="JAVA" th:selected="${selectedLang == 'JAVA'}">Java (OpenJDK 21)</option>
+                                    <option value="PYTHON" th:selected="${selectedLang == 'PYTHON'}">Python 3.11</option>
+                                </select>
+                            </div>
+
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-light btn-sm px-3" onclick="alert('Đã chạy thử nghiệm với Testcase 1 thành công!')">
+                                    <i class="bi bi-play-fill me-1"></i>Chạy thử
+                                </button>
+                                <button type="submit" class="btn btn-success btn-sm px-4 fw-bold shadow">
+                                    <i class="bi bi-cloud-arrow-up-fill me-1"></i>Nộp Bài Chấm
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Code Textarea -->
+                        <div class="card-body p-0 flex-grow-1 position-relative bg-black bg-opacity-75">
+                            <textarea id="sourceCode" th:field="*{sourceCode}"
+                                      class="form-control font-monospace text-light bg-transparent border-0 h-100 p-3"
+                                      style="min-height: 380px; font-size: 14px; line-height: 1.5; tab-size: 4; resize: none; outline: none; box-shadow: none;"
+                                      placeholder="// Nhập mã nguồn lời giải của bạn tại đây..." required></textarea>
+                        </div>
+
+                        <!-- Results Console Pane -->
+                        <div class="card-footer bg-dark border-secondary p-3">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-white-50 fw-semibold text-uppercase font-monospace">
+                                    <i class="bi bi-cpu me-1"></i>Bảng Kết Quả Chấm (Judge Console)
+                                </span>
+                                <span th:if="${lastResult != null}" class="badge"
+                                      th:classappend="${lastResult.status == 'AC'} ? 'bg-success' : 'bg-danger'"
+                                      th:text="${lastResult.status == 'AC' ? 'Accepted (AC)' : 'Wrong Answer (WA)'}">
+                                    Status
+                                </span>
+                            </div>
+
+                            <!-- If Has Last Result -->
+                            <div th:if="${lastResult != null}" class="bg-black bg-opacity-50 rounded-3 p-3 font-monospace small">
+                                <div class="d-flex flex-wrap align-items-center justify-content-between pb-2 mb-2 border-bottom border-secondary">
+                                    <div>
+                                        <strong th:classappend="${lastResult.status == 'AC'} ? 'text-success' : 'text-danger'"
+                                                th:text="${lastResult.status == 'AC' ? 'Chấp nhận lời giải (AC)' : 'Lời giải chưa chính xác'}">Accepted</strong>
+                                        <span class="text-white ms-2" th:text="${'Điểm số: ' + lastResult.score + '/100'}">100/100</span>
+                                    </div>
+                                    <div class="text-white-50">
+                                        Thời gian: <span class="text-warning" th:text="${lastResult.execTimeMs + 'ms'}">14ms</span> |
+                                        Bộ nhớ: <span class="text-info" th:text="${lastResult.memoryUsedKb + 'KB'}">2048KB</span>
+                                    </div>
+                                </div>
+
+                                <!-- Test cases grid -->
+                                <div class="d-flex gap-2 flex-wrap">
+                                    <div th:each="tc, iterStat : ${lastResult.testCaseResults}"
+                                         class="badge p-2 d-flex align-items-center gap-2"
+                                         th:classappend="${tc.status == 'AC'} ? 'bg-success bg-opacity-25 text-success border border-success' : 'bg-danger bg-opacity-25 text-danger border border-danger'">
+                                        <i th:if="${tc.status == 'AC'}" class="bi bi-check-circle-fill"></i>
+                                        <i th:if="${tc.status != 'AC'}" class="bi bi-x-circle-fill"></i>
+                                        <span th:text="${'Test ' + (iterStat.index + 1) + (tc.hidden ? ' (Ẩn)' : '') + ': ' + tc.status}">Test 1: AC</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Default / Empty Console -->
+                            <div th:if="${lastResult == null}" class="bg-black bg-opacity-50 rounded-3 p-3 font-monospace small text-white-50">
+                                <div><i class="bi bi-info-circle me-1"></i>Sẵn sàng chấm bài. Nhập code và nhấn <strong>Nộp Bài Chấm</strong> để kiểm thử qua bộ test cases tự động.</div>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<th:block th:fragment="extraJs">
+    <script>
+        // Hỗ trợ gõ phím Tab trong Code Textarea thay vì chuyển focus
+        document.getElementById('sourceCode')?.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                var start = this.selectionStart;
+                var end = this.selectionEnd;
+                this.value = this.value.substring(0, start) + "    " + this.value.substring(end);
+                this.selectionStart = this.selectionEnd = start + 4;
+            }
+        });
+    </script>
+</th:block>
+</body>
+</html>

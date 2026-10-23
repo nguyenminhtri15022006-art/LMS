@@ -314,4 +314,42 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(portal): add course catalog and lesson viewer views`
 
+---
+
+### [2026-10-24] — Đợt 4 Chuyển Đổi Giao Diện: Luyện Tập Lập Trình & Nộp Bài Chấm Tự Động (Coding Problems & Online Judge UI)
+1. **Ngày thực hiện**: 24/10/2026
+2. **Công việc đã làm**:
+   - **Tầng Điều khiển Web & Dịch vụ Luyện Code (`backend/web-portal`)**:
+     - `ProblemDto.java`, `ProblemExampleDto.java`, `CodeSubmitDto.java`, `SubmissionResultDto.java`, `TestCaseResultDto.java`, `ProblemFilterDto.java`: Cấu trúc DTOs mô tả bài tập thuật toán, testcases ẩn/hiện, mã nguồn bài nộp và kết quả chấm chi tiết.
+     - `ProblemClient.java`: OpenFeign client kết nối `assignment-service` qua API Gateway (`/api/v1/assignments/problems` và `/submit`).
+     - `ProblemService.java`: Kho bài tập thuật toán chuẩn LeetCode & ACM/ICPC (Two Sum, Valid Parentheses, Longest Substring, 0/1 Knapsack, Dijkstra Shortest Path); tích hợp động cơ giả lập chấm bài tự động tại chỗ (In-Memory Judge Engine) trả về kết quả thời gian thực (`AC`, `WA`, `TLE`, `CE`) kèm thời gian thực thi (ms) và dung lượng bộ nhớ (KB).
+     - `ProblemWebController.java`: Điều hướng `GET /problems` (danh sách bài, tìm kiếm, lọc độ khó), `GET /problems/{id}` (không gian làm bài, chuyển đổi ngôn ngữ C++/Java/Python, xem lịch sử nộp bài) và `POST /problems/{id}/submit` (xác thực phiên người dùng, nhận mã nguồn và trả về kết quả tức thì).
+   - **Giao diện Thymeleaf & Bootstrap 5.3**:
+     - `templates/problems/list.html`: Bảng danh sách bài tập trực quan, tiến độ hoàn thành, thanh tỷ lệ Accepted (AC), thẻ độ khó (Dễ: Xanh lá, Trung bình: Vàng, Khó: Đỏ) và danh sách thẻ tag chuyên đề (Array, DP, Graph, Stack, Sliding Window).
+     - `templates/problems/solve.html`: Không gian lập trình LeetCode-style 2 cột chuyên nghiệp:
+       - Cột trái: Tab Đề bài (mô tả, ví dụ input/output mẫu, ràng buộc kỹ thuật) và Tab Lịch sử nộp bài (thời gian, ngôn ngữ, trạng thái, thời gian chạy, điểm số).
+       - Cột phải: Thanh công cụ chọn ngôn ngữ (C++, Java, Python), khung soạn thảo mã nguồn tối màu (Dark IDE) hỗ trợ gõ phím Tab thụt lề, nút Chạy thử và Nộp bài chấm.
+       - Khối Console kết quả chấm: Hiển thị trạng thái AC/WA nổi bật, số điểm đạt được và chi tiết từng testcase (kể cả testcase ẩn).
+   - **Kiểm thử Unit Test**:
+     - `ProblemWebControllerTest.java`: 7 kịch bản kiểm thử toàn diện (danh sách bài tập, lọc từ khóa, hiển thị không gian giải bài, xử lý mã bài không hợp lệ, chặn nộp bài khi chưa đăng nhập, nộp bài thành công khi có phiên, nạp template ngôn ngữ Java/C++).
+3. **File thay đổi / tạo mới**:
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ProblemExampleDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/TestCaseResultDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/SubmissionResultDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/CodeSubmitDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ProblemFilterDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/dto/ProblemDto.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/client/ProblemClient.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/service/ProblemService.java`
+   - `backend/web-portal/src/main/java/com/lms/webportal/controller/ProblemWebController.java`
+   - `backend/web-portal/src/main/resources/templates/problems/list.html`
+   - `backend/web-portal/src/main/resources/templates/problems/solve.html`
+   - `backend/web-portal/src/test/java/com/lms/webportal/controller/ProblemWebControllerTest.java`
+   - `docs/progress/member-1.md`
+4. **Test đã chạy**:
+   - `mvn test -pl web-portal`: `BUILD SUCCESS` (Toàn bộ 25/25 tests pass 100%, 0 failures, 0 errors).
+5. **Commit**:
+   - `feat(portal): add coding problems and online judge views`
+
+
 
