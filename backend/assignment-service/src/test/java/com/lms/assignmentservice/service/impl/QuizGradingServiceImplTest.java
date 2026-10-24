@@ -98,6 +98,123 @@ class QuizGradingServiceImplTest {
         verify(gradeRepository).save(any(Grade.class));
     }
 
+    @Test
+    void gradeAttemptWithZeroAnswersYieldsZeroScoreAndFails() {
+        Quiz quiz = Quiz.builder()
+                .quizId(11)
+                .courseId("course-1")
+                .title("Empty Attempt Quiz")
+                .createdBy("instructor-1")
+                .totalScore((short) 100)
+                .passScore((byte) 50)
+                .quizQuestions(new ArrayList<>())
+                .build();
+
+        Question q1 = question(1);
+        quiz.getQuizQuestions().add(QuizQuestion.builder()
+                .quiz(quiz)
+                .question(q1)
+                .overrideScore((short) 10)
+                .orderIndex((short) 1)
+                .build());
+
+        QuizAttempt attempt = QuizAttempt.builder()
+                .attemptId(2L)
+                .quiz(quiz)
+                .userId("student-empty")
+                .totalScore(BigDecimal.valueOf(100))
+                .build();
+
+        when(quizAnswerRecordRepository.findByQuizAttempt_AttemptId(2L)).thenReturn(List.of());
+        when(questionRepository.findAllByQuizIdWithAnswers(11)).thenReturn(List.of(q1));
+        when(gradeRepository.findByUserIdAndQuiz_QuizId("student-empty", 11)).thenReturn(Optional.empty());
+
+        QuizGradingService.GradingResult result = gradingService.gradeAttempt(attempt, Map.of());
+
+        assertThat(result.totalScore()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.passed()).isFalse();
+    }
+
+    @Test
+    void gradeAttemptMultipleChoiceRequiresExactMatchForFullScore() {
+        Quiz quiz = Quiz.builder()
+                .quizId(12)
+                .courseId("course-1")
+                .title("MC Quiz")
+                .createdBy("instructor-1")
+                .totalScore((short) 100)
+                .passScore((byte) 50)
+                .quizQuestions(new ArrayList<>())
+                .build();
+
+        Answer a1 = Answer.builder().answerId(101).content("A").correct(true).orderIndex((short) 0).build();
+        Answer a2 = Answer.builder().answerId(102).content("B").correct(true).orderIndex((short) 1).build();
+        Answer a3 = Answer.builder().answerId(103).content("C").correct(false).orderIndex((short) 2).build();
+
+        Question mcq = Question.builder()
+                .questionId(20)
+                .courseId("course-1")
+                .content("Select A and B")
+                .type(QuestionType.MULTIPLE)
+                .score((byte) 10)
+                .answers(List.of(a1, a2, a3))
+                .build();
+
+        quiz.getQuizQuestions().add(QuizQuestion.builder()
+                .quiz(quiz)
+                .question(mcq)
+                .overrideScore((short) 10)
+                .orderIndex((short) 1)
+                .build());
+
+        QuizAttempt attempt = QuizAttempt.builder()
+                .attemptId(3L)
+                .quiz(quiz)
+                .userId("student-partial")
+                .totalScore(BigDecimal.valueOf(100))
+                .build();
+
+        when(quizAnswerRecordRepository.findByQuizAttempt_AttemptId(3L)).thenReturn(List.of());
+        when(questionRepository.findAllByQuizIdWithAnswers(12)).thenReturn(List.of(mcq));
+        when(gradeRepository.findByUserIdAndQuiz_QuizId("student-partial", 12)).thenReturn(Optional.empty());
+
+        // Student selects only a1 (missing a2) -> should yield 0 score
+        Map<Integer, List<Integer>> partialAnswer = Map.of(20, List.of(101));
+        QuizGradingService.GradingResult result = gradingService.gradeAttempt(attempt, partialAnswer);
+
+        assertThat(result.totalScore()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.passed()).isFalse();
+    }
+
+    @Test
+    void gradeAttemptWithZeroMaxQuestionsScoreSafelyReturnsZero() {
+        Quiz quiz = Quiz.builder()
+                .quizId(13)
+                .courseId("course-1")
+                .title("Zero Score Quiz")
+                .createdBy("instructor-1")
+                .totalScore((short) 100)
+                .passScore((byte) 50)
+                .quizQuestions(new ArrayList<>())
+                .build();
+
+        QuizAttempt attempt = QuizAttempt.builder()
+                .attemptId(4L)
+                .quiz(quiz)
+                .userId("student-zero")
+                .totalScore(BigDecimal.valueOf(100))
+                .build();
+
+        when(quizAnswerRecordRepository.findByQuizAttempt_AttemptId(4L)).thenReturn(List.of());
+        when(questionRepository.findAllByQuizIdWithAnswers(13)).thenReturn(List.of());
+        when(gradeRepository.findByUserIdAndQuiz_QuizId("student-zero", 13)).thenReturn(Optional.empty());
+
+        QuizGradingService.GradingResult result = gradingService.gradeAttempt(attempt, Map.of());
+
+        assertThat(result.totalScore()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(result.passed()).isFalse();
+    }
+
     private Question question(int index) {
         Answer correctAnswer = Answer.builder()
                 .answerId(index * 10)

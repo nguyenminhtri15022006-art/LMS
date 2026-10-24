@@ -16,6 +16,10 @@ spring:
       httpclient:
         connect-timeout: ${GATEWAY_HTTP_CONNECT_TIMEOUT_MS:10000}
         response-timeout: ${GATEWAY_HTTP_RESPONSE_TIMEOUT:30s}
+        pool:
+          type: ELASTIC
+          max-idle-time: 15s
+          max-life-time: 60s
       routes:
         # ===== Public actuator health endpoints for admin dashboard =====
         - id: identity-health
@@ -27,6 +31,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: course-health
           uri: ${GATEWAY_COURSE_HEALTH_URI:lb://course-service}
@@ -37,6 +45,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: assignment-health
           uri: ${GATEWAY_ASSIGNMENT_HEALTH_URI:lb://assignment-service}
@@ -47,6 +59,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: blog-health
           uri: ${GATEWAY_BLOG_HEALTH_URI:lb://blog-service}
@@ -57,6 +73,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: chatbot-health
           uri: ${GATEWAY_CHATBOT_HEALTH_URI:lb://chatbot-service}
@@ -67,6 +87,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         # ===== Identity Service =====
         - id: identity-public
@@ -76,6 +100,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: identity-public-profile
           uri: lb://identity-service
@@ -206,6 +234,19 @@ spring:
                 name: assignmentAiServiceCircuitBreaker
                 fallbackUri: forward:/fallback/assignment-service
 
+        - id: assignment-code-judge
+          uri: lb://assignment-service
+          order: -10
+          predicates:
+            - Path=${app.prefix-api}/assignment/problems/*/submit,${app.prefix-api}/assignment/problems/*/run-trial
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: assignmentJudgeCircuitBreaker
+                fallbackUri: forward:/fallback/assignment-service
+
         - id: assignment-service
           uri: lb://assignment-service
           order: 0
@@ -264,6 +305,8 @@ spring:
           '[/**]':
             allowed-origins:
               - "${FRONTEND_URL:http://localhost:5173}"
+              - "http://localhost:3000"
+              - "http://localhost:8080"
             allowed-methods:
               - GET
               - POST
@@ -275,11 +318,16 @@ spring:
               - "*"
               - "Content-Type"
               - "Authorization"
+              - "X-Requested-With"
+              - "Accept"
+              - "Origin"
             allow-credentials: true
             max-age: 3600
             exposed-headers:
               - "Authorization"
               - "Content-Type"
+              - "X-User-Id"
+              - "X-User-Role"
 
 # ===== Eureka =====
 eureka:
@@ -306,14 +354,20 @@ resilience4j:
       default:
         timeout-duration: ${GATEWAY_CIRCUIT_TIMEOUT:10s}
     instances:
+      identityServiceCircuitBreaker:
+        timeout-duration: ${GATEWAY_IDENTITY_CIRCUIT_TIMEOUT:10s}
+      courseServiceCircuitBreaker:
+        timeout-duration: ${GATEWAY_COURSE_CIRCUIT_TIMEOUT:15s}
       assignmentServiceCircuitBreaker:
         timeout-duration: ${GATEWAY_ASSIGNMENT_CIRCUIT_TIMEOUT:15s}
+      assignmentJudgeCircuitBreaker:
+        timeout-duration: ${GATEWAY_JUDGE_CIRCUIT_TIMEOUT:60s}
       assignmentAiServiceCircuitBreaker:
         timeout-duration: ${GATEWAY_ASSIGNMENT_AI_CIRCUIT_TIMEOUT:130s}
       chatbotServiceCircuitBreaker:
         timeout-duration: ${GATEWAY_CHATBOT_CIRCUIT_TIMEOUT:130s}
-      courseServiceCircuitBreaker:
-        timeout-duration: ${GATEWAY_STORAGE_CIRCUIT_TIMEOUT:15s}
+      blogServiceCircuitBreaker:
+        timeout-duration: ${GATEWAY_BLOG_CIRCUIT_TIMEOUT:10s}
 
 # ===== Logging =====
 logging:
@@ -336,5 +390,7 @@ management:
       cors:
         allowed-origins:
           - "${FRONTEND_URL:http://localhost:5173}"
+          - "http://localhost:3000"
+          - "http://localhost:8080"
         allowed-methods:
           - GET

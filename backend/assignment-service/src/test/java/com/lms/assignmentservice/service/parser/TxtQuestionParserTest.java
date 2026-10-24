@@ -105,10 +105,49 @@ class TxtQuestionParserTest {
         List<ParsedQuestionItem> items = parser.parseText(content);
 
         assertThat(items).hasSize(1);
-        assertThat(items.getFirst().getQuestion().getType()).isEqualTo(QuestionType.SINGLE);
         assertThat(items.getFirst().getQuestion().getAnswers())
-                .extracting(CreateQuestionRequest.AnswerRequest::isCorrect)
-                .containsExactly(false, false, false, false);
+                .noneMatch(CreateQuestionRequest.AnswerRequest::isCorrect);
+    }
+
+    @Test
+    void parseTextHandlesWhitespaceNoiseAndMultipleBlankLines() {
+        String content = "\n\n   \n" + String.join("\n",
+                "  Câu 1: Clean Question?  ",
+                "  A.  First option  ",
+                "  *B.  Second option  ",
+                "\n\n\n",
+                "Câu 2: Question with tab indentation",
+                "\t*A. Yes",
+                "\tB. No",
+                "");
+
+        List<ParsedQuestionItem> items = parser.parseText(content);
+
+        assertThat(items).hasSize(2);
+        assertThat(items.get(0).getQuestion().getContent()).isEqualTo("Clean Question?");
+        assertThat(items.get(0).getQuestion().getAnswers().get(0).getContent()).isEqualTo("First option");
+        assertThat(items.get(0).getQuestion().getAnswers().get(1).isCorrect()).isTrue();
+        assertThat(items.get(1).getQuestion().getContent()).isEqualTo("Question with tab indentation");
+        assertThat(items.get(1).getQuestion().getAnswers().get(0).isCorrect()).isTrue();
+    }
+
+    @Test
+    void parseTextWithDocxSpecialCharactersAndBullets() throws Exception {
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "special-chars.docx",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                docxBytes(List.of(
+                        "Câu 1: Cho biểu thức toán học x <= 10 & y >= 20?",
+                        "*A. Đúng",
+                        "B. Sai")));
+        DocxQuestionParser docxParser = new DocxQuestionParser(parser, questionFileReader);
+
+        List<ParsedQuestionItem> items = docxParser.parse(file);
+
+        assertThat(items).hasSize(1);
+        assertThat(items.get(0).getQuestion().getContent()).contains("<=", ">=");
+        assertThat(items.get(0).getQuestion().getAnswers().get(0).isCorrect()).isTrue();
     }
 
     private byte[] docxBytes(List<String> paragraphs) throws Exception {

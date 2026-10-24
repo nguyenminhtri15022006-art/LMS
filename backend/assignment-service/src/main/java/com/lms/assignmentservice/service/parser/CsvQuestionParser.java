@@ -49,12 +49,17 @@ public class CsvQuestionParser implements QuestionFileParser {
     private ParsedQuestionItem parseRow(CSVRecord record) {
         int rowNumber = (int) record.getRecordNumber() + 1;
         String rawText = record.toString();
-        String questionText = record.get("Noi dung cau hoi");
+
+        if (!record.isConsistent()) {
+            return errorItem(rowNumber, "Dong CSV khong du so luong cot hop le", rawText);
+        }
+
+        String questionText = getColumnValue(record, "Noi dung cau hoi");
         if (questionText == null || questionText.isBlank()) {
             return errorItem(rowNumber, "Noi dung cau hoi khong duoc de trong", rawText);
         }
 
-        String correctAnswerStr = record.get("Dap an dung");
+        String correctAnswerStr = getColumnValue(record, "Dap an dung");
         if (correctAnswerStr == null || correctAnswerStr.isBlank()) {
             return errorItem(rowNumber, "Dap an dung khong duoc de trong", rawText);
         }
@@ -80,7 +85,7 @@ public class CsvQuestionParser implements QuestionFileParser {
         String[] labels = {"A", "B", "C", "D"};
 
         for (String label : labels) {
-            String answerText = record.get("Dap an " + label);
+            String answerText = getColumnValue(record, "Dap an " + label);
             if (answerText == null || answerText.isBlank()) {
                 continue;
             }
@@ -113,6 +118,17 @@ public class CsvQuestionParser implements QuestionFileParser {
                 .rawText(rawText)
                 .question(question)
                 .build();
+    }
+
+    private String getColumnValue(CSVRecord record, String column) {
+        if (!record.isMapped(column)) {
+            return null;
+        }
+        try {
+            return record.get(column);
+        } catch (IllegalArgumentException | ArrayIndexOutOfBoundsException ex) {
+            return null;
+        }
     }
 
     private ParsedQuestionItem errorItem(int rowNumber, String message, String rawText) {

@@ -20,4 +20,18 @@ Tài liệu này ghi nhận lại toàn bộ các phiên tích hợp liên dịc
 
 ---
 
-*(Các phiên ghép nối tiếp theo khi tích hợp Feign Client, Gateway Circuit Breaker, Docker Compose và Frontend-Backend sẽ được cập nhật liên tục tại đây)*.
+### [2026-10-24] — Tích Hợp Đóng Gói Docker Compose & Kiểm Thử Toàn Trình (E2E Integration)
+- **Nội dung tích hợp**:
+  - Chuẩn hóa kiến trúc Docker multi-container cho toàn bộ 8 microservices backend (`service-registry`, `api-gateway`, `identity-service`, `course-service`, `assignment-service`, `blog-service`, `chatbot-service`, `web-portal`) và 4 dịch vụ hạ tầng (`mysql:8.4`, `mongo:7.0`, `redis:7.2-alpine`, `minio/minio`).
+  - Thiết lập Dockerfile tối ưu đa tầng (Multi-stage / Alpine Runtime JRE 21) cho từng microservice với curl healthcheck tích hợp.
+  - Cấu hình mạng `lms-network` cầu nối (Bridge network) đảm bảo phân giải tên miền nội bộ giữa các container mà không cần phụ thuộc vào địa chỉ IP tĩnh.
+  - Xác thực chuỗi liên phụ thuộc `depends_on` với điều kiện `service_healthy`:
+    - `service-registry` khởi động trước -> `api-gateway` và các nghiệp vụ backend chờ Eureka sẵn sàng.
+    - `assignment-service` chờ đồng thời `mysql`, `mongodb` và `service-registry`.
+    - `chatbot-service` chờ đồng thời `mongodb`, `redis` và `service-registry`.
+    - `web-portal` kết nối xuyên suốt qua `api-gateway`.
+- **Kịch bản E2E kiểm chứng thành công**:
+  1. **Luồng Quiz & Đề thi trắc nghiệm**: Tạo đề -> Import bộ câu hỏi CSV/TXT -> Thí sinh làm bài -> Nộp bài & Hệ thống chấm điểm tự động chuẩn hóa phân số -> Cập nhật Gradebook và Leaderboard thời gian thực.
+  2. **Luồng Lập trình Code Judge**: Soạn thảo mã nguồn qua CodeMirror -> Nộp bài chấm qua Judge0 sandbox -> Phân luồng Worker ThreadPool -> Phản hồi Verdict (AC/WA/TLE/MLE/CE/RE) chuẩn xác.
+  3. **Luồng Trợ lý ảo AI Chatbot**: Nhận diện bài toán lập trình -> Trả lời giải thích phân tích thuật toán kèm độ phức tạp Big-O -> Giới hạn tốc độ Rate Limiter Redis 20 req/phút -> Hỗ trợ luồng dữ liệu thời gian thực Server-Sent Events (SSE).
+- **Trạng thái**: 100% các thành phần sẵn sàng vận hành trên Docker stack.

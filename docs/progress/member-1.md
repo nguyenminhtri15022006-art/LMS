@@ -33,10 +33,10 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 6<br>(12/10 – 14/10)** | Triển khai Bảng điểm tổng hợp (Gradebook), Lịch sử thi Quiz, Thống kê Leaderboard thời gian thực | `assignment-service/src/main/java/.../GradeServiceImpl.java`, `LeaderboardServiceImpl.java` | `feat(assignment): triển khai bảng điểm gradebook và leaderboard` | Hash: cab13b4 (75/75 Tests Passed) |
 | [x] | **Đợt 7<br>(15/10 – 17/10)** | Xây dựng giao diện Trình soạn thảo CodeMirror, Giao diện làm bài Quiz đếm ngược và kết quả | `backend/web-portal/src/main/resources/templates/...` | `feat(portal): kết nối giao diện quiz và trình soạn thảo code judge` | Hash: 1ef04b8 (36/36 Tests Passed) |
 | [x] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `RateLimiterService.java` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | Hash: 48dd24f (8/8 Tests Passed) |
-| [ ] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | |
-| [ ] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | |
-| [ ] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | |
-| [ ] | **Đợt 12<br>(28/10 – 29/10)** | Chuẩn bị dữ liệu mẫu (Seeding), kiểm tra chốt chặn cuối cùng, merge `develop` -> `main`, phát hành v1.0.0 | `docker/mysql/init/*`, `README.md`, Release v1.0.0 | `chore(release): phát hành phiên bản chính thức v1.0.0` | |
+| [x] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | 131 Tests Passed |
+| [x] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | 147 Tests Passed |
+| [x] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | E2E Docker Ready |
+| [x] | **Đợt 12<br>(28/10 – 29/10)** | Chuẩn bị dữ liệu mẫu (Seeding), kiểm tra chốt chặn cuối cùng, merge `develop` -> `main`, phát hành v1.0.0 | `docker/mysql/init/*`, `README.md`, Release v1.0.0 | `chore(release): phát hành phiên bản chính thức v1.0.0` | Release v1.0.0 Ready |
 
 ---
 
@@ -630,3 +630,86 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 5. **Commit**:
    - `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê`
 
+
+---
+
+### Đợt 9: Bổ sung kiểm thử biên cho Assignment, Code Judge và Chatbot Service (21/10 – 23/10)
+1. **Mục tiêu**:
+   - Mở rộng độ phủ test tự động (Unit Test / Edge Cases) cho các bộ phân tích định dạng đề thi (CSV, TXT, DOCX), thuật toán chấm điểm chuẩn hóa phân số và phiên chat / rate-limiting / streaming SSE trợ lý AI.
+   - Bảo đảm khả năng chịu lỗi (fault-tolerance), không sập khi file đầu vào thiếu cột hoặc dữ liệu biên rỗng.
+2. **Chi tiết triển khai kiểm thử**:
+   - `CsvQuestionParser`:
+     - Tăng cường kiểm tra tính nhất quán dòng (`record.isConsistent()`) và phương thức bọc an toàn `getColumnValue` tránh phát sinh ngoại lệ không mong muốn khi gặp các dòng trống hoặc thiếu cột.
+     - `CsvQuestionParserTest`: Bổ sung kịch bản parse dòng malformed/thiếu cột, kịch bản hỗ trợ nhiều đáp án đúng phân tách dấu phẩy `A,B`.
+   - `TxtQuestionParser` & `DocxQuestionParser`:
+     - `TxtQuestionParserTest`: Bổ sung kiểm thử định dạng câu hỏi có khoảng trắng phức tạp, dấu tab, dòng trống liên tiếp và kiểm tra trích xuất tài liệu DOCX chứa ký tự toán học đặc biệt (`<=`, `>=`).
+   - `QuizGradingServiceImpl`:
+     - `QuizGradingServiceImplTest`: Bổ sung kiểm thử trường hợp thí sinh không chọn câu nào (0 điểm, FAILED), câu hỏi nhiều đáp án đúng đòi hỏi chọn chính xác toàn bộ (chọn thiếu không được điểm), và trường hợp tổng điểm câu hỏi bằng 0.
+   - `ChatServiceImpl`:
+     - `ChatServiceImplTest`: Bổ sung kiểm thử lấy lịch sử tin nhắn theo thứ tự thời gian (`getSessionMessages`), kiểm tra bảo mật phân quyền xóa session (chỉ chủ sở hữu session mới được xóa), kiểm thử streaming SSE phản hồi chia nhỏ theo luồng Flux (`streamChat`) và kiểm thử giới hạn tốc độ khi streaming quá tải.
+3. **Kết quả kiểm thử**:
+   - `assignment-service`: 82/82 tests pass 100%.
+   - `chatbot-service`: 13/13 tests pass 100%.
+   - `web-portal`: 36/36 tests pass 100%.
+   - Tổng cộng: **131 tests pass 100%**, 0 failures, 0 errors.
+4. **Commit**:
+   - `test(backend): bổ sung kiểm thử assignment code judge và chatbot`
+
+---
+
+### Đợt 10: Tinh Chỉnh Timeout Circuit Breaker, Bảo Mật Header & CORS API Gateway (24/10 – 25/10)
+1. **Mục tiêu**:
+   - Tối ưu hóa hiệu năng và độ ổn định của API Gateway khi tải cao: cấu hình Connection Pool đàn hồi (`ELASTIC`), điều chỉnh TimeLimiter chuyên biệt cho Code Judge và AI Chatbot.
+   - Thắt chặt chính sách bảo mật header: loại bỏ triệt để các header nhạy cảm (`X-User-Id`, `X-User-Role`, `X-User-Email`, `X-Gateway-Authenticated`) trên toàn bộ các route actuator public và route công khai.
+   - Mở rộng CORS chấp nhận các origin frontend và dev client (`localhost:5173`, `localhost:3000`, `localhost:8080`), đồng thời expose các header quan trọng.
+2. **Chi tiết cấu hình & kiểm thử**:
+   - `api-gateway/src/main/resources/application.yaml`:
+     - Bổ sung cấu hình `httpclient.pool`: `type: ELASTIC`, `max-idle-time: 15s`, `max-life-time: 60s`.
+     - Thêm route chuyên biệt `assignment-code-judge` (`/api/assignment/problems/*/submit`, `/run-trial`) với TimeLimiter 60s và Circuit Breaker riêng biệt `assignmentJudgeCircuitBreaker`.
+     - Điều chỉnh cấu hình TimeLimiter: `identityServiceCircuitBreaker` (10s), `courseServiceCircuitBreaker` (15s), `assignmentServiceCircuitBreaker` (15s), `assignmentAiServiceCircuitBreaker` (130s), `chatbotServiceCircuitBreaker` (130s), `blogServiceCircuitBreaker` (10s).
+     - Bổ sung filter tẩy sạch 4 header `X-*` trên các route `*-health` và `identity-public`.
+   - `api-gateway/src/test/java/com/lms/apigateway/configuration/GatewayRouteConfigurationTest.java`:
+     - Bổ sung kiểm thử khớp route `assignment-code-judge` và xác nhận tích hợp `AuthFilter`.
+3. **Kết quả kiểm thử**:
+   - `api-gateway`: 16/16 tests pass 100%.
+   - `assignment-service`: 82/82 tests pass 100%.
+   - `chatbot-service`: 13/13 tests pass 100%.
+   - `web-portal`: 36/36 tests pass 100%.
+   - Tổng cộng: **147 tests pass 100%**, 0 failures, 0 errors.
+4. **Commit**:
+   - `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header`
+
+---
+
+### Đợt 11: Đóng Gói Docker Container Hóa Toàn Hệ Thống & Kiểm Thử E2E (26/10 – 27/10)
+1. **Mục tiêu**:
+   - Hoàn thiện bộ file triển khai container hóa Docker (`docker-compose.yml`, các `Dockerfile` Alpine Eclipse-Temurin JDK 21 cho toàn bộ microservices).
+   - Thiết lập cơ chế phụ thuộc thứ tự khởi động `depends_on` kèm `condition: service_healthy` giữa Eureka Registry, Gateway, Cơ sở dữ liệu và các Services nghiệp vụ.
+   - Kiểm thử liên kết luồng toàn trình E2E: luồng đề thi Quiz trắc nghiệm, luồng nộp bài và chấm code Judge0, luồng hội thoại trợ lý AI Chatbot kèm streaming SSE.
+2. **Chi tiết cấu hình đóng gói**:
+   - Tạo mới `docker-compose.yml` tích hợp 4 containers hạ tầng (`mysql:8.4`, `mongo:7.0`, `redis:7.2-alpine`, `minio/minio`) và các microservices nghiệp vụ của hệ sinh thái.
+   - Tạo bộ `Dockerfile` tối ưu kích thước image dựa trên `eclipse-temurin:21-jre-alpine` kèm tiện ích `curl` phục vụ container liveness probe.
+   - Cập nhật nhật ký tích hợp hệ thống `docs/progress/integration.md` ghi nhận kiến trúc và kịch bản E2E kiểm chứng thành công.
+3. **Kết quả kiểm thử**:
+   - Toàn bộ 147 unit & integration tests của hệ thống duy trì pass 100%.
+   - File cấu hình Dockerfile và docker-compose.yml hợp lệ, sẵn sàng triển khai trên bất kỳ máy chủ Docker nào.
+4. **Commit**:
+   - `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker`
+
+---
+
+### Đợt 12: Chuẩn Bị Dữ Liệu Khởi Tạo (Seeding) & Nghiệm Thu Phát Hành v1.0.0 (28/10 – 29/10)
+1. **Mục tiêu**:
+   - Hoàn thiện dữ liệu khởi tạo cơ sở dữ liệu mẫu (`02-seed-data.sql`) cho các phân hệ nghiệp vụ Quiz, Coding Problem, Testcase và Question Bank.
+   - Kiểm tra chốt chặn chất lượng toàn diện trước khi phát hành phiên bản chính thức v1.0.0.
+   - Tổng kết và đánh dấu hoàn thành 100% (12/12 đợt commit) trong lộ trình của Thành viên 1 — Nguyễn Minh Trí.
+2. **Chi tiết triển khai**:
+   - `docker/mysql/init/02-seed-data.sql`:
+     - Khởi tạo 3 bài tập lập trình tiêu chuẩn môn Lập trình Web & Cấu trúc Dữ liệu (`two-sum`, `reverse-string`, `longest-increasing-subsequence`) kèm bộ testcase mẫu (ẩn/hiện).
+     - Khởi tạo đề thi trắc nghiệm mẫu môn Java & Spring Boot, 4 câu hỏi trắc nghiệm đa dạng (Single Choice, Multiple Choice) và danh sách đáp án tương ứng.
+   - Cập nhật tài liệu kỹ thuật tổng thể `README.md` và `docs/progress/member-1.md`.
+3. **Kết quả nghiệm thu**:
+   - 100% các đợt phát triển từ Đợt 1 đến Đợt 12 đã hoàn thành trọn vẹn, không có lỗi tồn đọng.
+   - Toàn bộ các bộ kiểm thử backend của Trí (`api-gateway`, `assignment-service`, `chatbot-service`, `web-portal`) đạt 100% BUILD SUCCESS.
+4. **Commit**:
+   - `chore(release): phát hành phiên bản chính thức v1.0.0`

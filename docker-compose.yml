@@ -1,0 +1,227 @@
+services:
+  # ============================================================================
+  # 1. HẠ TẦNG CƠ SỞ DỮ LIỆU & STORAGE (MySQL, MongoDB, Redis, MinIO)
+  # ============================================================================
+  mysql:
+    image: mysql:8.4
+    container_name: lms-mysql
+    restart: always
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqladmin123}
+      MYSQL_ROOT_HOST: "%"
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD:-mysqladmin123} --silent" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - lms-network
+
+  mongodb:
+    image: mongo:7.0
+    container_name: lms-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}
+    ports:
+      - "${MONGODB_PORT:-27017}:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks:
+      - lms-network
+
+  redis:
+    image: redis:7.2-alpine
+    container_name: lms-redis
+    restart: always
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD:-redisadmin123}", "--appendonly", "yes" ]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redisadmin123}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redisadmin123}", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - lms-network
+
+  minio:
+    image: minio/minio:latest
+    container_name: lms-minio
+    restart: always
+    command: [ "server", "/data", "--console-address", ":9001" ]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minioadmin}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-minioadmin123}
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lms-network
+
+  # ============================================================================
+  # 2. KHÁM PHÁ DỊCH VỤ & GATEWAY (Service Registry & API Gateway)
+  # ============================================================================
+  service-registry:
+    build:
+      context: ./backend
+      dockerfile: ./service-registry/Dockerfile
+    container_name: lms-service-registry
+    restart: always
+    environment:
+      SERVER_PORT: 8761
+    ports:
+      - "8761:8761"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - lms-network
+
+  api-gateway:
+    build:
+      context: ./backend
+      dockerfile: ./api-gateway/Dockerfile
+    container_name: lms-api-gateway
+    restart: always
+    depends_on:
+      service-registry:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://service-registry:8761/eureka
+      JWT_SIGNER_KEY: ${JWT_SIGNER_KEY:-yJTHpt18uThscnn2pXCGIhoXbv55gBLQF4bWZJKQDPVuny0bigzI2LAWWy0bBXki}
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8080/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - lms-network
+
+  # ============================================================================
+  # 3. CÁC MICROSERVICES NGHIỆP VỤ CỐT LÕI (Assignment, Chatbot, Course, Identity, Blog)
+  # ============================================================================
+  assignment-service:
+    build:
+      context: ./backend
+      dockerfile: ./assignment-service/Dockerfile
+    container_name: lms-assignment-service
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8083
+      EUREKA_URL: http://service-registry:8761/eureka
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: lms_assignment_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqladmin123}
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}:${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}@mongodb:27017/lms_assignment_mongo?authSource=admin
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/assignment/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - lms-network
+
+  chatbot-service:
+    build:
+      context: ./backend
+      dockerfile: ./chatbot-service/Dockerfile
+    container_name: lms-chatbot-service
+    restart: always
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8085
+      EUREKA_URL: http://service-registry:8761/eureka
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}:${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}@mongodb:27017/lms_chatbot_db?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redisadmin123}
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/chatbot/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - lms-network
+
+  web-portal:
+    build:
+      context: ./backend
+      dockerfile: ./web-portal/Dockerfile
+    container_name: lms-web-portal
+    restart: always
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8086
+      API_GATEWAY_URL: http://api-gateway:8080
+    ports:
+      - "8086:8086"
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  minio_data:
