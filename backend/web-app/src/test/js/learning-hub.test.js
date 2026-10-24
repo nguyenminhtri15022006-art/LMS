@@ -1,333 +1,136 @@
-const { describe, it, beforeEach } = require('node:test');
-const assert = require('node:assert');
+const { test, beforeEach, afterEach } = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const { JSDOM } = require('jsdom');
 const { initLearningHub } = require('../../main/resources/static/js/learning-hub.js');
 
-// Mock DOM Helper
-class MockClassList {
-    constructor() {
-        this.classes = new Set();
+const fixtureDir = path.resolve(__dirname, '../../../target/ui-fixtures');
+assert.ok(fs.existsSync(path.join(fixtureDir, 'learning-hub.html')),
+    'Run mvn test -pl web-app -f backend/pom.xml first to render the Thymeleaf fixture.');
+const html = fs.readFileSync(path.join(fixtureDir, 'learning-hub.html'), 'utf8');
+const bootstrap = fs.readFileSync(path.join(fixtureDir, 'bootstrap.bundle.min.js'), 'utf8');
+let dom, doc, win, hub, calls;
+const response = (data, ok = true) => ({ ok, status: ok ? 200 : 400, json: async () => data });
+const el = id => doc.getElementById(id);
+const visible = id => !el(id).classList.contains('d-none');
+async function until(check) {
+    for (let i = 0; i < 50; i++) {
+        if (check()) return;
+        await new Promise(resolve => setTimeout(resolve, 10));
     }
-    add(cls) { this.classes.add(cls); }
-    remove(cls) { this.classes.delete(cls); }
-    contains(cls) { return this.classes.has(cls); }
+    assert.ok(check(), 'Expected DOM update after event');
 }
 
-class MockElement {
-    constructor(id = '', tagName = 'div') {
-        this.id = id;
-        this.tagName = tagName.toUpperCase();
-        this.classList = new MockClassList();
-        this.innerHTML = '';
-        this.textContent = '';
-        this.value = '';
-        this.disabled = false;
-        this.style = {};
-        this.attributes = {};
-        this.listeners = {};
-    }
+beforeEach(async () => {
+    dom = new JSDOM(html, { url: 'https://lms.test/learn/c-101/lessons/l-deep', runScripts: 'outside-only' });
+    win = dom.window;
+    doc = win.document;
+    if (doc.readyState === 'loading') await new Promise(resolve => doc.addEventListener('DOMContentLoaded', resolve, { once: true }));
+    calls = [];
+    win.fetch = async (url, options) => { calls.push({ url, options }); return response({ data: [] }); };
+    win.eval(bootstrap);
+    hub = initLearningHub(doc, win);
+});
+afterEach(() => dom.window.close());
 
-    setAttribute(name, val) { this.attributes[name] = String(val); }
-    getAttribute(name) { return this.attributes[name] || null; }
+test('complete click sends VIDEO and CSRF, then updates actual rendered progress and deep lesson checkmark', async () => {
+    win.fetch = async (url, options) => {
+        calls.push({ url, options });
+        return response({ data: { percentComplete: 75, completedLessons: 3 } });
+    };
+    el('completeLessonBtn').click();
+    await until(() => visible('completedBadge'));
+    assert.equal(calls[0].url, '/learn/c-101/lessons/l-deep/complete');
+    assert.equal(calls[0].options.method, 'POST');
+    assert.equal(calls[0].options.headers['X-CSRF-TOKEN'], doc.querySelector('input[name="_csrf"]').value);
+    assert.deepEqual(JSON.parse(calls[0].options.body), { lessonType: 'VIDEO' });
+    assert.equal(el('courseProgressBar').style.width, '75%');
+    assert.equal(el('progressPercentText').textContent, '75');
+    assert.equal(el('completedLessonsCount').textContent, '3');
+    assert.ok(doc.querySelector('a[data-lesson-id="l-deep"] .bi-check-circle-fill'));
+});
 
-    addEventListener(event, fn) {
-        if (!this.listeners[event]) this.listeners[event] = [];
-        this.listeners[event].push(fn);
-    }
+test('complete failure preserves progress and shows server error as text', async () => {
+    win.fetch = async () => response({ message: '<img src=x onerror=alert(1)>' }, false);
+    el('completeLessonBtn').click();
+    await until(() => visible('completeAlert'));
+    assert.equal(el('completeLessonBtn').disabled, false);
+    assert.equal(el('courseProgressBar').style.width, '25%');
+    assert.equal(el('completedLessonsCount').textContent, '1');
+    assert.equal(el('completeAlertMsg').querySelector('img'), null);
+    assert.equal(el('completeAlertMsg').textContent, '<img src=x onerror=alert(1)>');
+});
 
-    async dispatchEvent(event, data) {
-        if (this.listeners[event]) {
-            for (const fn of this.listeners[event]) {
-                await fn(data);
-            }
-        }
-    }
+test('real Bootstrap trigger opens rendered schedules modal and loads the API', async () => {
+    win.fetch = async url => { calls.push({ url }); return response({ data: [{ title: 'Class one', meetingUrl: 'https://meet.google.com/abc' }] }); };
+    doc.querySelector('[data-bs-target="#schedulesModal"]').click();
+    await until(() => el('schedulesModal')?.classList.contains('show') && calls.length === 1);
+    assert.equal(calls[0].url, '/courses/c-101/schedules');
+    assert.match(el('schedulesContent').textContent, /Class one/);
+    assert.equal(el('schedulesContent').querySelector('a').href, 'https://meet.google.com/abc');
+});
 
-    async click() {
-        await this.dispatchEvent('click', {});
-    }
+test('actual announcements modal Next and Previous clicks fetch the requested page', async () => {
+    win.fetch = async url => {
+        calls.push({ url });
+        const page = Number(new URL(url, 'https://lms.test').searchParams.get('page'));
+        return response({ data: { content: [{ title: `Page ${page}`, content: 'Message' }], totalPages: 2 } });
+    };
+    doc.querySelector('[data-bs-target="#announcementsModal"]').click();
+    await until(() => el('announcementsPageInfo')?.textContent === 'Trang 1 / 2');
+    assert.equal(el('announcementsPrevBtn').disabled, true);
+    el('announcementsNextBtn').click();
+    await until(() => el('announcementsPageInfo').textContent === 'Trang 2 / 2');
+    assert.equal(el('announcementsNextBtn').disabled, true);
+    el('announcementsPrevBtn').click();
+    await until(() => el('announcementsPageInfo').textContent === 'Trang 1 / 2');
+    assert.deepEqual(calls.map(c => c.url), [0, 1, 0].map(page => `/courses/c-101/announcements?page=${page}&size=10`));
+});
 
-    querySelector(selector) {
-        return null;
-    }
-}
+test('announcement API text never becomes executable markup', async () => {
+    const payload = '<img src=x onerror="alert(1)">';
+    win.fetch = async () => response({ data: { content: [{ title: payload, content: payload, createdAt: payload }], totalPages: 1 } });
+    await hub.loadAnnouncements(0);
+    assert.ok(el('announcementsContent'), 'Modal must exist in the actual rendered page');
+    assert.equal(el('announcementsContent').querySelector('img,script,iframe,[onerror]'), null);
+    assert.equal(el('announcementsContent').textContent.split(payload).length - 1, 3);
+});
 
-class MockDocument {
-    constructor() {
-        this.elements = new Map();
-    }
+test('schedule text is literal and meeting URL cannot inject attributes', async () => {
+    const payload = '<svg onload="alert(1)">';
+    win.fetch = async () => response({ data: [{ title: payload, note: payload, meetingUrl: 'https://meet.google.com/abc" onclick="alert(1)' }] });
+    await hub.loadSchedules();
+    assert.ok(el('schedulesContent'), 'Modal must exist in the actual rendered page');
+    assert.equal(el('schedulesContent').querySelector('svg,[onload],[onclick]'), null);
+    assert.equal(el('schedulesContent').textContent.split(payload).length - 1, 2);
+});
 
-    register(id, el) {
-        this.elements.set(id, el);
-        return el;
-    }
-
-    getElementById(id) {
-        return this.elements.get(id) || null;
-    }
-
-    querySelector(selector) {
-        if (selector === 'input[name="_csrf"]') {
-            return this.elements.get('csrfInput') || null;
-        }
-        if (selector.startsWith('a[data-lesson-id=')) {
-            return this.elements.get('activeLessonLink') || null;
-        }
-        return null;
-    }
-}
-
-describe('Kiểm thử thực thi JavaScript learning-hub.js trong môi trường thực', () => {
-    let doc;
-    let win;
-    let fetchCalls;
-
-    beforeEach(() => {
-        fetchCalls = [];
-        doc = new MockDocument();
-
-        // Cài đặt metadata DOM
-        const courseIdInput = new MockElement('courseId', 'input');
-        courseIdInput.value = 'c-101';
-        doc.register('courseId', courseIdInput);
-
-        const lessonIdInput = new MockElement('lessonId', 'input');
-        lessonIdInput.value = 'l-202';
-        doc.register('lessonId', lessonIdInput);
-
-        const lessonTypeInput = new MockElement('lessonType', 'input');
-        lessonTypeInput.value = 'VIDEO';
-        doc.register('lessonType', lessonTypeInput);
-
-        const csrfInput = new MockElement('csrfInput', 'input');
-        csrfInput.value = 'mock-csrf-token-xyz';
-        doc.register('csrfInput', csrfInput);
-
-        // Nút và badge hoàn thành
-        const completeBtn = new MockElement('completeLessonBtn', 'button');
-        doc.register('completeLessonBtn', completeBtn);
-
-        const completeBtnText = new MockElement('completeBtnText', 'span');
-        completeBtnText.innerHTML = 'Đánh Dấu Hoàn Thành';
-        doc.register('completeBtnText', completeBtnText);
-
-        const completedBadge = new MockElement('completedBadge', 'span');
-        completedBadge.classList.add('d-none');
-        doc.register('completedBadge', completedBadge);
-
-        const completeAlert = new MockElement('completeAlert', 'div');
-        completeAlert.classList.add('d-none');
-        doc.register('completeAlert', completeAlert);
-
-        const completeAlertMsg = new MockElement('completeAlertMsg', 'span');
-        doc.register('completeAlertMsg', completeAlertMsg);
-
-        const completeSuccessAlert = new MockElement('completeSuccessAlert', 'div');
-        completeSuccessAlert.classList.add('d-none');
-        doc.register('completeSuccessAlert', completeSuccessAlert);
-
-        // Thanh tiến độ
-        const courseProgressBar = new MockElement('courseProgressBar', 'div');
-        courseProgressBar.style.width = '25%';
-        courseProgressBar.setAttribute('aria-valuenow', '25');
-        doc.register('courseProgressBar', courseProgressBar);
-
-        const progressPercentText = new MockElement('progressPercentText', 'strong');
-        progressPercentText.textContent = '25';
-        doc.register('progressPercentText', progressPercentText);
-
-        const completedLessonsCount = new MockElement('completedLessonsCount', 'span');
-        completedLessonsCount.textContent = '1';
-        doc.register('completedLessonsCount', completedLessonsCount);
-
-        // Active Lesson Link trong sidebar
-        const checkContainer = new MockElement('checkContainer', 'span');
-        const activeLessonLink = new MockElement('activeLessonLink', 'a');
-        activeLessonLink.querySelector = (sel) => sel === '.lesson-check-icon' ? checkContainer : null;
-        doc.register('activeLessonLink', activeLessonLink);
-
-        // Schedules Modal Elements
-        doc.register('schedulesModal', new MockElement('schedulesModal'));
-        doc.register('schedulesLoading', new MockElement('schedulesLoading'));
-        doc.register('schedulesError', new MockElement('schedulesError'));
-        doc.register('schedulesErrorMsg', new MockElement('schedulesErrorMsg'));
-        doc.register('schedulesEmpty', new MockElement('schedulesEmpty'));
-        doc.register('schedulesContent', new MockElement('schedulesContent'));
-        doc.register('schedulesRetryBtn', new MockElement('schedulesRetryBtn'));
-
-        // Announcements Modal Elements
-        doc.register('announcementsModal', new MockElement('announcementsModal'));
-        doc.register('announcementsLoading', new MockElement('announcementsLoading'));
-        doc.register('announcementsError', new MockElement('announcementsError'));
-        doc.register('announcementsErrorMsg', new MockElement('announcementsErrorMsg'));
-        doc.register('announcementsEmpty', new MockElement('announcementsEmpty'));
-        doc.register('announcementsContent', new MockElement('announcementsContent'));
-        doc.register('announcementsRetryBtn', new MockElement('announcementsRetryBtn'));
-        doc.register('announcementsPagination', new MockElement('announcementsPagination'));
-        doc.register('announcementsPageInfo', new MockElement('announcementsPageInfo'));
-        doc.register('announcementsPrevBtn', new MockElement('announcementsPrevBtn'));
-        doc.register('announcementsNextBtn', new MockElement('announcementsNextBtn'));
-
-        win = {
-            fetch: async (url, options) => {
-                fetchCalls.push({ url, options });
-                return {
-                    ok: true,
-                    status: 200,
-                    json: async () => ({})
-                };
-            }
-        };
-    });
-
-    it('Complete Lesson thành công: Gửi đúng payload, cập nhật tiến độ backend, hiển thị badge và checkmark', async () => {
-        // Cấu hình mock fetch trả về 200 kèm tiến độ cập nhật 75% và 3 bài hoàn thành
-        win.fetch = async (url, options) => {
-            fetchCalls.push({ url, options });
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({
-                    code: 1000,
-                    message: 'Đã hoàn thành',
-                    data: {
-                        percentComplete: 75.0,
-                        completedLessons: 3,
-                        totalLessons: 4
-                    }
-                })
-            };
-        };
-
-        initLearningHub(doc, win);
-
-        const completeBtn = doc.getElementById('completeLessonBtn');
-        await completeBtn.click();
-
-        // 1. Kiểm tra gọi fetch đúng endpoint, method POST, header CSRF và payload lessonType VIDEO
-        assert.strictEqual(fetchCalls.length, 1);
-        assert.strictEqual(fetchCalls[0].url, '/learn/c-101/lessons/l-202/complete');
-        assert.strictEqual(fetchCalls[0].options.method, 'POST');
-        assert.strictEqual(fetchCalls[0].options.headers['X-CSRF-TOKEN'], 'mock-csrf-token-xyz');
-        assert.deepStrictEqual(JSON.parse(fetchCalls[0].options.body), { lessonType: 'VIDEO' });
-
-        // 2. Xác nhận cập nhật DOM
-        assert.strictEqual(completeBtn.classList.contains('d-none'), true);
-        assert.strictEqual(doc.getElementById('completedBadge').classList.contains('d-none'), false);
-        assert.strictEqual(doc.getElementById('completeSuccessAlert').classList.contains('d-none'), false);
-
-        // 3. Xác nhận cập nhật tiến độ học tập từ dữ liệu backend
-        assert.strictEqual(doc.getElementById('courseProgressBar').style.width, '75%');
-        assert.strictEqual(doc.getElementById('courseProgressBar').getAttribute('aria-valuenow'), '75');
-        assert.strictEqual(doc.getElementById('progressPercentText').textContent, 75);
-        assert.strictEqual(doc.getElementById('completedLessonsCount').textContent, 3);
-    });
-
-    it('Complete Lesson thất bại (lỗi 400 hoặc server): Bật lại button, hiển thị lỗi, KHÔNG tăng tiến độ', async () => {
-        win.fetch = async (url, options) => {
-            fetchCalls.push({ url, options });
-            return {
-                ok: false,
-                status: 400,
-                json: async () => ({
-                    code: 400,
-                    message: 'Lỗi tiến độ từ máy chủ'
-                })
-            };
-        };
-
-        initLearningHub(doc, win);
-
-        const completeBtn = doc.getElementById('completeLessonBtn');
-        await completeBtn.click();
-
-        // Nút không bị ẩn, button được kích hoạt lại (disabled = false)
-        assert.strictEqual(completeBtn.classList.contains('d-none'), false);
-        assert.strictEqual(completeBtn.disabled, false);
-
-        // Alert lỗi hiển thị thông điệp từ server
-        assert.strictEqual(doc.getElementById('completeAlert').classList.contains('d-none'), false);
-        assert.strictEqual(doc.getElementById('completeAlertMsg').textContent, 'Lỗi tiến độ từ máy chủ');
-
-        // Tiến độ giữ nguyên giá trị ban đầu (25%), không bị tăng
-        assert.strictEqual(doc.getElementById('courseProgressBar').style.width, '25%');
-        assert.strictEqual(doc.getElementById('progressPercentText').textContent, '25');
-        assert.strictEqual(doc.getElementById('completedLessonsCount').textContent, '1');
-    });
-
-    it('Modal Lịch học: Xử lý 4 trạng thái Loading -> Success render dữ liệu / Empty / Error', async () => {
-        // Test trường hợp Success có dữ liệu
-        win.fetch = async (url) => {
-            fetchCalls.push({ url });
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({
-                    data: [
-                        { title: 'Buổi 1: Khai giảng', note: 'Tham gia đúng giờ', meetingUrl: 'https://meet.google.com/abc' }
-                    ]
-                })
-            };
-        };
-
-        const hub = initLearningHub(doc, win);
+test('meeting links reject executable, relative, credentialed and malformed URLs', async () => {
+    for (const url of ['javascript:alert(1)', 'data:text/html,test', '//evil.example', '/internal', 'https://user@evil.example', 'https://meet.google.com\\@evil.example', 'https://meet.google.com/\nabc']) {
+        win.fetch = async () => response({ data: [{ title: 'Class', meetingUrl: url }] });
         await hub.loadSchedules();
+        assert.ok(el('schedulesContent'), 'Modal must exist in the actual rendered page');
+        assert.equal(el('schedulesContent').querySelector('a'), null, url);
+    }
+});
 
-        assert.strictEqual(fetchCalls[0].url, '/courses/c-101/schedules');
-        assert.strictEqual(doc.getElementById('schedulesLoading').classList.contains('d-none'), true);
-        assert.strictEqual(doc.getElementById('schedulesContent').classList.contains('d-none'), false);
-        assert.match(doc.getElementById('schedulesContent').innerHTML, /Buổi 1: Khai giảng/);
-        assert.match(doc.getElementById('schedulesContent').innerHTML, /Tham gia phòng học/);
-
-        // Test trường hợp Empty
-        win.fetch = async () => ({
-            ok: true,
-            status: 200,
-            json: async () => ({ data: [] })
-        });
-        await hub.loadSchedules();
-        assert.strictEqual(doc.getElementById('schedulesEmpty').classList.contains('d-none'), false);
-
-        // Test trường hợp Error
-        win.fetch = async () => ({
-            ok: false,
-            status: 500,
-            json: async () => ({})
-        });
-        await hub.loadSchedules();
-        assert.strictEqual(doc.getElementById('schedulesError').classList.contains('d-none'), false);
-    });
-
-    it('Modal Thông báo: Xử lý phân trang, nút Next/Prev và hiển thị danh sách', async () => {
-        win.fetch = async (url) => {
-            fetchCalls.push({ url });
-            return {
-                ok: true,
-                status: 200,
-                json: async () => ({
-                    data: {
-                        content: [
-                            { title: 'Thông báo nộp bài tập', content: 'Hạn chót ngày mai', createdAt: '2026-10-25' }
-                        ],
-                        totalPages: 3,
-                        number: 0
-                    }
-                })
-            };
-        };
-
-        const hub = initLearningHub(doc, win);
-        await hub.loadAnnouncements(0);
-
-        // Kiểm tra gọi endpoint kèm tham số page=0 và size=10
-        assert.match(fetchCalls[0].url, /\/courses\/c-101\/announcements\?page=0&size=10/);
-        assert.strictEqual(doc.getElementById('announcementsLoading').classList.contains('d-none'), true);
-        assert.strictEqual(doc.getElementById('announcementsContent').classList.contains('d-none'), false);
-        assert.match(doc.getElementById('announcementsContent').innerHTML, /Thông báo nộp bài tập/);
-
-        // Kiểm tra phân trang
-        assert.strictEqual(doc.getElementById('announcementsPagination').classList.contains('d-none'), false);
-        assert.strictEqual(doc.getElementById('announcementsPageInfo').textContent, 'Trang 1 / 3');
-        assert.strictEqual(doc.getElementById('announcementsPrevBtn').disabled, true);
-        assert.strictEqual(doc.getElementById('announcementsNextBtn').disabled, false);
-    });
+test('schedule loading, empty, error and retry states work on rendered DOM', async () => {
+    let resolveFetch;
+    win.fetch = () => new Promise(resolve => { resolveFetch = resolve; });
+    const pending = hub.loadSchedules();
+    assert.ok(el('schedulesLoading'), 'Modal must exist in the actual rendered page');
+    assert.equal(visible('schedulesLoading'), true);
+    resolveFetch(response({ data: [] }));
+    await pending;
+    assert.equal(visible('schedulesEmpty'), true);
+    assert.equal(visible('schedulesLoading'), false);
+    win.fetch = async () => { throw new Error('offline'); };
+    await hub.loadSchedules();
+    assert.equal(visible('schedulesError'), true);
+    win.fetch = async () => response({ data: [{ title: 'Recovered' }] });
+    el('schedulesRetryBtn').click();
+    await until(() => visible('schedulesContent'));
+    assert.equal(visible('schedulesError'), false);
+    assert.match(el('schedulesContent').textContent, /Recovered/);
 });

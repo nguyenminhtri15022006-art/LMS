@@ -2227,3 +2227,52 @@ Thực hiện nghiêm ngặt theo quy định `AGENTS.md` (chế độ READ-ONLY
    - Chưa triển khai Phase 4 (Giảng viên / Studio tạo khóa học). Dừng lại tại đây chờ nghiệm thu Phase 3.
 
 
+
+---
+
+### 2026-10-25 — Phase 3: sửa trực tiếp bốn lỗi còn lại sau commit 24a497a
+
+**Phạm vi nghiệm thu:** bốn lỗi render/bảo mật được rà soát lại, trong module `web-app`; chưa triển khai Phase 4. Kết luận trước đó “khắc phục toàn diện” không đủ bằng chứng cho modal/cây nhiều cấp/URL video. Mục này đính chính bằng kiểm thử thực tế, không tuyên bố parity 100% hay VERIFIED full-stack.
+
+#### Đối chiếu và mục tiêu trước khi sửa
+
+- Mẫu chỉ đọc: `frontend/src/features/courses/pages/student/DetailMyCoursePage.jsx` (buildTree, VideoPlayer) và `DetailCoursePage.jsx` (buildSections), nằm trong `Learning-Management-System-main/`.
+- Luồng giữ nguyên: Thymeleaf/JS → BFF web-app → Gateway → course-service. Không đổi endpoint, DTO, whitelist hoặc RBAC.
+- Input: node `parentId/order/lessonId/lessonType`, nội dung video, ScheduleResponse và AnnouncementResponse; output: cây hiển thị đủ cấp, modal hiện trong HTML cuối, văn bản API không thành HTML thực thi, URL media hợp lệ hoặc placeholder.
+- Tạo: `VideoSource.java`, `VideoSourceTest.java`, `CourseStudentRenderingTest.java`, `fragments/course-tree.html`, package/lockfile Node, `.gitignore` riêng của web-app, `TESTING.md`, `docs/OPEN_QUESTIONS.md`, `docs/DECISIONS.md`.
+- Sửa: `CourseStudentController.java`, `detail.html`, `learning-hub.html`, `learning-hub.js`, `learning-hub.test.js`, tài liệu tiến độ và ghi chú parity.
+- Kế hoạch test: 5 test render + 8 test URL mới; thay 4 test DOM tự dựng bằng 8 test dùng HTML Thymeleaf thật, Bootstrap thật và jsdom.
+
+#### Bằng chứng TDD và thay đổi
+
+| Nhóm | Red đã chạy | Green và hành vi hiện tại |
+|---|---|---|
+| Class kiểm tra video mới | `mvn test-compile -pl web-app -f backend/pom.xml`: lỗi `cannot find symbol VideoSource` trước khi tạo class. Sau khi có stub: 8 test chạy, 5 assertion fail. | `VideoSource` kiểm tra URI/giao thức/hostname, bỏ URL nguy hiểm; iframe chỉ dành cho nguồn YouTube/Vimeo được nhận diện chính xác. Query URL media ký sẵn được giữ nguyên. 8/8 pass. |
+| Modal và cây render | `mvn test -pl web-app -f backend/pom.xml -Dtest=VideoSourceTest,CourseStudentRenderingTest`: 13 test, 10 failures, 0 errors; cả 5 test render fail trước sửa. | Modal nằm trong `learningHubContent`; hai trang dùng chung fragment đệ quy. Bài sâu hiện đúng vị trí và link; URL nguy hiểm không lọt vào iframe/source. 5/5 pass. |
+| Tương tác JS từ HTML thật | Lần đầu: 8 test, 7 fail, 1 pass do HTML thiếu modal/bài sâu. Sau sửa template, chạy lại trước sửa JS: 5 pass, 3 fail đúng các trường hợp chèn HTML/URL. | Tạo phần tử và gán `textContent`; link phòng học qua kiểm tra HTTP(S) và không credentials. Click Bootstrap, phân trang Next/Previous, complete lesson và các trạng thái được thực thi trên DOM từ HTML thật. 8/8 pass. |
+
+Trong lần chạy trung gian đã phát hiện 2 lỗi template do truy cập `ObjectNode` bằng `course.id`; đã sửa thành `course.get('id')`, chạy lại toàn bộ và không còn lỗi. Không bỏ qua test fail.
+
+#### Kết quả lệnh cuối cùng
+
+Môi trường: JDK 21.0.8 (JetBrains), Node 24.19.0, jsdom 30.1.3 (dev dependency khóa phiên bản).
+
+| Lệnh (tại gốc repo) | Kết quả thực tế |
+|---|---|
+| `mvn clean test-compile -f backend/pom.xml` | BUILD SUCCESS, cả 7 module; 01:02 phút. Đây là kiểm tra biên dịch toàn backend, không phải báo cáo chạy toàn bộ test backend. |
+| `mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"` | BUILD SUCCESS, 58/58 test, 0 failures/errors/skipped; 26.837 giây. Đã đóng gói Spring Boot executable JAR. |
+| `npm --prefix backend/web-app test` | 8/8 test, 0 fail/cancelled/skipped; 1179.740 ms. Chạy sau Maven để dùng HTML fixture mới. |
+| `node --check backend/web-app/src/main/resources/static/js/learning-hub.js` | PASS. |
+| `git diff --check -- backend/web-app docs` | PASS trong phạm vi thay đổi. |
+
+58 test Java: GatewayClient 2, SecurityConfig 8, AuthController 9, CourseStudentController 16, CourseStudentRendering 5, HomeController 1, ProfileController 5, MarkdownService 3, VideoSource 8, WebAppApplication 1.
+
+Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md`. Test fixture ở `target/ui-fixtures` được sinh từ Thymeleaf, không đưa vào Git. API trong test được mock tại ranh giới; không gọi Gateway hoặc cơ sở dữ liệu ngoài. Không thay dữ liệu sản phẩm bằng mock.
+
+#### Git và giới hạn
+
+- Nhánh: `feature/member-2-thymeleaf-web-app`; commit dự kiến theo kết quả đã kiểm chứng: `fix(web-app): sửa modal cây đề cương và bảo vệ nội dung phòng học`.
+- SHA của lần sửa được báo trong bàn giao và truy xuất từ lịch sử Git của mục này; không ghi SHA tự tham chiếu vào chính commit.
+- Không đưa `.gitignore` ở gốc và các thay đổi `frontend/**` có sẵn vào commit; không sửa project mẫu, không merge, không tạo nhánh mới.
+- Bốn lỗi đã đạt kiểm thử cô lập. jsdom không chứng minh bố cục, phát video hay bảo mật đầy đủ trên trình duyệt thật. Docker, SMTP, Google OAuth và MinIO/luồng hệ thống thật vẫn chờ nghiệm thu Phase 7.
+- ChatGPT Web chưa có phiên liên kết với workspace này; lần sửa/kiểm chứng do Codex thực hiện trực tiếp, không tuyên bố có review chung qua ChatGPT Web.

@@ -165,3 +165,9 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 *(Bảng này được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.
 
 
+
+### Bổ sung kiểm chứng UI Thymeleaf Phase 3 — 2026-10-25
+
+Bốn lỗi modal không render, cây nhiều cấp, chèn HTML từ dữ liệu API và URL iframe video đã được sửa trong web-app. Kiểm chứng: 58 test Java và 8 test JavaScript trên HTML Thymeleaf/Bootstrap thật trong jsdom; JDK 21 build/package thành công. Chi tiết ở `progress/member-2.md` và `../backend/web-app/TESTING.md`.
+
+Đây là bằng chứng kiểm thử cô lập của UI mới; không nâng bất kỳ mục nào lên VERIFIED và không tính lại tỷ lệ full-stack từ số lượng test. Phát media và tích hợp Docker thật vẫn cần nghiệm thu riêng.

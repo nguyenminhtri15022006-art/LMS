@@ -66,57 +66,8 @@
                     </span>
                 </div>
 
-                <!-- Dựng cây đề cương theo structureTree -->
-                <div th:if="${structureTree != null and !structureTree.isEmpty()}" class="list-group list-group-flush rounded-3 border">
-                    <th:block th:each="node : ${structureTree}">
-                        <!-- Folder Header -->
-                        <div th:if="${node.type == 'FOLDER'}" class="list-group-item bg-light-subtle py-3 border-bottom">
-                            <div class="d-flex align-items-center mb-2">
-                                <i class="bi bi-folder2-open text-warning me-2 fs-5"></i>
-                                <h6 class="mb-0 fw-bold text-dark" th:text="${node.title}">Chương mục</h6>
-                            </div>
-                            <!-- Sub items inside folder -->
-                            <div th:if="${node.items != null and !node.items.isEmpty()}" class="ms-4 ps-2 border-start">
-                                <div th:each="sub : ${node.items}" class="d-flex justify-content-between align-items-center py-2 px-2 hover-bg rounded">
-                                    <div class="d-flex align-items-center">
-                                        <i th:if="${sub.type == 'LESSON' and sub.lessonType == 'VIDEO'}" class="bi bi-play-circle-fill text-danger me-2"></i>
-                                        <i th:if="${sub.type == 'LESSON' and sub.lessonType == 'DOCUMENT'}" class="bi bi-file-earmark-text-fill text-primary me-2"></i>
-                                        <i th:if="${sub.type == 'LESSON' and (sub.lessonType != 'VIDEO' and sub.lessonType != 'DOCUMENT')}" class="bi bi-book-fill text-info me-2"></i>
-                                        <span class="small fw-semibold" th:text="${sub.title}">Tên bài</span>
-                                    </div>
-                                    <span class="badge bg-secondary-subtle text-secondary small" th:text="${sub.lessonType != null ? sub.lessonType : 'LESSON'}">DOCUMENT</span>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Top-level Lesson Item -->
-                        <div th:if="${node.type == 'LESSON'}" class="list-group-item d-flex justify-content-between align-items-center py-3 border-bottom">
-                            <div class="d-flex align-items-center">
-                                <i th:if="${node.lessonType == 'VIDEO'}" class="bi bi-play-circle-fill text-danger me-2 fs-5"></i>
-                                <i th:if="${node.lessonType == 'DOCUMENT'}" class="bi bi-file-earmark-text-fill text-primary me-2 fs-5"></i>
-                                <i th:if="${node.lessonType != 'VIDEO' and node.lessonType != 'DOCUMENT'}" class="bi bi-book-fill text-info me-2 fs-5"></i>
-                                <span class="fw-semibold" th:text="${node.title}">Tên bài</span>
-                            </div>
-                            <span class="badge bg-secondary-subtle text-secondary small" th:text="${node.lessonType != null ? node.lessonType : 'LESSON'}">DOCUMENT</span>
-                        </div>
-                    </th:block>
-                </div>
-
-                <!-- Fallback nếu structureTree rỗng nhưng structure nodes có -->
-                <div th:if="${(structureTree == null or structureTree.isEmpty()) and structure != null and structure.hasNonNull('nodes') and structure.get('nodes').isArray() and !structure.get('nodes').isEmpty()}" class="list-group list-group-flush rounded-3 border">
-                    <div th:each="node : ${structure.get('nodes')}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-3">
-                        <div class="d-flex align-items-center">
-                            <i th:if="${node.get('type').asText() == 'FOLDER'}" class="bi bi-folder-fill text-warning me-3 fs-5"></i>
-                            <i th:if="${node.get('type').asText() == 'LESSON' and node.hasNonNull('lessonType') and node.get('lessonType').asText() == 'VIDEO'}" class="bi bi-play-circle-fill text-danger me-3 fs-5"></i>
-                            <i th:if="${node.get('type').asText() == 'LESSON' and node.hasNonNull('lessonType') and node.get('lessonType').asText() == 'DOCUMENT'}" class="bi bi-file-earmark-text-fill text-primary me-3 fs-5"></i>
-                            <i th:if="${node.get('type').asText() == 'LESSON' and (!node.hasNonNull('lessonType') or (node.get('lessonType').asText() != 'VIDEO' and node.get('lessonType').asText() != 'DOCUMENT'))}" class="bi bi-book-fill text-info me-3 fs-5"></i>
-                            <div>
-                                <h6 class="mb-0 fw-semibold" th:text="${node.get('title').asText()}">Tiêu đề bài học</h6>
-                                <span th:if="${node.get('type').asText() == 'FOLDER'}" class="text-muted small">Chương mục</span>
-                                <span th:if="${node.get('type').asText() == 'LESSON'}" class="text-muted small" th:text="${node.hasNonNull('lessonType') ? node.get('lessonType').asText() : 'Bài học'}">Loại</span>
-                            </div>
-                        </div>
-                    </div>
+                <div th:if="${structureTree != null and !structureTree.isEmpty()}" class="rounded-3 border">
+                    <th:block th:replace="~{fragments/course-tree :: tree(${structureTree}, ${course.get('id').asText()}, null, false)}"></th:block>
                 </div>
 
                 <div th:if="${structure == null or !structure.hasNonNull('nodes') or structure.get('nodes').isEmpty()}" class="text-center py-4 text-muted">

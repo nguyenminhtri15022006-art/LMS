@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.lms.webapp.client.GatewayClient;
 import com.lms.webapp.service.MarkdownService;
+import com.lms.webapp.view.VideoSource;
 import jakarta.servlet.http.HttpSession;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -313,6 +314,7 @@ public class CourseStudentController {
         model.addAttribute("progress", progress);
         model.addAttribute("safeContentHtml", safeContentHtml);
         model.addAttribute("isLessonCompleted", isLessonCompleted);
+        model.addAttribute("videoSource", VideoSource.fromContent(lesson == null ? null : lesson.get("content")));
 
         return "courses/student/learning-hub";
     }

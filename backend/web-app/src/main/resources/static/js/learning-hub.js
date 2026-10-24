@@ -5,8 +5,27 @@
  * 3. Tải và hiển thị modal Thông báo giảng viên với 4 trạng thái và phân trang (Next/Prev)
  */
 function initLearningHub(doc, win) {
+    const window = win || globalThis;
     const document = doc || window.document;
-    const window = win || (typeof globalThis !== 'undefined' ? globalThis : this);
+
+    // API strings are data, never HTML. Only application-owned markup uses innerHTML.
+    function textElement(tag, className, text) {
+        const node = document.createElement(tag);
+        node.className = className;
+        node.textContent = text == null ? '' : String(text);
+        return node;
+    }
+
+    function meetingUrl(raw) {
+        if (typeof raw !== 'string' || /[\u0000-\u0020\u007f\\<>"']/.test(raw)) return null;
+        try {
+            const url = new URL(raw);
+            if (!['http:', 'https:'].includes(url.protocol) || !url.hostname || url.username || url.password) return null;
+            return url.href;
+        } catch (_) {
+            return null;
+        }
+    }
 
     const completeBtn = document.getElementById('completeLessonBtn');
     const completeBtnText = document.getElementById('completeBtnText');
@@ -143,21 +162,25 @@ function initLearningHub(doc, win) {
                 if (schedulesEmpty) schedulesEmpty.classList.remove('d-none');
             } else {
                 if (schedulesContent) {
-                    schedulesContent.innerHTML = list.map(function (s) {
-                        const title = s.title || 'Buổi học';
-                        const note = s.note ? `<p class="text-muted small mb-2">${s.note}</p>` : '';
-                        const meetingBtn = s.meetingUrl ? `
-                            <a href="${s.meetingUrl}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                <i class="bi bi-camera-video me-1"></i>Tham gia phòng học
-                            </a>` : '';
-                        return `
-                            <div class="list-group-item px-0 py-3 border-bottom">
-                                <h6 class="fw-bold mb-1">${title}</h6>
-                                ${note}
-                                ${meetingBtn}
-                            </div>
-                        `;
-                    }).join('');
+                    const items = list.map(function (schedule) {
+                        const item = textElement('div', 'list-group-item px-0 py-3 border-bottom', '');
+                        item.append(textElement('h6', 'fw-bold mb-1', schedule.title || 'Buổi học'));
+                        if (schedule.note) {
+                            const note = textElement('p', 'text-muted small mb-2', schedule.note);
+                            note.style.whiteSpace = 'pre-wrap';
+                            item.append(note);
+                        }
+                        const safeUrl = meetingUrl(schedule.meetingUrl);
+                        if (safeUrl) {
+                            const link = textElement('a', 'btn btn-sm btn-outline-primary', 'Tham gia phòng học');
+                            link.href = safeUrl;
+                            link.target = '_blank';
+                            link.rel = 'noopener noreferrer';
+                            item.append(link);
+                        }
+                        return item;
+                    });
+                    schedulesContent.replaceChildren(...items);
                     schedulesContent.classList.remove('d-none');
                 }
             }
@@ -225,20 +248,19 @@ function initLearningHub(doc, win) {
                 if (announcementsEmpty) announcementsEmpty.classList.remove('d-none');
             } else {
                 if (announcementsContent) {
-                    announcementsContent.innerHTML = content.map(function (a) {
-                        const title = a.title || 'Thông báo';
-                        const text = a.content || '';
-                        const time = a.createdAt ? `<span class="text-muted small">${a.createdAt}</span>` : '';
-                        return `
-                            <div class="list-group-item px-0 py-3 border-bottom">
-                                <div class="d-flex justify-content-between align-items-center mb-1">
-                                    <h6 class="fw-bold mb-0">${title}</h6>
-                                    ${time}
-                                </div>
-                                <p class="text-muted small mb-0">${text}</p>
-                            </div>
-                        `;
-                    }).join('');
+                    const items = content.map(function (announcement) {
+                        const item = textElement('div', 'list-group-item px-0 py-3 border-bottom', '');
+                        const header = textElement('div', 'd-flex justify-content-between align-items-center mb-1', '');
+                        header.append(textElement('h6', 'fw-bold mb-0', announcement.title || 'Thông báo'));
+                        if (announcement.createdAt) {
+                            header.append(textElement('span', 'text-muted small', announcement.createdAt));
+                        }
+                        const message = textElement('p', 'text-muted small mb-0', announcement.content);
+                        message.style.whiteSpace = 'pre-wrap';
+                        item.append(header, message);
+                        return item;
+                    });
+                    announcementsContent.replaceChildren(...items);
                     announcementsContent.classList.remove('d-none');
                 }
 
