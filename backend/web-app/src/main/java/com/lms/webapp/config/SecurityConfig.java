@@ -25,11 +25,25 @@ public class SecurityConfig {
                     "/blog/posts/**",
                     "/blog/view/**"
                 ).authenticated()
+                // Phân quyền cho studio giảng viên và các route quản lý khóa học của giảng viên (hỗ trợ cả role chuẩn INSTRUCTOR và alias TEACHER)
+                .requestMatchers(
+                    "/courses/my",
+                    "/courses/my/**",
+                    "/instructor/**"
+                ).hasAnyRole("INSTRUCTOR", "TEACHER", "ADMIN")
+                // Các route học tập và ghi danh yêu cầu đăng nhập
+                .requestMatchers(
+                    "/courses/*/enroll",
+                    "/courses/{id}/enroll",
+                    "/my-courses",
+                    "/my-courses/**",
+                    "/learn/**"
+                ).authenticated()
                 // Các route công khai đã xác định rõ trong kế hoạch
                 .requestMatchers(
                     "/",
                     "/courses",
-                    "/courses/{id:[0-9]+}",
+                    "/courses/{id:[a-zA-Z0-9\\-]+}",
                     "/blog",
                     "/blog/{slug:[a-zA-Z0-9\\-]+}",
                     "/blog/tags",
@@ -49,13 +63,7 @@ public class SecurityConfig {
                 ).permitAll()
                 // Phân quyền cho trang quản trị viên
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                // Phân quyền cho studio giảng viên và các route quản lý khóa học của giảng viên (hỗ trợ cả role chuẩn INSTRUCTOR và alias TEACHER)
-                .requestMatchers(
-                    "/courses/my",
-                    "/courses/my/**",
-                    "/instructor/**"
-                ).hasAnyRole("INSTRUCTOR", "TEACHER", "ADMIN")
-                // Mọi route khác (bao gồm /profile/**, /settings/**, /my-courses, /learn/**, /courses/*/enroll và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
+                // Mọi route khác (bao gồm /profile/**, /settings/** và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

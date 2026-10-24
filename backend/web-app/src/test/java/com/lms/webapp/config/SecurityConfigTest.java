@@ -64,13 +64,13 @@ class SecurityConfigTest {
         mockMvc.perform(get("/login"))
                 .andExpect(status().isOk());
 
-        // Danh mục khóa học công khai không bị redirect login
+        // Danh mục khóa học công khai không bị redirect login (đã có controller Phase 3)
         mockMvc.perform(get("/courses"))
-                .andExpect(status().isNotFound()); // Chưa có controller nhưng được Security cho phép (không 302)
+                .andExpect(status().isOk());
 
-        // Chi tiết khóa học công khai theo ID không bị redirect login
+        // Chi tiết khóa học công khai theo ID không bị redirect login (đã có controller Phase 3)
         mockMvc.perform(get("/courses/123"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         // Blog công khai không bị redirect login
         mockMvc.perform(get("/blog"))

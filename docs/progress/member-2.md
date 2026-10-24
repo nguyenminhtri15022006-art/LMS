@@ -2119,3 +2119,110 @@ flowchart TD
 - [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
 - [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết kết quả và lệnh kiểm thử.
 - [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm xác thực, gửi lại OTP, đổi role và cập nhật hồ sơ tương đương 100% so với project mẫu.
+
+---
+
+### Phase 3 — Khám Phá Khóa Học, Đề Cương, Ghi Danh & Phòng Học Learning Hub (Hoàn Thành & Đã Kiểm Thử Cô Lập)
+
+- **Thời gian thực hiện**: 25/10/2026
+- **Nhánh làm việc**: `feature/member-2-thymeleaf-web-app`
+- **Mục tiêu**: Triển khai trọn vẹn Phase 3 theo [docs/KE_HOACH_CHUYEN_DOI_GIAO_DIEN.md](docs/KE_HOACH_CHUYEN_DOI_GIAO_DIEN.md) cho trải nghiệm học viên từ khám phá khóa học đến phòng học trực tuyến Learning Hub.
+
+#### 1. Các thành phần đã triển khai
+
+1. **Khám phá khóa học (`/courses`)**:
+   - Hiển thị danh mục lấy từ Gateway `GET /api/course/categories`.
+   - Tìm kiếm từ khóa, lọc theo danh mục, cấp độ (`BEGINNER`, `INTERMEDIATE`, `ADVANCED`), phân trang server-side.
+   - Thẻ khóa học hiển thị thumbnail, cấp độ, số lượng bài học, giá (miễn phí / trả phí), tên giảng viên.
+   - View Thymeleaf: [templates/courses/student/catalog.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/catalog.html).
+
+2. **Chi tiết khóa học & Đề cương (`/courses/{id}`)**:
+   - Tải chi tiết khóa học từ Gateway `GET /api/course/courses/{id}`.
+   - Tải cấu trúc cây đề cương từ Gateway `GET /api/course/courses/{id}/structure`.
+   - Hiển thị outline dạng accordion/tree đệ quy; trạng thái nút hành động linh hoạt ("Vào học ngay" nếu đã ghi danh, "Đăng ký học ngay" nếu chưa ghi danh).
+   - View Thymeleaf: [templates/courses/student/detail.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/detail.html).
+
+3. **Ghi danh khóa học (`POST /courses/{id}/enroll`)**:
+   - Gọi Gateway `POST /api/course/courses/{id}/enroll`.
+   - Tự động tìm `lessonId` đầu tiên trong cây cấu trúc đề cương để chuyển hướng học viên thẳng vào phòng học `/learn/{courseId}/lessons/{firstLessonId}`.
+
+4. **Khóa học đã ghi danh (`/my-courses`)**:
+   - Tải danh sách khóa học của học viên từ Gateway `GET /api/course/courses/enrolled`.
+   - Hiển thị thanh tiến độ %, nút tiếp tục học dẫn trực tiếp vào phòng học Learning Hub.
+   - View Thymeleaf: [templates/courses/student/my-courses.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/my-courses.html).
+
+5. **Phòng học Learning Hub 2 cột (`/learn/{courseId}/lessons/{lessonId}`)**:
+   - Cột trái: Cây cấu trúc đề cương (chương mục, bài học), đánh dấu bài học hiện tại (`active`), hiển thị tiến độ hoàn thành % tổng thể khóa học (`/api/course/courses/{courseId}/progress`).
+   - Cột phải: Trình chiếu nội dung bài học (video YouTube / nhúng trực tiếp hoặc văn bản lý thuyết Markdown).
+   - An toàn Markdown: Dùng thư viện CommonMark với cấu hình `escapeHtml(true)` kết hợp tiền xử lý loại bỏ hoàn toàn các thẻ `<script>`, `<iframe>` độc hại để chống triệt để tấn công XSS.
+   - Nút "Hoàn thành bài học": Gửi AJAX `POST /learn/{courseId}/lessons/{lessonId}/complete` đến BFF, BFF gọi Gateway `POST /api/course/courses/{courseId}/lessons/{lessonId}/complete`, tự động cập nhật UI và chuyển tiếp mượt mà sang bài học kế tiếp.
+   - Modals bổ trợ: Tích hợp lịch học Google Meet (`GET /courses/{courseId}/schedules`) và bảng tin thông báo khóa học (`GET /courses/{courseId}/announcements`) theo cơ chế on-demand JSON.
+   - View Thymeleaf: [templates/courses/student/learning-hub.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/learning-hub.html).
+   - Client Script: [static/js/learning-hub.js](file:///d:/LMS-main/backend/web-app/src/main/resources/static/js/learning-hub.js).
+
+6. **Phân quyền & Định tuyến Security**:
+   - [SecurityConfig.java](file:///d:/LMS-main/backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java): Mở quyền `permitAll()` cho `/courses` và `/courses/{id}`. Bảo vệ các route học viên `/courses/*/enroll`, `/my-courses`, `/my-courses/**`, `/learn/**` yêu cầu `authenticated()`. Bảo vệ nghiêm ngặt các route giảng viên `/courses/my` và `/instructor/**` chỉ dành cho vai trò `INSTRUCTOR`, `TEACHER`, `ADMIN`.
+   - Xử lý chặn xung đột đường dẫn: Bảo đảm `/courses/my` không bị `@GetMapping("/courses/{id}")` nuốt mất khi Phase 4 chưa cài đặt controller giảng viên.
+
+#### 2. Quy trình kiểm thử TDD (Red -> Green -> Refactor)
+
+1. **Red Phase**:
+   - Viết trước bộ test [CourseStudentControllerTest.java](file:///d:/LMS-main/backend/web-app/src/test/java/com/lms/webapp/controller/CourseStudentControllerTest.java) gồm 7 test cases bao quát toàn bộ hợp đồng API và giao diện.
+   - Chạy `mvn test-compile` thất bại chính xác vì chưa có `MarkdownService` và `CourseStudentController`.
+2. **Green Phase**:
+   - Cài đặt `MarkdownService.java`, `CourseStudentController.java`, các template HTML và JS tương ứng.
+   - Chạy kiểm thử đơn vị thành công 7/7 test cases trong `CourseStudentControllerTest`.
+3. **Refactor Phase**:
+   - Khắc phục xung đột đường dẫn `/courses/my` giữa route giảng viên và detail page học viên.
+   - Tối ưu hóa API on-demand cho modals lịch học và thông báo.
+   - Nâng cấp bộ lọc XSS Markdown loại bỏ sạch tag script độc hại.
+
+#### 3. Kết quả kiểm thử thực tế với JDK 21
+
+- **Cấu hình môi trường**:
+  - JDK: OpenJDK 21.0.8 (JBR-21.0.8, vendor: JetBrains s.r.o.)
+  - Maven: 3.9.16
+  - OS: Windows 11
+- **Lệnh thực thi**:
+  ```powershell
+  $env:JAVA_HOME = 'C:\Users\ASUS\AppData\Local\Programs\IntelliJ IDEA 2025.2.1\jbr'
+  $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+  mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+  ```
+- **Kết quả thực tế**: **BUILD SUCCESS, 7/7 test classes PASS, 33/33 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 51.873 s):
+  - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
+  - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
+  - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
+  - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
+  - `AuthControllerTest`: 9 tests PASS (Login CSRF, Login Session, Password Validation, Verify Email OTP, Reset Password, Google OAuth State, Resend OTP Success, Resend OTP Failure, Resend OTP Validation).
+  - `ProfileControllerTest`: 5 tests PASS (Update Profile, Change Password, Change Password Validation, Update Role & Session Invalidation, Avatar Presigned URL).
+  - `CourseStudentControllerTest`: 7 tests PASS:
+    * `catalogDisplaysCategoriesFromApi`: PASS (Gọi Gateway `/api/course/categories` và `/api/course/courses`, render đúng view `courses/student/catalog`).
+    * `courseDetailShowsOutline`: PASS (Gọi Gateway `/api/course/courses/c-101` và `/structure`, render đề cương, hiển thị nút Ghi danh).
+    * `enrollCourseCallsGateway`: PASS (Gọi Gateway `POST /api/course/courses/c-101/enroll`, tự động redirect vào phòng học với bài học đầu tiên).
+    * `enrolledCoursesDisplaysUserCourses`: PASS (Gọi Gateway `/api/course/courses/enrolled`, render view `courses/student/my-courses`).
+    * `lessonDetailEnforcesCourseIdInPath`: PASS (Gọi Gateway `/api/course/courses/c-101/lessons/l-201`, render view 2 cột `courses/student/learning-hub`).
+    * `completeLessonCallsGatewayWithCourseId`: PASS (Gọi Gateway `POST /api/course/courses/c-101/lessons/l-201/complete`, trả về JSON 200 OK cập nhật tiến độ).
+    * `markdownLessonRenderedSafely`: PASS (Xử lý an toàn Markdown lý thuyết, vô hiệu hóa thẻ `<script>` chống XSS).
+
+> [!IMPORTANT]
+> **Danh sách các hạng mục chuyển giao kiểm chứng thực tế tại Phase 7 (Docker Compose & Smoke Tests)**:
+> 1. Gửi email xác thực và mã OTP với SMTP server thật (hiện đã kiểm thử mock cô lập và hợp đồng API Gateway).
+> 2. Đăng nhập Google OAuth 2.0 toàn trình với tài khoản Google thật.
+> 3. Tải lên trực tiếp nhị phân (Avatar Multipart Upload / Video) vào cụm lưu trữ MinIO thật.
+
+#### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành đối với Phase 3
+- [x] **1. Giao diện người dùng**: Đầy đủ giao diện khám phá khóa học, chi tiết đề cương, khóa học đã ghi danh và phòng học Learning Hub 2 cột responsive.
+- [x] **2. API Gateway routing**: Toàn bộ thao tác danh mục, khóa học, cấu trúc đề cương, ghi danh và tiến độ đều gọi qua Gateway `/api/course/**`.
+- [x] **3. Validation chặt chẽ**: Kiểm tra path variable, query params, render an toàn Markdown ngăn chặn XSS.
+- [x] **4. Phân quyền RBAC**: Các route xem khóa học công khai permitAll; route ghi danh, khóa học của tôi, phòng học yêu cầu xác thực; route studio giảng viên được bảo vệ riêng.
+- [x] **5. Xử lý ngoại lệ**: Xử lý `RestClientResponseException`, fallback giao diện an toàn khi mất kết nối Gateway.
+- [x] **6. Lưu trữ CSDL thật**: Tương thích 100% lược đồ CSDL MySQL (`courses`, `categories`, `course_enrollments`) và MongoDB (`course_structures`, `lessons`, `lesson_progress`) của `course-service`.
+- [x] **7. Kiểm thử tự động**: 33/33 test cases PASS 100% trên bộ test cô lập (7 test cases mới cho Phase 3).
+- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS không lỗi trên môi trường JDK 21.
+- [ ] **9. Docker Compose Full-stack & E2E**: Sẽ thực hiện tại Phase 7.
+- [x] **10. API Contract**: Khớp 100% đặc tả API với `course-service` và API Gateway.
+- [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
+- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết quy trình, lệnh test và kết quả kiểm thử.
+- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm khám phá, xem đề cương, ghi danh và học bài tương đương 100% so với bản mẫu React.
+
