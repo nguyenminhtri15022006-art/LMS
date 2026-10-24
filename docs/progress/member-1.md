@@ -35,7 +35,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 8<br>(18/10 – 20/10)** | Tích hợp Trợ lý ảo AI Chatbot (OpenCode/DeepSeek LLM WebClient SSE), Rate Limiter Redis, Dashboard | `chatbot-service/src/main/java/.../ChatServiceImpl.java`, `RateLimiterService.java` | `feat(chatbot): tích hợp trợ lý ai và dashboard thống kê` | Hash: 48dd24f (8/8 Tests Passed) |
 | [x] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | 131 Tests Passed |
 | [x] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | 147 Tests Passed |
-| [ ] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | |
+| [x] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | E2E Docker Ready |
 | [ ] | **Đợt 12<br>(28/10 – 29/10)** | Chuẩn bị dữ liệu mẫu (Seeding), kiểm tra chốt chặn cuối cùng, merge `develop` -> `main`, phát hành v1.0.0 | `docker/mysql/init/*`, `README.md`, Release v1.0.0 | `chore(release): phát hành phiên bản chính thức v1.0.0` | |
 
 ---
@@ -678,3 +678,20 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - Tổng cộng: **147 tests pass 100%**, 0 failures, 0 errors.
 4. **Commit**:
    - `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header`
+
+---
+
+### Đợt 11: Đóng Gói Docker Container Hóa Toàn Hệ Thống & Kiểm Thử E2E (26/10 – 27/10)
+1. **Mục tiêu**:
+   - Hoàn thiện bộ file triển khai container hóa Docker (`docker-compose.yml`, các `Dockerfile` Alpine Eclipse-Temurin JDK 21 cho toàn bộ microservices).
+   - Thiết lập cơ chế phụ thuộc thứ tự khởi động `depends_on` kèm `condition: service_healthy` giữa Eureka Registry, Gateway, Cơ sở dữ liệu và các Services nghiệp vụ.
+   - Kiểm thử liên kết luồng toàn trình E2E: luồng đề thi Quiz trắc nghiệm, luồng nộp bài và chấm code Judge0, luồng hội thoại trợ lý AI Chatbot kèm streaming SSE.
+2. **Chi tiết cấu hình đóng gói**:
+   - Tạo mới `docker-compose.yml` tích hợp 4 containers hạ tầng (`mysql:8.4`, `mongo:7.0`, `redis:7.2-alpine`, `minio/minio`) và các microservices nghiệp vụ của hệ sinh thái.
+   - Tạo bộ `Dockerfile` tối ưu kích thước image dựa trên `eclipse-temurin:21-jre-alpine` kèm tiện ích `curl` phục vụ container liveness probe.
+   - Cập nhật nhật ký tích hợp hệ thống `docs/progress/integration.md` ghi nhận kiến trúc và kịch bản E2E kiểm chứng thành công.
+3. **Kết quả kiểm thử**:
+   - Toàn bộ 147 unit & integration tests của hệ thống duy trì pass 100%.
+   - File cấu hình Dockerfile và docker-compose.yml hợp lệ, sẵn sàng triển khai trên bất kỳ máy chủ Docker nào.
+4. **Commit**:
+   - `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker`
