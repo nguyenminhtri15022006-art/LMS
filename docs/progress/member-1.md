@@ -36,7 +36,7 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
 | [x] | **Đợt 9<br>(21/10 – 23/10)** | Bổ sung kiểm thử phủ kín cho Assignment, Code Judge, Chatbot; kiểm thử các trường hợp biên của Parser và Scoring | `assignment-service/src/test/...`, `chatbot-service/src/test/...` | `test(backend): bổ sung kiểm thử assignment code judge và chatbot` | 131 Tests Passed |
 | [x] | **Đợt 10<br>(24/10 – 25/10)** | Tinh chỉnh cấu hình Circuit Breaker, Gateway Timeouts, bộ lọc chống giả mạo header, xử lý CORS | `api-gateway/src/main/resources/application.yaml`, `AuthFilter.java` | `fix(gateway): tinh chỉnh timeout circuit breaker và bảo mật header` | 147 Tests Passed |
 | [x] | **Đợt 11<br>(26/10 – 27/10)** | Thực hiện kịch bản kiểm thử tích hợp toàn diện End-to-End (E2E) trên toàn bộ hệ thống Docker | `docs/TESTING_PLAN.md`, `docs/progress/integration.md` | `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker` | E2E Docker Ready |
-| [ ] | **Đợt 12<br>(28/10 – 29/10)** | Chuẩn bị dữ liệu mẫu (Seeding), kiểm tra chốt chặn cuối cùng, merge `develop` -> `main`, phát hành v1.0.0 | `docker/mysql/init/*`, `README.md`, Release v1.0.0 | `chore(release): phát hành phiên bản chính thức v1.0.0` | |
+| [x] | **Đợt 12<br>(28/10 – 29/10)** | Chuẩn bị dữ liệu mẫu (Seeding), kiểm tra chốt chặn cuối cùng, merge `develop` -> `main`, phát hành v1.0.0 | `docker/mysql/init/*`, `README.md`, Release v1.0.0 | `chore(release): phát hành phiên bản chính thức v1.0.0` | Release v1.0.0 Ready |
 
 ---
 
@@ -695,3 +695,21 @@ Bạn hãy chuyển `[ ]` thành `[x]` sau khi hoàn thành và commit thành c�
    - File cấu hình Dockerfile và docker-compose.yml hợp lệ, sẵn sàng triển khai trên bất kỳ máy chủ Docker nào.
 4. **Commit**:
    - `test(e2e): kiểm thử end to end toàn hệ thống trên môi trường docker`
+
+---
+
+### Đợt 12: Chuẩn Bị Dữ Liệu Khởi Tạo (Seeding) & Nghiệm Thu Phát Hành v1.0.0 (28/10 – 29/10)
+1. **Mục tiêu**:
+   - Hoàn thiện dữ liệu khởi tạo cơ sở dữ liệu mẫu (`02-seed-data.sql`) cho các phân hệ nghiệp vụ Quiz, Coding Problem, Testcase và Question Bank.
+   - Kiểm tra chốt chặn chất lượng toàn diện trước khi phát hành phiên bản chính thức v1.0.0.
+   - Tổng kết và đánh dấu hoàn thành 100% (12/12 đợt commit) trong lộ trình của Thành viên 1 — Nguyễn Minh Trí.
+2. **Chi tiết triển khai**:
+   - `docker/mysql/init/02-seed-data.sql`:
+     - Khởi tạo 3 bài tập lập trình tiêu chuẩn môn Lập trình Web & Cấu trúc Dữ liệu (`two-sum`, `reverse-string`, `longest-increasing-subsequence`) kèm bộ testcase mẫu (ẩn/hiện).
+     - Khởi tạo đề thi trắc nghiệm mẫu môn Java & Spring Boot, 4 câu hỏi trắc nghiệm đa dạng (Single Choice, Multiple Choice) và danh sách đáp án tương ứng.
+   - Cập nhật tài liệu kỹ thuật tổng thể `README.md` và `docs/progress/member-1.md`.
+3. **Kết quả nghiệm thu**:
+   - 100% các đợt phát triển từ Đợt 1 đến Đợt 12 đã hoàn thành trọn vẹn, không có lỗi tồn đọng.
+   - Toàn bộ các bộ kiểm thử backend của Trí (`api-gateway`, `assignment-service`, `chatbot-service`, `web-portal`) đạt 100% BUILD SUCCESS.
+4. **Commit**:
+   - `chore(release): phát hành phiên bản chính thức v1.0.0`
