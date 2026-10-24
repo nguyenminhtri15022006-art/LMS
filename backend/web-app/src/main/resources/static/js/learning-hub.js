@@ -8,12 +8,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const courseIdInput = document.getElementById('courseId');
     const lessonIdInput = document.getElementById('lessonId');
+    const lessonTypeInput = document.getElementById('lessonType');
     const csrfInput = document.querySelector('input[name="_csrf"]');
 
     if (!completeBtn || !courseIdInput || !lessonIdInput) return;
 
     const courseId = courseIdInput.value;
     const lessonId = lessonIdInput.value;
+    const lessonType = lessonTypeInput && lessonTypeInput.value ? lessonTypeInput.value : 'DOCUMENT';
     const csrfToken = csrfInput ? csrfInput.value : '';
 
     completeBtn.addEventListener('click', async function () {
@@ -33,7 +35,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     'Content-Type': 'application/json',
                     'X-CSRF-TOKEN': csrfToken
                 },
-                body: JSON.stringify({ lessonType: 'DOCUMENT' })
+                body: JSON.stringify({ lessonType: lessonType })
             });
 
             const data = await response.json().catch(function () { return {}; });

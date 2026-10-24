@@ -30,6 +30,7 @@
     <!-- Hidden metadata for JavaScript -->
     <input type="hidden" id="courseId" th:value="${courseId}" />
     <input type="hidden" id="lessonId" th:value="${lessonId}" />
+    <input type="hidden" id="lessonType" th:value="${lesson != null and lesson.hasNonNull('lessonType') ? lesson.get('lessonType').asText() : 'DOCUMENT'}" />
     <input type="hidden" id="csrfToken" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
     <div class="row g-4">
@@ -78,10 +79,10 @@
 
                         <!-- Complete Lesson Action -->
                         <div id="completionContainer">
-                            <button type="button" id="completeLessonBtn" class="btn btn-success fw-semibold px-4 py-2 shadow-sm">
+                            <button type="button" id="completeLessonBtn" th:class="'btn btn-success fw-semibold px-4 py-2 shadow-sm' + (${isLessonCompleted} ? ' d-none' : '')">
                                 <i class="bi bi-check2-circle me-1"></i><span id="completeBtnText">Đánh Dấu Hoàn Thành</span>
                             </button>
-                            <span id="completedBadge" class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6 d-none">
+                            <span id="completedBadge" th:class="'badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6' + (${isLessonCompleted} ? '' : ' d-none')">
                                 <i class="bi bi-check-circle-fill me-1"></i>Đã hoàn thành
                             </span>
                         </div>

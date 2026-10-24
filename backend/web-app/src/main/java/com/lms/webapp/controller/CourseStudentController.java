@@ -257,10 +257,19 @@ public class CourseStudentController {
             log.warn("Không thể tải chi tiết bài học {}: {}", lessonId, e.getMessage());
         }
 
+        boolean isLessonCompleted = false;
         try {
             JsonNode pRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
             if (pRes != null && pRes.has("data")) {
                 progress = pRes.get("data");
+                if (progress.hasNonNull("completedLessonIds") && progress.get("completedLessonIds").isArray()) {
+                    for (JsonNode cid : progress.get("completedLessonIds")) {
+                        if (lessonId.equals(cid.asText())) {
+                            isLessonCompleted = true;
+                            break;
+                        }
+                    }
+                }
             }
         } catch (Exception e) {
             log.warn("Không thể tải tiến độ khóa học {}: {}", courseId, e.getMessage());
@@ -292,6 +301,7 @@ public class CourseStudentController {
         model.addAttribute("schedules", schedules);
         model.addAttribute("announcements", announcements);
         model.addAttribute("safeContentHtml", safeContentHtml);
+        model.addAttribute("isLessonCompleted", isLessonCompleted);
 
         return "courses/student/learning-hub";
     }

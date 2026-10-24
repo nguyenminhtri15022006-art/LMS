@@ -22,6 +22,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -62,7 +63,10 @@ class CourseStudentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/student/catalog"))
                 .andExpect(model().attributeExists("categories"))
-                .andExpect(model().attributeExists("courses"));
+                .andExpect(model().attributeExists("courses"))
+                .andExpect(content().string(containsString("Khám Phá Khóa Học")))
+                .andExpect(content().string(containsString("Lap Trinh Java")))
+                .andExpect(content().string(containsString("Java Core Co Ban")));
 
         mockServer.verify();
     }
@@ -87,7 +91,49 @@ class CourseStudentControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/student/detail"))
                 .andExpect(model().attributeExists("course"))
-                .andExpect(model().attributeExists("structure"));
+                .andExpect(model().attributeExists("structure"))
+                .andExpect(content().string(containsString("Java Core Co Ban")))
+                .andExpect(content().string(containsString("Chuong 1: Khoi Dau")))
+                .andExpect(content().string(containsString("Bai 1: Cai dat JDK")))
+                .andExpect(content().string(containsString("action=\"/courses/c-101/enroll\"")))
+                .andExpect(content().string(containsString("Đăng Ký Học Ngay")));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void courseDetailRendersContinueLearningWhenAlreadyEnrolled() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"id\":\"c-101\",\"title\":\"Java Core Co Ban\",\"description\":\"Khoa hoc day tu dau\",\"level\":\"BEGINNER\",\"instructorId\":\"u-ins-1\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/structure"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"id\":\"s-101\",\"courseId\":\"c-101\",\"nodes\":[]}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/enrolled"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":[{\"id\":\"c-101\",\"title\":\"Java Core Co Ban\"}]}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        org.springframework.mock.web.MockHttpSession session = new org.springframework.mock.web.MockHttpSession();
+        session.setAttribute("username", "bob");
+
+        mockMvc.perform(get("/courses/c-101").session(session))
+                .andExpect(status().isOk())
+                .andExpect(view().name("courses/student/detail"))
+                .andExpect(model().attribute("isEnrolled", true))
+                .andExpect(content().string(containsString("Tiếp Tục Học")))
+                .andExpect(content().string(not(containsString("Đăng Ký Học Ngay"))));
 
         mockServer.verify();
     }
@@ -129,7 +175,9 @@ class CourseStudentControllerTest {
         mockMvc.perform(get("/my-courses"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/student/my-courses"))
-                .andExpect(model().attributeExists("courses"));
+                .andExpect(model().attributeExists("courses"))
+                .andExpect(content().string(containsString("Java Core Co Ban")))
+                .andExpect(content().string(containsString("Spring Boot Mastery")));
 
         mockServer.verify();
     }
@@ -170,7 +218,55 @@ class CourseStudentControllerTest {
                 .andExpect(view().name("courses/student/learning-hub"))
                 .andExpect(model().attributeExists("lesson"))
                 .andExpect(model().attributeExists("course"))
-                .andExpect(model().attributeExists("progress"));
+                .andExpect(model().attributeExists("progress"))
+                .andExpect(content().string(containsString("Huong dan cai dat JDK 21 tren Windows")))
+                .andExpect(content().string(containsString("id=\"courseId\" value=\"c-101\"")))
+                .andExpect(content().string(containsString("id=\"lessonId\" value=\"l-201\"")))
+                .andExpect(content().string(containsString("id=\"lessonType\" value=\"DOCUMENT\"")))
+                .andExpect(content().string(containsString("id=\"completeLessonBtn\"")))
+                .andExpect(content().string(containsString("learning-hub.js")));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void learningHubRendersCompletedStateWhenLessonAlreadyCompleted() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"id\":\"c-101\",\"title\":\"Java Core Co Ban\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/structure"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"id\":\"s-101\",\"courseId\":\"c-101\",\"nodes\":[{\"id\":\"n-2\",\"type\":\"LESSON\",\"title\":\"Bai 1: Cai dat JDK\",\"lessonId\":\"l-201\",\"lessonType\":\"DOCUMENT\"}]}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/lessons/l-201"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"id\":\"l-201\",\"courseId\":\"c-101\",\"lessonType\":\"DOCUMENT\",\"content\":{\"text\":\"Huong dan cai dat JDK 21 tren Windows\"}}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"courseId\":\"c-101\",\"totalLessons\":1,\"completedLessons\":1,\"percentComplete\":100.0,\"completedLessonIds\":[\"l-201\"]}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(get("/learn/c-101/lessons/l-201"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("courses/student/learning-hub"))
+                .andExpect(model().attribute("isLessonCompleted", true))
+                .andExpect(content().string(containsString("bi-check-circle-fill text-success")))
+                .andExpect(content().string(containsString("id=\"completeLessonBtn\" class=\"btn btn-success fw-semibold px-4 py-2 shadow-sm d-none\"")))
+                .andExpect(content().string(containsString("id=\"completedBadge\" class=\"badge bg-success-subtle text-success border border-success-subtle px-3 py-2 fs-6\"")));
 
         mockServer.verify();
     }
@@ -191,6 +287,26 @@ class CourseStudentControllerTest {
                         .content("{\"lessonType\":\"DOCUMENT\"}"))
                 .andExpect(status().isOk())
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(1000));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void completeLessonEndpointHandlesGatewayError() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/lessons/l-201/complete"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest()
+                        .body("{\"code\":1001,\"message\":\"Bài học đã hoàn thành trước đó\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(post("/learn/c-101/lessons/l-201/complete")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lessonType\":\"DOCUMENT\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(400))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value("Không thể cập nhật tiến độ bài học"));
 
         mockServer.verify();
     }

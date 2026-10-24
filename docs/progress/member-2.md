@@ -2164,18 +2164,23 @@ flowchart TD
    - [SecurityConfig.java](file:///d:/LMS-main/backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java): Mở quyền `permitAll()` cho `/courses` và `/courses/{id}`. Bảo vệ các route học viên `/courses/*/enroll`, `/my-courses`, `/my-courses/**`, `/learn/**` yêu cầu `authenticated()`. Bảo vệ nghiêm ngặt các route giảng viên `/courses/my` và `/instructor/**` chỉ dành cho vai trò `INSTRUCTOR`, `TEACHER`, `ADMIN`.
    - Xử lý chặn xung đột đường dẫn: Bảo đảm `/courses/my` không bị `@GetMapping("/courses/{id}")` nuốt mất khi Phase 4 chưa cài đặt controller giảng viên.
 
-#### 2. Quy trình kiểm thử TDD (Red -> Green -> Refactor)
+#### 2. Quy trình kiểm thử TDD tái hiện lỗi & hoàn thiện (Red -> Green -> Refactor)
 
-1. **Red Phase**:
-   - Viết trước bộ test [CourseStudentControllerTest.java](file:///d:/LMS-main/backend/web-app/src/test/java/com/lms/webapp/controller/CourseStudentControllerTest.java) gồm 7 test cases bao quát toàn bộ hợp đồng API và giao diện.
-   - Chạy `mvn test-compile` thất bại chính xác vì chưa có `MarkdownService` và `CourseStudentController`.
+1. **Red Phase (Tái hiện lỗi HTML render & JavaScript state contract)**:
+   - Viết các test case kiểm tra chặt chẽ HTML được render và các hook JavaScript trong [CourseStudentControllerTest.java](file:///d:/LMS-main/backend/web-app/src/test/java/com/lms/webapp/controller/CourseStudentControllerTest.java):
+     * `lessonDetailEnforcesCourseIdInPath`: Kiểm tra HTML chứa metadata DOM hook `id="lessonType" value="DOCUMENT"`, `id="courseId"`, `id="lessonId"`, `input[name="_csrf"]` và script `learning-hub.js`. Kết quả Red: Thất bại do thiếu trường `lessonType` trong metadata HTML.
+     * `learningHubRendersCompletedStateWhenLessonAlreadyCompleted`: Kiểm tra trường hợp bài học đã nằm trong `completedLessonIds`. Kết quả Red: Thất bại do controller chưa tính toán `isLessonCompleted` (`expected:<true> but was:<null>`), dẫn đến HTML luôn render nút hoàn thành và ẩn badge "Đã hoàn thành".
+     * `completeLessonEndpointHandlesGatewayError`: Bổ sung kiểm thử trường hợp Gateway trả về lỗi 400 Bad Request để đảm bảo BFF chuyển tiếp mã lỗi và JSON error cho JavaScript xử lý hiển thị alert.
+     * `courseDetailRendersContinueLearningWhenAlreadyEnrolled`: Kiểm tra trường hợp học viên đã ghi danh thì HTML hiển thị nút "Tiếp Tục Học" dẫn đến `/learn/{id}` thay vì form ghi danh.
+   - Chạy lệnh kiểm thử: `mvn test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test" -Dtest=CourseStudentControllerTest` -> **Xác nhận 2 test cases thất bại (Red Phase tái hiện chính xác lỗi)**.
 2. **Green Phase**:
-   - Cài đặt `MarkdownService.java`, `CourseStudentController.java`, các template HTML và JS tương ứng.
-   - Chạy kiểm thử đơn vị thành công 7/7 test cases trong `CourseStudentControllerTest`.
+   - Cập nhật [CourseStudentController.java](file:///d:/LMS-main/backend/web-app/src/main/java/com/lms/webapp/controller/CourseStudentController.java): Duyệt `progress.completedLessonIds` để tính toán `isLessonCompleted`, đưa vào Model.
+   - Cập nhật [learning-hub.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/learning-hub.html): Thêm hidden input `#lessonType`, gán class động `d-none` cho `#completeLessonBtn` và `#completedBadge` theo trạng thái `isLessonCompleted`.
+   - Cập nhật [learning-hub.js](file:///d:/LMS-main/backend/web-app/src/main/resources/static/js/learning-hub.js): Đọc động `lessonType` từ DOM truyền vào request body thay vì hardcode giá trị `DOCUMENT`.
+   - Chạy lại kiểm thử đơn vị: Toàn bộ **10/10 test cases trong `CourseStudentControllerTest` PASS 100%**.
 3. **Refactor Phase**:
-   - Khắc phục xung đột đường dẫn `/courses/my` giữa route giảng viên và detail page học viên.
-   - Tối ưu hóa API on-demand cho modals lịch học và thông báo.
-   - Nâng cấp bộ lọc XSS Markdown loại bỏ sạch tag script độc hại.
+   - Tối ưu hóa layout markup của button và badge trên cùng một dòng DOM tag để template engine render đồng nhất.
+   - Bảo đảm an toàn Markdown CommonMark kết hợp lọc sạch XSS trước khi inject vào `.markdown-body`.
 
 #### 3. Kết quả kiểm thử thực tế với JDK 21
 
@@ -2189,20 +2194,23 @@ flowchart TD
   $env:Path = "$env:JAVA_HOME\bin;$env:Path"
   mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
   ```
-- **Kết quả thực tế**: **BUILD SUCCESS, 7/7 test classes PASS, 33/33 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 51.873 s):
+- **Kết quả thực tế**: **BUILD SUCCESS, 7/7 test classes PASS, 36/36 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 33.722 s):
   - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
   - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
   - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
   - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
   - `AuthControllerTest`: 9 tests PASS (Login CSRF, Login Session, Password Validation, Verify Email OTP, Reset Password, Google OAuth State, Resend OTP Success, Resend OTP Failure, Resend OTP Validation).
   - `ProfileControllerTest`: 5 tests PASS (Update Profile, Change Password, Change Password Validation, Update Role & Session Invalidation, Avatar Presigned URL).
-  - `CourseStudentControllerTest`: 7 tests PASS:
-    * `catalogDisplaysCategoriesFromApi`: PASS (Gọi Gateway `/api/course/categories` và `/api/course/courses`, render đúng view `courses/student/catalog`).
-    * `courseDetailShowsOutline`: PASS (Gọi Gateway `/api/course/courses/c-101` và `/structure`, render đề cương, hiển thị nút Ghi danh).
+  - `CourseStudentControllerTest`: **10 tests PASS 100%** (tăng từ 7 lên 10 test cases bao quát cả HTML render và JavaScript hooks):
+    * `catalogDisplaysCategoriesFromApi`: PASS (Gọi Gateway `/api/course/categories` và `/api/course/courses`, render đúng HTML chứa tiêu đề, dropdown danh mục và danh sách khóa học).
+    * `courseDetailShowsOutline`: PASS (Gọi Gateway `/api/course/courses/c-101` và `/structure`, render HTML chứa chương mục, bài học và form ghi danh).
+    * `courseDetailRendersContinueLearningWhenAlreadyEnrolled`: PASS (Xác nhận khi học viên đã ghi danh, HTML hiển thị nút "Tiếp Tục Học" và link `/learn/c-101`, không hiển thị nút đăng ký).
     * `enrollCourseCallsGateway`: PASS (Gọi Gateway `POST /api/course/courses/c-101/enroll`, tự động redirect vào phòng học với bài học đầu tiên).
-    * `enrolledCoursesDisplaysUserCourses`: PASS (Gọi Gateway `/api/course/courses/enrolled`, render view `courses/student/my-courses`).
-    * `lessonDetailEnforcesCourseIdInPath`: PASS (Gọi Gateway `/api/course/courses/c-101/lessons/l-201`, render view 2 cột `courses/student/learning-hub`).
+    * `enrolledCoursesDisplaysUserCourses`: PASS (Gọi Gateway `/api/course/courses/enrolled`, render HTML hiển thị các khóa học đã đăng ký).
+    * `lessonDetailEnforcesCourseIdInPath`: PASS (Gọi Gateway `/api/course/courses/c-101/lessons/l-201`, render HTML chứa markdown an toàn, đủ DOM metadata `courseId`, `lessonId`, `lessonType`, `_csrf`, nút hoàn thành và script `learning-hub.js`).
+    * `learningHubRendersCompletedStateWhenLessonAlreadyCompleted`: PASS (Xác nhận khi bài học đã hoàn thành từ trước, HTML ẩn nút hoàn thành `d-none`, hiển thị badge "Đã hoàn thành" và icon checkmark xanh trên cây đề cương).
     * `completeLessonCallsGatewayWithCourseId`: PASS (Gọi Gateway `POST /api/course/courses/c-101/lessons/l-201/complete`, trả về JSON 200 OK cập nhật tiến độ).
+    * `completeLessonEndpointHandlesGatewayError`: PASS (Xử lý khi Gateway trả về 400 Bad Request, BFF trả về JSON lỗi tương ứng cho script JS hiển thị thông báo lỗi trên UI).
     * `markdownLessonRenderedSafely`: PASS (Xử lý an toàn Markdown lý thuyết, vô hiệu hóa thẻ `<script>` chống XSS).
 
 > [!IMPORTANT]
@@ -2212,17 +2220,17 @@ flowchart TD
 > 3. Tải lên trực tiếp nhị phân (Avatar Multipart Upload / Video) vào cụm lưu trữ MinIO thật.
 
 #### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành đối với Phase 3
-- [x] **1. Giao diện người dùng**: Đầy đủ giao diện khám phá khóa học, chi tiết đề cương, khóa học đã ghi danh và phòng học Learning Hub 2 cột responsive.
+- [x] **1. Giao diện người dùng**: Đầy đủ giao diện khám phá khóa học, chi tiết đề cương, khóa học đã ghi danh và phòng học Learning Hub 2 cột responsive với trạng thái hoàn thành và thông báo lỗi.
 - [x] **2. API Gateway routing**: Toàn bộ thao tác danh mục, khóa học, cấu trúc đề cương, ghi danh và tiến độ đều gọi qua Gateway `/api/course/**`.
-- [x] **3. Validation chặt chẽ**: Kiểm tra path variable, query params, render an toàn Markdown ngăn chặn XSS.
+- [x] **3. Validation chặt chẽ**: Kiểm tra path variable, query params, render an toàn Markdown ngăn chặn XSS, xử lý chính xác DTO `CompleteLessonRequest(lessonType)`.
 - [x] **4. Phân quyền RBAC**: Các route xem khóa học công khai permitAll; route ghi danh, khóa học của tôi, phòng học yêu cầu xác thực; route studio giảng viên được bảo vệ riêng.
-- [x] **5. Xử lý ngoại lệ**: Xử lý `RestClientResponseException`, fallback giao diện an toàn khi mất kết nối Gateway.
+- [x] **5. Xử lý ngoại lệ**: Xử lý `RestClientResponseException`, fallback giao diện an toàn khi mất kết nối Gateway và trả về lỗi JSON cho client AJAX.
 - [x] **6. Lưu trữ CSDL thật**: Tương thích 100% lược đồ CSDL MySQL (`courses`, `categories`, `course_enrollments`) và MongoDB (`course_structures`, `lessons`, `lesson_progress`) của `course-service`.
-- [x] **7. Kiểm thử tự động**: 33/33 test cases PASS 100% trên bộ test cô lập (7 test cases mới cho Phase 3).
-- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS không lỗi trên môi trường JDK 21.
+- [x] **7. Kiểm thử tự động**: 36/36 test cases PASS 100% trên bộ test cô lập (10 test cases toàn diện cho Phase 3 kiểm tra cả HTML render và hành vi JS).
+- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS không lỗi trên môi trường JDK 21 trong 33.722 s.
 - [ ] **9. Docker Compose Full-stack & E2E**: Sẽ thực hiện tại Phase 7.
 - [x] **10. API Contract**: Khớp 100% đặc tả API với `course-service` và API Gateway.
 - [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
-- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết quy trình, lệnh test và kết quả kiểm thử.
+- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết quy trình TDD tái hiện lỗi, lệnh test và kết quả kiểm thử.
 - [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm khám phá, xem đề cương, ghi danh và học bài tương đương 100% so với bản mẫu React.
 
