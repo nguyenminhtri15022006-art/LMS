@@ -53,6 +53,7 @@ public class AuthController {
                             @RequestParam(value = "logout", required = false) String logout,
                             @RequestParam(value = "verified", required = false) String verified,
                             @RequestParam(value = "reset", required = false) String reset,
+                            @RequestParam(value = "roleUpdated", required = false) String roleUpdated,
                             Model model) {
         if (!model.containsAttribute("loginForm")) {
             model.addAttribute("loginForm", new LoginForm());
@@ -68,6 +69,9 @@ public class AuthController {
         }
         if (reset != null) {
             model.addAttribute("successMessage", "Đặt lại mật khẩu thành công! Vui lòng đăng nhập.");
+        }
+        if (roleUpdated != null) {
+            model.addAttribute("successMessage", "Thay đổi vai trò thành công! Vui lòng đăng nhập lại để cập nhật quyền truy cập mới.");
         }
         return "auth/login";
     }

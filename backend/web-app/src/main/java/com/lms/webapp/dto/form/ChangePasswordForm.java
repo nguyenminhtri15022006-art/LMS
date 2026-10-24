@@ -6,29 +6,31 @@ import jakarta.validation.constraints.Size;
 public class ChangePasswordForm {
 
     @NotBlank(message = "Mật khẩu hiện tại không được để trống")
-    private String currentPassword;
+    private String oldPassword;
 
     @NotBlank(message = "Mật khẩu mới không được để trống")
     @Size(min = 8, message = "Mật khẩu mới phải từ 8 ký tự trở lên")
     private String newPassword;
 
+    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
+    @Size(min = 8, message = "Xác nhận mật khẩu phải từ 8 ký tự trở lên")
     private String confirmPassword;
 
     public ChangePasswordForm() {
     }
 
-    public ChangePasswordForm(String currentPassword, String newPassword, String confirmPassword) {
-        this.currentPassword = currentPassword;
+    public ChangePasswordForm(String oldPassword, String newPassword, String confirmPassword) {
+        this.oldPassword = oldPassword;
         this.newPassword = newPassword;
         this.confirmPassword = confirmPassword;
     }
 
-    public String getCurrentPassword() {
-        return currentPassword;
+    public String getOldPassword() {
+        return oldPassword;
     }
 
-    public void setCurrentPassword(String currentPassword) {
-        this.currentPassword = currentPassword;
+    public void setOldPassword(String oldPassword) {
+        this.oldPassword = oldPassword;
     }
 
     public String getNewPassword() {

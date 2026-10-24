@@ -2003,28 +2003,28 @@ flowchart TD
 - **Phương pháp thực hiện**: Test-Driven Development (TDD: Red 1 -> Red 2 -> Green), kiểm thử cô lập trên profile `test` với CSDL H2 in-memory và `MockRestServiceServer`, độc lập hoàn toàn với Docker container.
 
 #### 1. Mục tiêu & Các hạng mục đã hoàn thành
-1. **Hệ thống DTO Form & Jakarta Bean Validation**:
+1. **Hệ thống DTO Form & Jakarta Bean Validation (Chuẩn hóa 100% khớp DTO identity-service)**:
    - `com.lms.webapp.dto.form.LoginForm`: Xác thực username, password không để trống.
    - `com.lms.webapp.dto.form.RegisterForm`: Ràng buộc định dạng email, username, mật khẩu bắt buộc $\ge 8$ ký tự (`@Size(min = 8)`), kiểm tra trùng khớp mật khẩu xác nhận.
    - `com.lms.webapp.dto.form.VerifyOtpForm`: Email và mã OTP 6 chữ số.
    - `com.lms.webapp.dto.form.ForgotPasswordForm`: Email nhận mã khôi phục.
    - `com.lms.webapp.dto.form.ResetPasswordForm`: Email, mã OTP và mật khẩu mới $\ge 8$ ký tự.
-   - `com.lms.webapp.dto.form.ChangePasswordForm`: Mật khẩu hiện tại, mật khẩu mới $\ge 8$ ký tự và xác nhận.
-   - `com.lms.webapp.dto.form.ProfileUpdateForm`: Họ tên, số điện thoại, bio, avatarUrl.
+   - `com.lms.webapp.dto.form.ChangePasswordForm`: Chuẩn hóa gửi đủ 3 trường theo `UserUpdatePasswordRequest` của backend: `oldPassword`, `newPassword` ($\ge 8$ ký tự), `confirmPassword` ($\ge 8$ ký tự).
+   - `com.lms.webapp.dto.form.ProfileUpdateForm`: Chuẩn hóa tên trường khớp 100% với `UserUpdateRequest` của `identity-service`: `fullname` (3-50 ký tự, regex chữ cái tiếng Việt), `phone` (regex 10 số đầu 0), `dob` (ngày sinh YYYY-MM-DD), `bio`, `avatarUrl`, `discardedAvatarUrls` (loại bỏ hoàn toàn các trường lệch tên như `fullName`, `phoneNumber`).
    - `com.lms.webapp.dto.form.RoleUpdateForm`: Vai trò người dùng (`STUDENT` / `INSTRUCTOR`).
 2. **Bộ điều khiển xác thực AuthController (Luồng BFF qua API Gateway)**:
-   - `GET /login` & `POST /login`: Xử lý form đăng nhập, gọi Gateway `POST /api/identity/auth/login`, trích xuất `accessToken`, `refreshToken`, `username`, `role` lưu trữ vào `HttpSession`, thiết lập `SecurityContextHolder` và chuyển hướng về trang chủ (`/`).
+   - `GET /login` & `POST /login`: Xử lý form đăng nhập, gọi Gateway `POST /api/identity/auth/login`, trích xuất `accessToken`, `refreshToken`, `username`, `role` lưu trữ vào `HttpSession`, thiết lập `SecurityContextHolder` và chuyển hướng về trang chủ (`/`). Hỗ trợ nhận diện flash param `roleUpdated` khi người dùng đổi vai trò và cần đăng nhập lại.
    - `GET /register` & `POST /register`: Kiểm tra validation `@Size(min = 8)`, gọi Gateway `POST /api/identity/auth/register`, chuyển hướng tới trang xác thực email `/verify-email?email=...`.
-   - `GET /verify-email` & `POST /verify-email`: Gọi Gateway `POST /api/identity/auth/verify-email`, chuyển hướng `/login?verified=true`.
-   - `GET /forgot-password` & `POST /forgot-password`: Gọi Gateway `POST /api/identity/auth/forgot-password`, chuyển hướng `/reset-password?email=...`.
-   - `GET /reset-password` & `POST /reset-password`: Gọi Gateway `POST /api/identity/auth/reset-password`, chuyển hướng `/login?reset=true`.
+   - `GET /verify-email` & `POST /verify-email`: Gọi Gateway `POST /api/identity/auth/verify-email`, redirect `/login?verified=true`.
+   - `GET /forgot-password` & `POST /forgot-password`: Gọi Gateway `POST /api/identity/auth/forgot-password`, redirect `/reset-password?email=...`.
+   - `GET /reset-password` & `POST /reset-password`: Gọi Gateway `POST /api/identity/auth/reset-password`, redirect `/login?reset=true`.
    - `GET /auth/google`: Sinh chuỗi ngẫu nhiên `oauth_state` (`UUID.randomUUID().toString()`), lưu vào `HttpSession`, chuyển hướng đến Google OAuth Authorization URL.
    - `GET /auth/callback/google`: Đối chiếu `state` với session (từ chối ngay `400 Bad Request` nếu không khớp để chống CSRF); khi hợp lệ gọi Gateway `POST /api/identity/auth/social-login/google`, lưu trữ token vào session và chuyển hướng về `/`.
-3. **Bộ điều khiển hồ sơ người dùng ProfileController**:
-   - `GET /profile`: Gọi Gateway `GET /api/identity/users/myinfo`, nạp thông tin hồ sơ vào view.
-   - `POST /profile`: Gọi Gateway `PUT /api/identity/users/myinfo` cập nhật thông tin cá nhân.
-   - `POST /profile/password`: Gọi Gateway `PATCH /identity/users/myinfo/password` đổi mật khẩu.
-   - `POST /profile/role`: Gọi Gateway `PATCH /identity/users/myinfo/role` chuyển đổi vai trò linh hoạt (`STUDENT` / `INSTRUCTOR`).
+3. **Bộ điều khiển hồ sơ người dùng ProfileController & Luồng Đồng Bộ Vai Trò An Toàn**:
+   - `GET /profile`: Gọi Gateway `GET /api/identity/users/myinfo`, nạp thông tin hồ sơ theo các trường thật `fullname`, `phone`, `dob`, `avatarUrl`, `bio` vào view.
+   - `POST /profile`: Gọi Gateway `PUT /api/identity/users/myinfo` với payload chuẩn JSON: `{"fullname": "...", "phone": "...", "dob": "...", "bio": "...", "avatarUrl": "...", "discardedAvatarUrls": [...]}`.
+   - `POST /profile/password`: Kiểm tra khớp mật khẩu xác nhận, gọi Gateway `PATCH /api/identity/users/myinfo/password` gửi đủ bộ 3 trường `oldPassword`, `newPassword`, `confirmPassword`.
+   - `POST /profile/role`: Gọi Gateway `PATCH /identity/users/myinfo/role`. Vì backend `identity-service` không tự cấp JWT token mới khi đổi role (token cũ trong session vẫn mang `scope` cũ, khiến Gateway tiếp tục gán `X-User-Role` cũ), giải pháp an toàn theo đúng contract là kết thúc phiên làm việc (`session.invalidate()`), xóa `SecurityContextHolder.clearContext()` và điều hướng về `/login?roleUpdated=true` để người dùng đăng nhập lại nhận token mới chứa role cập nhật.
    - `POST /profile/avatar/presigned-url`: Gọi Gateway `POST /api/identity/storage/presigned-url` trả về MinIO Presigned POST policy (`uploadUrl`, `formFields`, `fileUrl`) cho client.
 4. **Cập nhật Spring Security cho luồng Form Login**:
    - Đổi `loginProcessingUrl("/security-login-process")` trong `SecurityConfig.java` để Spring Security không chiếm dụng `POST /login`, cho phép `AuthController` trực tiếp nhận request form và giao tiếp qua API Gateway.
@@ -2034,11 +2034,11 @@ flowchart TD
    - `templates/auth/verify-email.html`: Nhập OTP 6 chữ số với countdown timer và nút gửi lại mã.
    - `templates/auth/forgot-password.html`: Form gửi yêu cầu khôi phục mật khẩu.
    - `templates/auth/reset-password.html`: Form nhập OTP và đặt mật khẩu mới $\ge 8$ ký tự.
-   - `templates/profile/index.html`: Dashboard hồ sơ cá nhân với ảnh đại diện, tab đổi mật khẩu, form chuyển đổi vai trò và vùng upload avatar MinIO.
+   - `templates/profile/index.html`: Dashboard hồ sơ cá nhân với ảnh đại diện, tab đổi mật khẩu, form chuyển đổi vai trò và vùng upload avatar MinIO (sử dụng đúng tên trường `fullname`, `phone`, `dob`, `oldPassword`, `newPassword`, `confirmPassword`).
    - `static/images/default-avatar.svg`: Ảnh avatar mặc định SVG.
 6. **Mã JavaScript Client-side**:
    - `static/js/otp-countdown.js`: Đếm ngược 60 giây và kích hoạt nút gửi lại mã OTP.
-   - `static/js/avatar-upload.js`: Xin presigned policy từ BFF, đóng gói multipart `FormData` và trực tiếp gửi request POST lên MinIO S3 bucket, sau đó tự động cập nhật URL ảnh vào hồ sơ.
+   - `static/js/avatar-upload.js`: Xin presigned policy từ BFF, đóng gói multipart `FormData` và gửi request POST lên MinIO S3 bucket, sau đó tự động cập nhật URL ảnh vào hồ sơ.
 
 #### 2. Danh sách file tạo mới và cập nhật
 - **Mã nguồn DTO & Controllers**:
@@ -2047,11 +2047,11 @@ flowchart TD
   - `backend/web-app/src/main/java/com/lms/webapp/dto/form/VerifyOtpForm.java`
   - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ForgotPasswordForm.java`
   - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ResetPasswordForm.java`
-  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ChangePasswordForm.java`
-  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ProfileUpdateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ChangePasswordForm.java` (Chuẩn hóa `oldPassword`, `newPassword`, `confirmPassword`)
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ProfileUpdateForm.java` (Chuẩn hóa `fullname`, `phone`, `dob`, `avatarUrl`, `bio`, `discardedAvatarUrls`)
   - `backend/web-app/src/main/java/com/lms/webapp/dto/form/RoleUpdateForm.java`
-  - `backend/web-app/src/main/java/com/lms/webapp/controller/AuthController.java`
-  - `backend/web-app/src/main/java/com/lms/webapp/controller/ProfileController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/AuthController.java` (Bổ sung param `roleUpdated`)
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/ProfileController.java` (Sửa payload PUT profile, PATCH password, luồng invalidate session đổi role)
   - `backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java` (Cập nhật `loginProcessingUrl`)
 - **Giao diện Templates & Static Assets**:
   - `backend/web-app/src/main/resources/templates/auth/login.html`
@@ -2059,47 +2059,60 @@ flowchart TD
   - `backend/web-app/src/main/resources/templates/auth/verify-email.html`
   - `backend/web-app/src/main/resources/templates/auth/forgot-password.html`
   - `backend/web-app/src/main/resources/templates/auth/reset-password.html`
-  - `backend/web-app/src/main/resources/templates/profile/index.html`
+  - `backend/web-app/src/main/resources/templates/profile/index.html` (Cập nhật `fullname`, `phone`, `dob`, `oldPassword`, `newPassword`, `confirmPassword`)
   - `backend/web-app/src/main/resources/static/images/default-avatar.svg`
   - `backend/web-app/src/main/resources/static/js/otp-countdown.js`
   - `backend/web-app/src/main/resources/static/js/avatar-upload.js`
 - **Kiểm thử tự động TDD**:
   - `backend/web-app/src/test/java/com/lms/webapp/controller/AuthControllerTest.java` (6 test cases)
-  - `backend/web-app/src/test/java/com/lms/webapp/controller/ProfileControllerTest.java` (2 test cases)
-  - `backend/web-app/src/test/java/com/lms/webapp/config/SecurityConfigTest.java` (Cập nhật assertion `/login` trả về 200 OK)
+  - `backend/web-app/src/test/java/com/lms/webapp/controller/ProfileControllerTest.java` (5 test cases kiểm tra chính xác HTTP Method, path, JSON body cấu trúc chặt chẽ và session lifecycle)
+  - `backend/web-app/src/test/java/com/lms/webapp/config/SecurityConfigTest.java` (8 test cases)
 
-#### 3. Bằng chứng kiểm thử thực tế
-- **Lệnh thực thi toàn bộ Test Suite Module `web-app`**:
-  ```bash
-  mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
-  ```
-- **Kết quả thực tế**: **6/6 test files PASS, 20/20 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 15.500 s):
-  * `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
-  * `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
-  * `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
-  * `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
-  * `AuthControllerTest`: 6 tests PASS:
-    - `loginPageRendersWithCsrf`: PASS (Render HTTP 200, view `auth/login`, input `_csrf`).
-    - `loginSuccessSetsSessionAndRedirects`: PASS (Gọi Gateway `/api/identity/auth/login`, lưu `accessToken`, `refreshToken`, `username` vào session, redirect `/`).
-    - `registerValidationRejectsShortPassword`: PASS (Mật khẩu < 8 ký tự bị chặn tại Bean Validation với mã lỗi `Size`).
-    - `verifyEmailOtpSuccess`: PASS (Gọi Gateway `/api/identity/auth/verify-email`, redirect `/login?verified=true`).
-    - `resetPasswordEnforces8Chars`: PASS (Gọi Gateway `/api/identity/auth/reset-password`, redirect `/login?reset=true`).
-    - `googleOAuthFlowValidatesState`: PASS (State không khớp nhận 400 Bad Request; state chuẩn gọi Gateway `/api/identity/auth/social-login/google`, lưu token và redirect `/`).
-  * `ProfileControllerTest`: 2 tests PASS:
-    - `updateRoleCallsPatchEndpoint`: PASS (Gọi Gateway HTTP `PATCH /api/identity/users/myinfo/role`, redirect `/profile?roleUpdated=true`).
-    - `avatarPresignedPostRequested`: PASS (Gọi Gateway `POST /api/identity/storage/presigned-url`, trả về `uploadUrl` và `formFields`).
+#### 3. Bằng chứng kiểm thử thực tế (Quy trình TDD Red / Green)
+- **Nhật ký Trạng thái Red (Phát hiện lỗi contract thực tế)**:
+  * Khi viết test kiểm tra chặt chẽ `jsonPath("$.fullname")`, `jsonPath("$.oldPassword")` và kiểm tra vô hiệu hóa phiên sau khi đổi vai trò:
+    - `ProfileControllerTest.updateProfileCallsPutEndpointWithAccurateFields`: Thất bại do controller cũ gửi `fullName` thay vì `fullname` -> `Caused by: com.jayway.jsonpath.PathNotFoundException: No results for path: $['fullname']`.
+    - `ProfileControllerTest.changePasswordCallsPatchEndpointWithOldNewAndConfirmPassword`: Thất bại do form cũ thiếu trường `oldPassword` -> ném lỗi binding và gọi sai luồng.
+    - `ProfileControllerTest.updateRoleCallsPatchEndpointAndInvalidatesSession`: Thất bại do controller cũ không invalidate session và redirect sai -> `AssertionError: Redirected URL expected:</login?roleUpdated=true> but was:</profile?roleUpdated=true>`.
+- **Nhật ký Trạng thái Green (Sau khi khắc phục DTO & Controller)**:
+  * Lệnh thực thi:
+    ```bash
+    mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+    ```
+  * Kết quả thực tế: **BUILD SUCCESS, 6/6 test files PASS, 23/23 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 26.978 s):
+    - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
+    - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
+    - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
+    - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
+    - `AuthControllerTest`: 6 tests PASS:
+      * `loginPageRendersWithCsrf`: PASS (Render HTTP 200, view `auth/login`, input `_csrf`).
+      * `loginSuccessSetsSessionAndRedirects`: PASS (Gọi Gateway `/api/identity/auth/login`, lưu token, username vào session, redirect `/`).
+      * `registerValidationRejectsShortPassword`: PASS (Mật khẩu < 8 ký tự bị chặn tại Bean Validation với mã lỗi `Size`).
+      * `verifyEmailOtpSuccess`: PASS (Gọi Gateway `/api/identity/auth/verify-email`, redirect `/login?verified=true`).
+      * `resetPasswordEnforces8Chars`: PASS (Gọi Gateway `/api/identity/auth/reset-password`, redirect `/login?reset=true`).
+      * `googleOAuthFlowValidatesState`: PASS (State sai nhận 400 Bad Request; state chuẩn gọi Gateway `/api/identity/auth/social-login/google`, lưu token và redirect `/`).
+    - `ProfileControllerTest`: 5 tests PASS:
+      * `updateProfileCallsPutEndpointWithAccurateFields`: PASS (Kiểm tra chính xác HTTP `PUT /api/identity/users/myinfo`, bắt buộc các trường `fullname`, `phone`, `dob`, `bio`, `avatarUrl`, cấm các trường sai `fullName`, `phoneNumber`).
+      * `changePasswordCallsPatchEndpointWithOldNewAndConfirmPassword`: PASS (Kiểm tra chính xác HTTP `PATCH /api/identity/users/myinfo/password`, gửi đủ `oldPassword`, `newPassword`, `confirmPassword`, cấm trường sai `currentPassword`).
+      * `changePasswordFailsValidationWhenMismatch`: PASS (Mật khẩu xác nhận không khớp bị từ chối ngay tại tầng validation, không gửi request sang Gateway).
+      * `updateRoleCallsPatchEndpointAndInvalidatesSession`: PASS (Gọi Gateway HTTP `PATCH /api/identity/users/myinfo/role`, xóa toàn bộ `accessToken`/context cũ, `session.isInvalid() == true`, redirect `/login?roleUpdated=true`).
+      * `avatarPresignedPostRequested`: PASS (Gọi Gateway `POST /api/identity/storage/presigned-url`, trả về `uploadUrl` và `formFields`).
+
+> [!IMPORTANT]
+> **Minh bạch phạm vi kiểm thử MinIO Avatar Upload**:
+> Bài test `avatarPresignedPostRequested` chạy trong môi trường cô lập `test` thông qua `MockRestServiceServer` để xác thực hợp đồng API Gateway cấp Presigned URL Policy. **Tuyệt đối chưa tuyên bố upload avatar đã được kiểm chứng với MinIO thật** vì việc upload nhị phân trực tiếp multipart từ trình duyệt lên container MinIO thật yêu cầu cấu hình S3 bucket, CORS và network container, sẽ được kiểm thử toàn trình tại **Phase 7 (Docker Compose & Smoke Tests)**.
 
 #### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành
 - [x] **1. Giao diện người dùng**: Giao diện hoàn chỉnh cho Login, Register, Verify Email OTP, Forgot Password, Reset Password và Profile với Bootstrap 5 responsive.
 - [x] **2. API Gateway routing**: Toàn bộ yêu cầu nghiệp vụ định tuyến chuẩn xác qua API Gateway `http://localhost:8080/api/**`.
-- [x] **3. Validation chặt chẽ**: Jakarta Bean Validation (`@NotBlank`, `@Email`, `@Size(min = 8)`) và so khớp xác nhận mật khẩu.
-- [x] **4. Phân quyền RBAC**: Phân định bảo vệ route công khai và private; chuyển đổi vai trò `STUDENT` và `INSTRUCTOR`.
+- [x] **3. Validation chặt chẽ**: Jakarta Bean Validation (`@NotBlank`, `@Email`, `@Size(min = 8)`, regex tên, regex SĐT) và so khớp xác nhận mật khẩu.
+- [x] **4. Phân quyền RBAC**: Phân định bảo vệ route công khai và private; chuyển đổi vai trò `STUDENT` và `INSTRUCTOR` an toàn qua chu trình kết thúc phiên làm việc.
 - [x] **5. Xử lý ngoại lệ**: Bắt ngoại lệ `RestClientResponseException`, hiển thị flash errors thân thiện.
-- [x] **6. Lưu trữ CSDL thật**: Tương thích dữ liệu backend MySQL (`users`, `refresh_tokens`) và MinIO S3 qua API Gateway.
-- [x] **7. Kiểm thử tự động**: 20/20 test cases PASS 100% qua lệnh Maven test cô lập.
-- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS trong 15.500 s.
+- [x] **6. Lưu trữ CSDL thật**: Khớp 100% hợp đồng dữ liệu backend MySQL (`users`, `refresh_tokens`) qua API Gateway.
+- [x] **7. Kiểm thử tự động**: 23/23 test cases PASS 100% qua lệnh Maven test cô lập (tăng từ 20 lên 23 test cases).
+- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS trong 26.978 s.
 - [ ] **9. Docker Compose Full-stack & E2E**: Chưa chạy (thuộc phạm vi Phase 7).
-- [x] **10. API Contract**: Khớp 100% đặc tả API Contract với `identity-service`.
+- [x] **10. API Contract**: Khớp 100% đặc tả API Contract với `identity-service` (cập nhật chính xác `fullname`, `phone`, `dob`, `oldPassword`, `newPassword`, `confirmPassword`).
 - [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
 - [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết kết quả và lệnh kiểm thử.
-- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm xác thực, OTP, đổi role và avatar tương đương 100% so với project mẫu.
+- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm xác thực, OTP, đổi role và cập nhật hồ sơ tương đương 100% so với project mẫu.
