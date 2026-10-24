@@ -18,19 +18,39 @@ public class SecurityConfig {
         http
             .csrf(Customizer.withDefaults())
             .authorizeHttpRequests(auth -> auth
+                // Các route blog cá nhân và tạo/sửa nội dung yêu cầu đăng nhập trước khi xét slug public
+                .requestMatchers(
+                    "/blog/new",
+                    "/blog/my-posts",
+                    "/blog/posts/**",
+                    "/blog/view/**"
+                ).authenticated()
+                // Các route công khai đã xác định rõ trong kế hoạch
                 .requestMatchers(
                     "/",
-                    "/courses/**",
-                    "/blog/**",
+                    "/courses",
+                    "/courses/{id:[0-9]+}",
+                    "/blog",
+                    "/blog/{slug:[a-zA-Z0-9\\-]+}",
+                    "/blog/tags",
                     "/login",
                     "/register",
+                    "/forgot-password",
+                    "/reset-password",
+                    "/verify-email",
                     "/auth/**",
                     "/css/**",
                     "/js/**",
                     "/images/**",
                     "/webjars/**",
+                    "/favicon.ico",
                     "/actuator/**"
                 ).permitAll()
+                // Phân quyền cho trang quản trị viên
+                .requestMatchers("/admin/**").hasRole("ADMIN")
+                // Phân quyền cho studio giảng viên
+                .requestMatchers("/instructor/**").hasAnyRole("TEACHER", "ADMIN")
+                // Mọi route khác (bao gồm /profile/**, /settings/**, /my-courses, /courses/my/**, /learn/** và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

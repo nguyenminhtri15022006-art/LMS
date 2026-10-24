@@ -96,14 +96,16 @@ public class TokenRefreshInterceptor implements ClientHttpRequestInterceptor {
 
             if (responseBody != null) {
                 JsonNode root = objectMapper.readTree(responseBody);
-                JsonNode resultNode = root.path("result");
-                if (!resultNode.isMissingNode()) {
-                    String newAccessToken = resultNode.path("accessToken").asText();
-                    String newRefreshToken = resultNode.path("refreshToken").asText(refreshToken);
+                JsonNode dataNode = root.hasNonNull("data") ? root.path("data") : root.path("result");
+                if (!dataNode.isMissingNode() && !dataNode.isNull()) {
+                    String newAccessToken = dataNode.path("accessToken").asText(null);
+                    String newRefreshToken = dataNode.path("refreshToken").asText(refreshToken);
 
-                    session.setAttribute("accessToken", newAccessToken);
-                    session.setAttribute("refreshToken", newRefreshToken);
-                    return newAccessToken;
+                    if (newAccessToken != null && !newAccessToken.isBlank()) {
+                        session.setAttribute("accessToken", newAccessToken);
+                        session.setAttribute("refreshToken", newRefreshToken);
+                        return newAccessToken;
+                    }
                 }
             }
         } catch (Exception e) {

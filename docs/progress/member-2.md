@@ -1945,3 +1945,23 @@ flowchart TD
 - [x] **11. Commit Conventional**: Tạo commit `feat(web-app): ...` theo quy tắc Conventional Commits bằng tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
 - [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết lệnh test cô lập và kết quả log.
 - [x] **13. Hành vi nghiệp vụ tương đương**: Cấu trúc layout và trang chủ tương đương với project mẫu.
+
+#### 5. Kết quả khắc phục lỗi rà soát Phase 1 (Fix Review Issues)
+- **Vấn đề 1 — Sửa luồng refresh token theo API thật**:
+  * Đối chiếu `ApiResponse` và `AuthenticationController` của `identity-service`: Payload dữ liệu trả về nằm trong trường `data`, không phải `result`.
+  * Sửa `TokenRefreshInterceptor.java`: Đọc đúng trường `data` (hỗ trợ fallback `result`), lưu đồng thời cả `accessToken` mới và `refreshToken` mới vào `HttpSession` trước khi replay request với header `Authorization: Bearer <newAccessToken>`.
+  * Sửa `GatewayClientTest.java` (`autoRefreshOn401`): Cập nhật mock JSON trả về cấu trúc `data` thật (`{"code":1000,"message":"Refresh token successfully","data":{"accessToken":"new-token-999","refreshToken":"new-refresh-999"}}`), bổ sung assertion xác nhận `accessToken` mới, `refreshToken` mới trong session và request retry gửi header Bearer token mới.
+- **Vấn đề 2 — Thu hẹp quyền truy cập trong `SecurityConfig`**:
+  * Loại bỏ `permitAll` quá rộng trên `/courses/**` và `/blog/**`.
+  * Cấu hình chỉ mở các route công khai đã xác định rõ: `/`, `/courses`, `/courses/{id:[0-9]+}`, `/blog`, `/blog/{slug:[a-zA-Z0-9\\-]+}`, `/blog/tags`, `/login`, `/register`, `/forgot-password`, `/reset-password`, `/verify-email`, `/auth/**`, `/css/**`, `/js/**`, `/images/**`, `/webjars/**`, `/favicon.ico`, `/actuator/**`.
+  * Bảo vệ chặt các route blog cá nhân và tạo/sửa (`/blog/new`, `/blog/my-posts`, `/blog/posts/**`, `/blog/view/**`) bằng `.authenticated()` trước khi xét pattern slug công khai.
+  * Phân quyền rõ ràng: `/admin/**` yêu cầu `ROLE_ADMIN`, `/instructor/**` yêu cầu `TEACHER` hoặc `ADMIN`.
+  * Cấu hình mặc định `.anyRequest().authenticated()` bảo vệ toàn bộ các trang cá nhân, đã ghi danh, giảng viên và các route chưa xác định `CẦN XÁC NHẬN` (`/profile/**`, `/settings/**`, `/my-courses`, `/courses/my/**`, `/learn/**`, `/courses/*/enroll`).
+  * Bổ sung 3 test cases mới trong `SecurityConfigTest.java`: `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`.
+- **Kết quả kiểm thử thực tế sau khắc phục**:
+  * Lệnh thực thi: `mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"`
+  * Kết quả: **4/4 test files PASS, 9/9 test cases PASS 100%** (0 failures, 0 errors, thời gian: 17.359 s):
+    - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
+    - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
+    - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
+    - `SecurityConfigTest`: 5 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`).

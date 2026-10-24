@@ -83,10 +83,10 @@ class GatewayClientTest {
                 .andExpect(header("Authorization", "Bearer expired-token"))
                 .andRespond(withUnauthorizedRequest());
 
-        // 2. Tự động gọi endpoint refresh
+        // 2. Tự động gọi endpoint refresh với contract thật của identity-service (trường data)
         mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/refresh"))
                 .andExpect(method(HttpMethod.POST))
-                .andRespond(withSuccess("{\"code\":1000,\"result\":{\"accessToken\":\"new-token-999\",\"refreshToken\":\"new-refresh-999\"}}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"code\":1000,\"message\":\"Refresh token successfully\",\"data\":{\"accessToken\":\"new-token-999\",\"refreshToken\":\"new-refresh-999\"}}", MediaType.APPLICATION_JSON));
 
         // 3. Retry lại request ban đầu với token mới
         mockServer.expect(requestTo("http://localhost:8080/api/test"))
@@ -97,6 +97,7 @@ class GatewayClientTest {
         String response = gatewayClient.get("/test", String.class);
         assertThat(response).contains("ok");
         assertThat(session.getAttribute("accessToken")).isEqualTo("new-token-999");
+        assertThat(session.getAttribute("refreshToken")).isEqualTo("new-refresh-999");
 
         mockServer.verify();
     }
