@@ -117,6 +117,12 @@ public class CourseStudentController {
             log.warn("Chưa có đề cương cho khóa học {}: {}", id, e.getMessage());
         }
 
+        // Dựng cây đề cương đa cấp theo parentId và order
+        List<StructureNodeDto> structureTree = new ArrayList<>();
+        if (structure != null) {
+            structureTree = buildTree(extractNodeList(structure), Set.of(), null);
+        }
+
         // Kiểm tra xem học viên hiện tại đã ghi danh chưa
         if (session.getAttribute("username") != null) {
             try {
@@ -135,33 +141,29 @@ public class CourseStudentController {
 
         model.addAttribute("course", course);
         model.addAttribute("structure", structure);
+        model.addAttribute("structureTree", structureTree);
         model.addAttribute("isEnrolled", isEnrolled);
 
         return "courses/student/detail";
     }
 
     @PostMapping("/courses/{id}/enroll")
-    public String enrollCourse(@PathVariable("id") String id) {
+    public String enrollCourse(@PathVariable("id") String id, org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         try {
             gatewayClient.post("/course/courses/" + id + "/enroll", Map.of(), JsonNode.class);
         } catch (Exception e) {
-            log.warn("Ghi danh khóa học {}: {}", id, e.getMessage());
+            log.warn("Ghi danh khóa học {} thất bại: {}", id, e.getMessage());
+            redirectAttributes.addFlashAttribute("errorMessage", "Không thể ghi danh khóa học. Vui lòng thử lại sau.");
+            return "redirect:/courses/" + id;
         }
 
-        // Lấy bài học đầu tiên trong cây đề cương nếu có
+        // Lấy bài học đầu tiên trong cây đề cương đã sắp xếp theo thứ tự học
         String firstLessonId = null;
         try {
             JsonNode structRes = gatewayClient.get("/course/courses/" + id + "/structure", JsonNode.class);
             if (structRes != null && structRes.has("data")) {
-                JsonNode nodes = structRes.get("data").get("nodes");
-                if (nodes != null && nodes.isArray()) {
-                    for (JsonNode n : nodes) {
-                        if (n.hasNonNull("lessonId") && !n.get("lessonId").asText().isBlank()) {
-                            firstLessonId = n.get("lessonId").asText();
-                            break;
-                        }
-                    }
-                }
+                List<StructureNodeDto> tree = buildTree(extractNodeList(structRes.get("data")), Set.of(), null);
+                firstLessonId = findFirstLesson(tree);
             }
         } catch (Exception ignored) {
         }
@@ -174,12 +176,24 @@ public class CourseStudentController {
 
     @GetMapping("/my-courses")
     public String myCoursesPage(Model model) {
-        List<JsonNode> enrolledList = new ArrayList<>();
+        List<Map<String, Object>> enrolledList = new ArrayList<>();
         try {
             JsonNode enrolledRes = gatewayClient.get("/course/courses/enrolled", JsonNode.class);
             if (enrolledRes != null && enrolledRes.has("data") && enrolledRes.get("data").isArray()) {
                 for (JsonNode c : enrolledRes.get("data")) {
-                    enrolledList.add(c);
+                    Map<String, Object> item = new HashMap<>();
+                    item.put("course", c);
+                    if (c.hasNonNull("id")) {
+                        String cId = c.get("id").asText();
+                        try {
+                            JsonNode pRes = gatewayClient.get("/course/courses/" + cId + "/progress", JsonNode.class);
+                            if (pRes != null && pRes.has("data")) {
+                                item.put("progress", pRes.get("data"));
+                            }
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    enrolledList.add(item);
                 }
             }
         } catch (Exception e) {
@@ -192,20 +206,13 @@ public class CourseStudentController {
 
     @GetMapping("/learn/{courseId}")
     public String learningHubDefault(@PathVariable("courseId") String courseId) {
-        // Tự động tìm bài học đầu tiên
+        // Tự động tìm bài học đầu tiên theo cây đề cương đã sắp xếp
         String firstLessonId = null;
         try {
             JsonNode structRes = gatewayClient.get("/course/courses/" + courseId + "/structure", JsonNode.class);
             if (structRes != null && structRes.has("data")) {
-                JsonNode nodes = structRes.get("data").get("nodes");
-                if (nodes != null && nodes.isArray()) {
-                    for (JsonNode n : nodes) {
-                        if (n.hasNonNull("lessonId") && !n.get("lessonId").asText().isBlank()) {
-                            firstLessonId = n.get("lessonId").asText();
-                            break;
-                        }
-                    }
-                }
+                List<StructureNodeDto> tree = buildTree(extractNodeList(structRes.get("data")), Set.of(), null);
+                firstLessonId = findFirstLesson(tree);
             }
         } catch (Exception ignored) {
         }
@@ -227,8 +234,6 @@ public class CourseStudentController {
         JsonNode structure = null;
         JsonNode lesson = null;
         JsonNode progress = null;
-        List<JsonNode> schedules = new ArrayList<>();
-        List<JsonNode> announcements = new ArrayList<>();
 
         try {
             JsonNode cRes = gatewayClient.get("/course/courses/" + courseId, JsonNode.class);
@@ -258,21 +263,28 @@ public class CourseStudentController {
         }
 
         boolean isLessonCompleted = false;
+        Set<String> completedIds = new HashSet<>();
         try {
             JsonNode pRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
             if (pRes != null && pRes.has("data")) {
                 progress = pRes.get("data");
                 if (progress.hasNonNull("completedLessonIds") && progress.get("completedLessonIds").isArray()) {
                     for (JsonNode cid : progress.get("completedLessonIds")) {
+                        completedIds.add(cid.asText());
                         if (lessonId.equals(cid.asText())) {
                             isLessonCompleted = true;
-                            break;
                         }
                     }
                 }
             }
         } catch (Exception e) {
             log.warn("Không thể tải tiến độ khóa học {}: {}", courseId, e.getMessage());
+        }
+
+        // Dựng cây đề cương phân cấp với trạng thái hoàn thành từng node
+        List<StructureNodeDto> structureTree = new ArrayList<>();
+        if (structure != null) {
+            structureTree = buildTree(extractNodeList(structure), completedIds, null);
         }
 
         // Xử lý an toàn Markdown lý thuyết nếu có
@@ -295,11 +307,10 @@ public class CourseStudentController {
         model.addAttribute("course", course);
         model.addAttribute("courseId", courseId);
         model.addAttribute("structure", structure);
+        model.addAttribute("structureTree", structureTree);
         model.addAttribute("lesson", lesson);
         model.addAttribute("lessonId", lessonId);
         model.addAttribute("progress", progress);
-        model.addAttribute("schedules", schedules);
-        model.addAttribute("announcements", announcements);
         model.addAttribute("safeContentHtml", safeContentHtml);
         model.addAttribute("isLessonCompleted", isLessonCompleted);
 
@@ -315,10 +326,26 @@ public class CourseStudentController {
         try {
             Object payload = body != null ? body : Map.of();
             gatewayClient.post("/course/courses/" + courseId + "/lessons/" + lessonId + "/complete", payload, JsonNode.class);
-            return ResponseEntity.ok(Map.of(
-                    "code", 1000,
-                    "message", "Đã đánh dấu hoàn thành bài học"
-            ));
+
+            // Tải thông tin tiến độ mới nhất từ backend
+            JsonNode progressData = null;
+            try {
+                JsonNode pRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
+                if (pRes != null && pRes.has("data")) {
+                    progressData = pRes.get("data");
+                }
+            } catch (Exception e) {
+                log.warn("Không thể lấy tiến độ sau khi hoàn thành bài học: {}", e.getMessage());
+            }
+
+            Map<String, Object> resBody = new HashMap<>();
+            resBody.put("code", 1000);
+            resBody.put("message", "Đã đánh dấu hoàn thành bài học");
+            if (progressData != null) {
+                resBody.put("data", progressData);
+            }
+
+            return ResponseEntity.ok(resBody);
         } catch (RestClientResponseException e) {
             return ResponseEntity.status(e.getStatusCode()).body(Map.of(
                     "code", e.getStatusCode().value(),
@@ -345,12 +372,105 @@ public class CourseStudentController {
 
     @GetMapping(value = "/courses/{courseId}/announcements", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
-    public ResponseEntity<?> getAnnouncementsJson(@PathVariable("courseId") String courseId) {
+    public ResponseEntity<?> getAnnouncementsJson(
+            @PathVariable("courseId") String courseId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "10") int size) {
         try {
-            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/announcements", JsonNode.class);
-            return ResponseEntity.ok(res != null ? res : Map.of("data", Map.of("content", List.of())));
+            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/announcements?page=" + page + "&size=" + size, JsonNode.class);
+            return ResponseEntity.ok(res != null ? res : Map.of("data", Map.of("content", List.of(), "totalPages", 0)));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("data", Map.of("content", List.of())));
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("data", Map.of("content", List.of(), "totalPages", 0)));
         }
+    }
+
+    // Helper methods và DTO cho cấu trúc cây đề cương
+    private List<JsonNode> extractNodeList(JsonNode structureData) {
+        List<JsonNode> list = new ArrayList<>();
+        if (structureData != null) {
+            JsonNode nodes = structureData.has("nodes") ? structureData.get("nodes") : structureData;
+            if (nodes != null && nodes.isArray()) {
+                for (JsonNode n : nodes) {
+                    list.add(n);
+                }
+            }
+        }
+        return list;
+    }
+
+    private List<StructureNodeDto> buildTree(List<JsonNode> nodes, Set<String> completedIds, String parentId) {
+        List<StructureNodeDto> list = new ArrayList<>();
+        for (JsonNode n : nodes) {
+            String pId = (n.hasNonNull("parentId") && !n.get("parentId").asText().isBlank()) ? n.get("parentId").asText() : null;
+            if (Objects.equals(pId, parentId)) {
+                StructureNodeDto dto = new StructureNodeDto();
+                dto.setId(n.hasNonNull("id") ? n.get("id").asText() : null);
+                dto.setType(n.hasNonNull("type") ? n.get("type").asText() : "LESSON");
+                dto.setTitle(n.hasNonNull("title") ? n.get("title").asText() : "Nội dung");
+                dto.setOrder(n.hasNonNull("order") ? n.get("order").asInt() : 0);
+                dto.setParentId(pId);
+                dto.setLessonId(n.hasNonNull("lessonId") ? n.get("lessonId").asText() : null);
+                dto.setLessonType(n.hasNonNull("lessonType") ? n.get("lessonType").asText() : null);
+
+                if (dto.getLessonId() != null && completedIds.contains(dto.getLessonId())) {
+                    dto.setCompleted(true);
+                }
+
+                if ("FOLDER".equalsIgnoreCase(dto.getType())) {
+                    dto.setItems(buildTree(nodes, completedIds, dto.getId()));
+                }
+                list.add(dto);
+            }
+        }
+
+        list.sort(Comparator.comparingInt(node -> node.getOrder() != null ? node.getOrder() : 0));
+        return list;
+    }
+
+    private String findFirstLesson(List<StructureNodeDto> nodes) {
+        if (nodes == null) return null;
+        for (StructureNodeDto node : nodes) {
+            if ("LESSON".equalsIgnoreCase(node.getType()) && node.getLessonId() != null && !node.getLessonId().isBlank()) {
+                return node.getLessonId();
+            }
+            if (node.getItems() != null && !node.getItems().isEmpty()) {
+                String found = findFirstLesson(node.getItems());
+                if (found != null) {
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+
+    public static class StructureNodeDto {
+        private String id;
+        private String type;
+        private String title;
+        private Integer order;
+        private String parentId;
+        private String lessonId;
+        private String lessonType;
+        private boolean completed;
+        private List<StructureNodeDto> items = new ArrayList<>();
+
+        public String getId() { return id; }
+        public void setId(String id) { this.id = id; }
+        public String getType() { return type; }
+        public void setType(String type) { this.type = type; }
+        public String getTitle() { return title; }
+        public void setTitle(String title) { this.title = title; }
+        public Integer getOrder() { return order; }
+        public void setOrder(Integer order) { this.order = order; }
+        public String getParentId() { return parentId; }
+        public void setParentId(String parentId) { this.parentId = parentId; }
+        public String getLessonId() { return lessonId; }
+        public void setLessonId(String lessonId) { this.lessonId = lessonId; }
+        public String getLessonType() { return lessonType; }
+        public void setLessonType(String lessonType) { this.lessonType = lessonType; }
+        public boolean isCompleted() { return completed; }
+        public void setCompleted(boolean completed) { this.completed = completed; }
+        public List<StructureNodeDto> getItems() { return items; }
+        public void setItems(List<StructureNodeDto> items) { this.items = items; }
     }
 }

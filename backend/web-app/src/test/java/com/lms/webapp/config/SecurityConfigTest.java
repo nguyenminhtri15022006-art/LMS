@@ -1,9 +1,15 @@
 package com.lms.webapp.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.lms.webapp.client.GatewayClient;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.test.context.support.WithMockUser;
@@ -12,6 +18,9 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
@@ -27,6 +36,30 @@ class SecurityConfigTest {
 
     @Autowired(required = false)
     private SecurityConfig securityConfig;
+
+    @MockBean
+    private GatewayClient gatewayClient;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
+    @BeforeEach
+    void setUpGatewayMocks() {
+        ObjectNode emptyData = objectMapper.createObjectNode();
+        ArrayNode emptyArray = objectMapper.createArrayNode();
+        emptyData.set("data", emptyArray);
+
+        ObjectNode courseData = objectMapper.createObjectNode();
+        ObjectNode courseObj = objectMapper.createObjectNode();
+        courseObj.put("id", "123");
+        courseObj.put("title", "Khóa học thử nghiệm");
+        courseData.set("data", courseObj);
+
+        when(gatewayClient.get(eq("/course/courses/123"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(courseData);
+
+        when(gatewayClient.get(org.mockito.ArgumentMatchers.argThat(s -> s == null || !s.equals("/course/courses/123")), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(emptyData);
+    }
 
     @Test
     void csrfProtectionEnabled() throws Exception {

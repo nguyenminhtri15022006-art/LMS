@@ -2164,73 +2164,66 @@ flowchart TD
    - [SecurityConfig.java](file:///d:/LMS-main/backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java): Mở quyền `permitAll()` cho `/courses` và `/courses/{id}`. Bảo vệ các route học viên `/courses/*/enroll`, `/my-courses`, `/my-courses/**`, `/learn/**` yêu cầu `authenticated()`. Bảo vệ nghiêm ngặt các route giảng viên `/courses/my` và `/instructor/**` chỉ dành cho vai trò `INSTRUCTOR`, `TEACHER`, `ADMIN`.
    - Xử lý chặn xung đột đường dẫn: Bảo đảm `/courses/my` không bị `@GetMapping("/courses/{id}")` nuốt mất khi Phase 4 chưa cài đặt controller giảng viên.
 
-#### 2. Quy trình kiểm thử TDD tái hiện lỗi & hoàn thiện (Red -> Green -> Refactor)
+---
 
-1. **Red Phase (Tái hiện lỗi HTML render & JavaScript state contract)**:
-   - Viết các test case kiểm tra chặt chẽ HTML được render và các hook JavaScript trong [CourseStudentControllerTest.java](file:///d:/LMS-main/backend/web-app/src/test/java/com/lms/webapp/controller/CourseStudentControllerTest.java):
-     * `lessonDetailEnforcesCourseIdInPath`: Kiểm tra HTML chứa metadata DOM hook `id="lessonType" value="DOCUMENT"`, `id="courseId"`, `id="lessonId"`, `input[name="_csrf"]` và script `learning-hub.js`. Kết quả Red: Thất bại do thiếu trường `lessonType` trong metadata HTML.
-     * `learningHubRendersCompletedStateWhenLessonAlreadyCompleted`: Kiểm tra trường hợp bài học đã nằm trong `completedLessonIds`. Kết quả Red: Thất bại do controller chưa tính toán `isLessonCompleted` (`expected:<true> but was:<null>`), dẫn đến HTML luôn render nút hoàn thành và ẩn badge "Đã hoàn thành".
-     * `completeLessonEndpointHandlesGatewayError`: Bổ sung kiểm thử trường hợp Gateway trả về lỗi 400 Bad Request để đảm bảo BFF chuyển tiếp mã lỗi và JSON error cho JavaScript xử lý hiển thị alert.
-     * `courseDetailRendersContinueLearningWhenAlreadyEnrolled`: Kiểm tra trường hợp học viên đã ghi danh thì HTML hiển thị nút "Tiếp Tục Học" dẫn đến `/learn/{id}` thay vì form ghi danh.
-   - Chạy lệnh kiểm thử: `mvn test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test" -Dtest=CourseStudentControllerTest` -> **Xác nhận 2 test cases thất bại (Red Phase tái hiện chính xác lỗi)**.
-2. **Green Phase**:
-   - Cập nhật [CourseStudentController.java](file:///d:/LMS-main/backend/web-app/src/main/java/com/lms/webapp/controller/CourseStudentController.java): Duyệt `progress.completedLessonIds` để tính toán `isLessonCompleted`, đưa vào Model.
-   - Cập nhật [learning-hub.html](file:///d:/LMS-main/backend/web-app/src/main/resources/templates/courses/student/learning-hub.html): Thêm hidden input `#lessonType`, gán class động `d-none` cho `#completeLessonBtn` và `#completedBadge` theo trạng thái `isLessonCompleted`.
-   - Cập nhật [learning-hub.js](file:///d:/LMS-main/backend/web-app/src/main/resources/static/js/learning-hub.js): Đọc động `lessonType` từ DOM truyền vào request body thay vì hardcode giá trị `DOCUMENT`.
-   - Chạy lại kiểm thử đơn vị: Toàn bộ **10/10 test cases trong `CourseStudentControllerTest` PASS 100%**.
-3. **Refactor Phase**:
-   - Tối ưu hóa layout markup của button và badge trên cùng một dòng DOM tag để template engine render đồng nhất.
-   - Bảo đảm an toàn Markdown CommonMark kết hợp lọc sạch XSS trước khi inject vào `.markdown-body`.
+### ĐỢT KHẮC PHỤC TOÀN DIỆN PHASE 3 — GIẢI QUYẾT TRIỆT ĐỂ 6 NHÓM LỖI TỒN TẠI
 
-#### 3. Kết quả kiểm thử thực tế với JDK 21
+Thực hiện nghiêm ngặt theo quy định `AGENTS.md` (chế độ READ-ONLY đối với `Learning-Management-System-main/`, TDD Red -> Green thực tế, không dùng lỗi compile giả, cô lập hoàn toàn test khỏi Gateway ngoài, bổ sung kiểm thử thực thi JavaScript thực tế với Node.js runner).
 
-- **Cấu hình môi trường**:
-  - JDK: OpenJDK 21.0.8 (JBR-21.0.8, vendor: JetBrains s.r.o.)
-  - Maven: 3.9.16
-  - OS: Windows 11
-- **Lệnh thực thi**:
-  ```powershell
-  $env:JAVA_HOME = 'C:\Users\ASUS\AppData\Local\Programs\IntelliJ IDEA 2025.2.1\jbr'
-  $env:Path = "$env:JAVA_HOME\bin;$env:Path"
-  mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
-  ```
-- **Kết quả thực tế**: **BUILD SUCCESS, 7/7 test classes PASS, 36/36 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 33.722 s):
-  - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
-  - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
-  - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
-  - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
-  - `AuthControllerTest`: 9 tests PASS (Login CSRF, Login Session, Password Validation, Verify Email OTP, Reset Password, Google OAuth State, Resend OTP Success, Resend OTP Failure, Resend OTP Validation).
-  - `ProfileControllerTest`: 5 tests PASS (Update Profile, Change Password, Change Password Validation, Update Role & Session Invalidation, Avatar Presigned URL).
-  - `CourseStudentControllerTest`: **10 tests PASS 100%** (tăng từ 7 lên 10 test cases bao quát cả HTML render và JavaScript hooks):
-    * `catalogDisplaysCategoriesFromApi`: PASS (Gọi Gateway `/api/course/categories` và `/api/course/courses`, render đúng HTML chứa tiêu đề, dropdown danh mục và danh sách khóa học).
-    * `courseDetailShowsOutline`: PASS (Gọi Gateway `/api/course/courses/c-101` và `/structure`, render HTML chứa chương mục, bài học và form ghi danh).
-    * `courseDetailRendersContinueLearningWhenAlreadyEnrolled`: PASS (Xác nhận khi học viên đã ghi danh, HTML hiển thị nút "Tiếp Tục Học" và link `/learn/c-101`, không hiển thị nút đăng ký).
-    * `enrollCourseCallsGateway`: PASS (Gọi Gateway `POST /api/course/courses/c-101/enroll`, tự động redirect vào phòng học với bài học đầu tiên).
-    * `enrolledCoursesDisplaysUserCourses`: PASS (Gọi Gateway `/api/course/courses/enrolled`, render HTML hiển thị các khóa học đã đăng ký).
-    * `lessonDetailEnforcesCourseIdInPath`: PASS (Gọi Gateway `/api/course/courses/c-101/lessons/l-201`, render HTML chứa markdown an toàn, đủ DOM metadata `courseId`, `lessonId`, `lessonType`, `_csrf`, nút hoàn thành và script `learning-hub.js`).
-    * `learningHubRendersCompletedStateWhenLessonAlreadyCompleted`: PASS (Xác nhận khi bài học đã hoàn thành từ trước, HTML ẩn nút hoàn thành `d-none`, hiển thị badge "Đã hoàn thành" và icon checkmark xanh trên cây đề cương).
-    * `completeLessonCallsGatewayWithCourseId`: PASS (Gọi Gateway `POST /api/course/courses/c-101/lessons/l-201/complete`, trả về JSON 200 OK cập nhật tiến độ).
-    * `completeLessonEndpointHandlesGatewayError`: PASS (Xử lý khi Gateway trả về 400 Bad Request, BFF trả về JSON lỗi tương ứng cho script JS hiển thị thông báo lỗi trên UI).
-    * `markdownLessonRenderedSafely`: PASS (Xử lý an toàn Markdown lý thuyết, vô hiệu hóa thẻ `<script>` chống XSS).
+#### 1. Bảng Tổng Hợp Đối Chiếu & Bằng Chứng 6 Nhóm Lỗi
 
-> [!IMPORTANT]
-> **Danh sách các hạng mục chuyển giao kiểm chứng thực tế tại Phase 7 (Docker Compose & Smoke Tests)**:
-> 1. Gửi email xác thực và mã OTP với SMTP server thật (hiện đã kiểm thử mock cô lập và hợp đồng API Gateway).
-> 2. Đăng nhập Google OAuth 2.0 toàn trình với tài khoản Google thật.
-> 3. Tải lên trực tiếp nhị phân (Avatar Multipart Upload / Video) vào cụm lưu trữ MinIO thật.
+| Nhóm Lỗi | Bằng Chứng Red (Thất bại trước khi sửa) | Thay Đổi Mã Nguồn | Bằng Chứng Green (PASS sau khi sửa) | Phần Chưa Kiểm Chứng / Giới Hạn |
+|---|---|---|---|---|
+| **A. Markdown & XSS** | `MarkdownServiceTest.renderHtml_WithHtmlEntityEncodedJavascriptProtocol_NeutralizesToHash` thất bại: Regex cũ `.replaceAll("(?i)javascript:", "")` bị bypass bởi `[click](javascript&#58;alert(1))` và `java&#x73;cript:`, HtmlRenderer render ra `href="javascript:alert(1)"`. | Bỏ cơ chế lọc regex đơn giản; sử dụng CommonMark AST `AbstractVisitor` trên các node `Link` và `Image`. Giải mã HTML entities (`HtmlUtils.htmlUnescape`) và URL-encoded (`URLDecoder`), loại bỏ ký tự điều khiển ẩn và kiểm tra protocol sau giải mã theo whitelist (`http`, `https`, `mailto`, `tel`) hoặc relative URL. Toàn bộ protocol nguy hiểm (`javascript:`, `vbscript:`, `data:`) bị trung hòa thành `href="#"`. | `MarkdownServiceTest`: **3/3 tests PASS 100%** (`renderHtml_WithHtmlEntityEncodedJavascriptProtocol_NeutralizesToHash`, `renderHtml_WithVbscriptAndDataProtocol_NeutralizesToHash`, `renderHtml_WithSafeUrls_PreservesUrls`). Không tuyên bố "chống triệt để XSS", mà kiểm soát chặt chẽ URL protocol sau giải mã trên AST. | Kiểm thử thực tế các payload XSS nâng cao khác trong môi trường DOM trình duyệt thực tế sẽ tiếp tục bổ sung tại Phase 7. |
+| **B. Lịch học & Thông báo** | Trước đây modal inline nằm chết trong view với danh sách rỗng cố định từ controller; chưa kết nối API động, thiếu phân trang và 4 trạng thái UI. `getAnnouncementsJson_WithPageParameter_CallsGatewayCorrectly` thất bại vì controller chưa nhận `@RequestParam page`. | 1. Tách modal thành fragment Thymeleaf thật: `templates/fragments/schedules-modal.html` và `templates/fragments/announcements-modal.html`.<br>2. Cập nhật `CourseStudentController.getAnnouncementsJson` nhận `@RequestParam(value = "page", defaultValue = "0") int page` chuyển tiếp tới Gateway.<br>3. `learning-hub.js` quản lý 4 trạng thái (Loading spinner, Empty, Success render danh sách, Error kèm nút Thử lại) và phân trang Next/Prev cho announcements. | 1. `CourseStudentControllerTest.getAnnouncementsJson_WithPageParameter_CallsGatewayCorrectly`: PASS.<br>2. `learning-hub.test.js`: PASS cả 2 test suites `Modal Lịch học: 4 trạng thái` và `Modal Thông báo: phân trang Next/Prev`. | Gọi video call WebRTC thật qua meetingUrl cần kiểm chứng thủ công ngoài phạm vi unit test. |
+| **C. Ghi danh thất bại** | `CourseStudentControllerTest.enrollCourse_WhenGatewayFails_RedirectsToCourseDetailWithErrorMessage` thất bại: Khi Gateway enroll trả về lỗi 500 hoặc mất kết nối, controller cũ nuốt exception rồi vẫn redirect vào phòng học `/learn/c-101` như thành công. | Trong `CourseStudentController.enrollCourse`: Bắt ngoại lệ khi gọi Gateway POST enroll; nếu lỗi, ghi log, set flash attribute `redirectAttributes.addFlashAttribute("errorMessage", ...)` và redirect trở lại trang chi tiết `/courses/{id}`. `detail.html` hiển thị alert thông báo lỗi ghi danh. Chỉ tiếp tục redirect vào `/learn/...` khi Gateway xác nhận thành công. | `CourseStudentControllerTest.enrollCourse_WhenGatewayFails_RedirectsToCourseDetailWithErrorMessage`: PASS (redirect `/courses/c-101`, flash attribute `errorMessage` tồn tại). | Luồng thanh toán học phí (nếu có khóa học trả phí trong tương lai) chưa nằm trong phạm vi Phase 3. |
+| **D. Tiến độ học tập & Video** | `CourseStudentControllerTest.completeLesson_WithVideoLessonType_ReturnsUpdatedProgressInResponseData` thất bại: endpoint complete cũ chỉ trả về `code: 1000` mà không trả về tiến độ mới; UI cũ không cập nhật % hoặc thanh progress bar sau khi complete. | 1. `CourseStudentController.completeLesson`: Sau khi complete, tự động gọi Gateway lấy `CourseProgressResponse` mới nhất và trả về trong `data`.<br>2. `myCoursesPage`: Lấy thông tin progress cho từng khóa học đã đăng ký; `my-courses.html` hiển thị thanh tiến độ %, số bài hoàn thành.<br>3. `learning-hub.js`: Khi complete thành công, đọc `data.data` cập nhật `#courseProgressBar` width, `#progressPercentText`, `#completedLessonsCount`. Khi thất bại, không cập nhật tiến độ. Hỗ trợ đầy đủ `VIDEO` và `DOCUMENT`. | 1. `CourseStudentControllerTest`: PASS `completeLesson_WithVideoLessonType_ReturnsUpdatedProgressInResponseData`, PASS `enrolledCoursesDisplaysUserCourses`.<br>2. `learning-hub.test.js`: PASS kịch bản cập nhật DOM tiến độ khi thành công và giữ nguyên tiến độ khi lỗi. | Lưu trữ tiến độ xem video tới từng giây (video tracking bookmark) thuộc tính năng nâng cao chưa triển khai. |
+| **E. Cây đề cương (Syllabus Tree)** | `enrollCourse_SelectsFirstLessonAccordingToTreeOrder_WhenInputNodesAreUnsortedAndMultiLevel` thất bại: Controller cũ duyệt mảng phẳng từ trên xuống, chọn sai bài đầu tiên khi mảng chưa sắp xếp hoặc có thư mục lồng nhau. | Xây dựng helper `buildTree` và `findFirstLesson` dựa trên thuật toán tham chiếu từ `CourseHubPage.jsx`: Nhóm theo `parentId`, sắp xếp các node cùng cấp theo trường `order` tăng dần, đệ quy dựng cây đa cấp `StructureNodeDto`. Thuật toán `findFirstLesson` duyệt cây tiền thứ tự (Preorder DFS) để tìm bài học đầu tiên chuẩn xác. Áp dụng cho cả trang chi tiết `detail.html` và `learning-hub.html`. | `CourseStudentControllerTest.enrollCourse_SelectsFirstLessonAccordingToTreeOrder_WhenInputNodesAreUnsortedAndMultiLevel`: PASS (chọn đúng `l-target` theo cây dù mảng đầu vào bị đảo lộn). | Kéo thả reorder cây đề cương thuộc chức năng giảng viên ở Phase 4. |
+| **F. Trình chiếu Video** | `learningHub_RendersNativeVideo_WhenUrlIsDirectFile` thất bại: Template cũ luôn luôn render thẻ `<iframe>` cho mọi URL video, khiến video file trực tiếp (.mp4, .webm) bị hiển thị sai; thiếu trạng thái khi URL rỗng. | Trong `learning-hub.html`: Phân biệt URL nhúng (`youtube.com`, `youtu.be`, `vimeo.com`, `/embed/`) render `<iframe>` với quyền fullscreen; đối với file video trực tiếp (.mp4, .webm...) render thẻ native `<video controls controlsList="nodownload" preload="metadata">`. Nếu thiếu URL hoặc URL rỗng, hiển thị placeholder cảnh báo "Video bài học chưa sẵn sàng hoặc liên kết không hợp lệ." | 1. `CourseStudentControllerTest.learningHub_RendersNativeVideo_WhenUrlIsDirectFile`: PASS.<br>2. `CourseStudentControllerTest.learningHub_RendersIframe_WhenUrlIsYoutubeEmbed`: PASS. | Các định dạng video streaming chuyên biệt (HLS `.m3u8`, DASH) chưa nằm trong phạm vi Phase 3. |
+| **Cô lập Test Gateway** | Trước đây `SecurityConfigTest.publicRoutesAccessibleWithoutLogin` gọi `get("/courses")` và `get("/courses/123")` dẫn đến `CourseStudentController` tạo kết nối thật đến `http://localhost:8080` và ném log `Connection refused: connect`. | Thêm `@MockBean private GatewayClient gatewayClient;` vào `SecurityConfigTest.java`, cấu hình mock response cho `/course/courses/123` và các endpoint khác trong `setUpGatewayMocks()`. | `SecurityConfigTest`: **8/8 tests PASS 100%**, hoàn toàn sạch sẽ, không còn bất kỳ dòng log `Connection refused` nào. | Mock tại ranh giới hệ thống đảm bảo cô lập test tự động; kiểm chứng tích hợp thật với Gateway sẽ thực hiện tại Phase 7. |
 
-#### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành đối với Phase 3
-- [x] **1. Giao diện người dùng**: Đầy đủ giao diện khám phá khóa học, chi tiết đề cương, khóa học đã ghi danh và phòng học Learning Hub 2 cột responsive với trạng thái hoàn thành và thông báo lỗi.
-- [x] **2. API Gateway routing**: Toàn bộ thao tác danh mục, khóa học, cấu trúc đề cương, ghi danh và tiến độ đều gọi qua Gateway `/api/course/**`.
-- [x] **3. Validation chặt chẽ**: Kiểm tra path variable, query params, render an toàn Markdown ngăn chặn XSS, xử lý chính xác DTO `CompleteLessonRequest(lessonType)`.
-- [x] **4. Phân quyền RBAC**: Các route xem khóa học công khai permitAll; route ghi danh, khóa học của tôi, phòng học yêu cầu xác thực; route studio giảng viên được bảo vệ riêng.
-- [x] **5. Xử lý ngoại lệ**: Xử lý `RestClientResponseException`, fallback giao diện an toàn khi mất kết nối Gateway và trả về lỗi JSON cho client AJAX.
-- [x] **6. Lưu trữ CSDL thật**: Tương thích 100% lược đồ CSDL MySQL (`courses`, `categories`, `course_enrollments`) và MongoDB (`course_structures`, `lessons`, `lesson_progress`) của `course-service`.
-- [x] **7. Kiểm thử tự động**: 36/36 test cases PASS 100% trên bộ test cô lập (10 test cases toàn diện cho Phase 3 kiểm tra cả HTML render và hành vi JS).
-- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS không lỗi trên môi trường JDK 21 trong 33.722 s.
-- [ ] **9. Docker Compose Full-stack & E2E**: Sẽ thực hiện tại Phase 7.
-- [x] **10. API Contract**: Khớp 100% đặc tả API với `course-service` và API Gateway.
-- [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
-- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết quy trình TDD tái hiện lỗi, lệnh test và kết quả kiểm thử.
-- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm khám phá, xem đề cương, ghi danh và học bài tương đương 100% so với bản mẫu React.
+---
+
+#### 2. Kết Quả Kiểm Thử Thực Tế
+
+1. **Kiểm thử tự động Backend (JDK 21 & Maven)**:
+   - **Lệnh thực thi**:
+     ```powershell
+     $env:JAVA_HOME = 'C:\Users\ASUS\AppData\Local\Programs\IntelliJ IDEA 2025.2.1\jbr'
+     $env:Path = "$env:JAVA_HOME\bin;$env:Path"
+     mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+     ```
+   - **Kết quả**:
+     * **BUILD SUCCESS 100%**
+     * **Tổng số test cases**: **45/45 PASS** (0 Failures, 0 Errors, 0 Skipped)
+     * **Thời gian thực thi**: 16.776 s
+     * **Chi tiết từng test class**:
+       - `MarkdownServiceTest`: **3/3 PASS** (XSS decoded protocol neutralization, vbscript/data, safe link preservation).
+       - `CourseStudentControllerTest`: **16/16 PASS** (tăng từ 10 lên 16 test cases, bao quát toàn bộ 6 nhóm lỗi: catalog, detail tree, continue learning, enroll fail, enroll unsorted tree, my-courses progress, lesson detail DOM, completed state, complete video progress, complete error, video native, video embed, announcements pagination).
+       - `SecurityConfigTest`: **8/8 PASS** (đã cô lập 100% với `@MockBean GatewayClient`).
+       - `AuthControllerTest`: **9/9 PASS**.
+       - `ProfileControllerTest`: **5/5 PASS**.
+       - `GatewayClientTest`: **2/2 PASS**.
+       - `HomeControllerTest`: **1/1 PASS**.
+       - `WebAppApplicationTests`: **1/1 PASS**.
+
+2. **Kiểm thử thực thi JavaScript thực tế (Node.js 24 Test Runner)**:
+   - **Lệnh thực thi**:
+     ```powershell
+     node --test backend/web-app/src/test/js/learning-hub.test.js
+     ```
+   - **Kết quả**:
+     * **4/4 test cases PASS 100%** (0 Failures, 0 Cancelled, 0 Skipped)
+     * **Thời gian thực thi**: 91.5 ms
+     * **Phạm vi kiểm chứng thực thi**:
+       - `Complete Lesson thành công`: Mô phỏng click, gửi fetch POST với CSRF token và body `{ lessonType: 'VIDEO' }`, nhận response backend 200, xác nhận cập nhật DOM (`d-none`, badge, checkmark) và cập nhật tiến độ (`courseProgressBar` 75%, `progressPercentText` 75, `completedLessonsCount` 3).
+       - `Complete Lesson thất bại`: Mô phỏng lỗi server 400, kiểm tra button được enable lại, alert lỗi hiển thị message từ server, tiến độ KHÔNG thay đổi.
+       - `Modal Lịch học 4 trạng thái`: Kiểm thử thực thi chuyển đổi giữa Loading spinner -> Success render HTML danh sách -> Empty state -> Error state.
+       - `Modal Thông báo phân trang`: Kiểm thử gọi fetch có tham số `page=0&size=10`, render danh sách, hiển thị thanh phân trang, kiểm tra trạng thái disabled của nút Trang trước / Trang sau.
+
+3. **Giới hạn kiểm chứng**:
+   - Các bài kiểm thử trên đã xác nhận logic BFF, Thymeleaf template rendering và JavaScript client runtime.
+   - Chưa kiểm chứng tương tác với SMTP thật, Google OAuth thật và cụm MinIO S3 thật (giữ lại kiểm chứng tại Phase 7).
+   - Chưa triển khai Phase 4 (Giảng viên / Studio tạo khóa học). Dừng lại tại đây chờ nghiệm thu Phase 3.
+
 

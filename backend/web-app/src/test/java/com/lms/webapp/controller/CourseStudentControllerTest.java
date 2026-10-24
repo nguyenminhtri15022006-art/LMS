@@ -172,12 +172,27 @@ class CourseStudentControllerTest {
                         MediaType.APPLICATION_JSON
                 ));
 
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"courseId\":\"c-101\",\"percentComplete\":40.0,\"completedLessons\":2,\"totalLessons\":5}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-102/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"courseId\":\"c-102\",\"percentComplete\":0.0,\"completedLessons\":0,\"totalLessons\":10}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
         mockMvc.perform(get("/my-courses"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("courses/student/my-courses"))
                 .andExpect(model().attributeExists("courses"))
                 .andExpect(content().string(containsString("Java Core Co Ban")))
-                .andExpect(content().string(containsString("Spring Boot Mastery")));
+                .andExpect(content().string(containsString("Spring Boot Mastery")))
+                .andExpect(content().string(containsString("<strong>40</strong>%")));
 
         mockServer.verify();
     }
@@ -281,12 +296,20 @@ class CourseStudentControllerTest {
                         MediaType.APPLICATION_JSON
                 ));
 
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"courseId\":\"c-101\",\"percentComplete\":100.0,\"completedLessons\":1,\"totalLessons\":1}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
         mockMvc.perform(post("/learn/c-101/lessons/l-201/complete")
                         .with(csrf())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"lessonType\":\"DOCUMENT\"}"))
                 .andExpect(status().isOk())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(1000));
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(1000))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.percentComplete").value(100.0));
 
         mockServer.verify();
     }
@@ -322,5 +345,172 @@ class CourseStudentControllerTest {
         assertThat(html).contains("<strong>in dam</strong>");
         assertThat(html).doesNotContain("<script>");
         assertThat(html).doesNotContain("alert('xss');");
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void enrollCourse_WhenGatewayFails_RedirectsToCourseDetailWithErrorMessage() throws Exception {
+        // Red test cho Nhóm C: Khi Gateway enroll trả lỗi 500 hoặc rớt kết nối
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/enroll"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withServerError()
+                        .body("{\"code\":9999,\"message\":\"Lỗi hệ thống ghi danh\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        // Controller PHẢI bắt lỗi, KHÔNG được redirect vào /learn/c-101, mà PHẢI redirect về /courses/c-101 kèm flash attribute errorMessage
+        mockMvc.perform(post("/courses/c-101/enroll").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/courses/c-101"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeExists("errorMessage"));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void enrollCourse_SelectsFirstLessonAccordingToTreeOrder_WhenInputNodesAreUnsortedAndMultiLevel() throws Exception {
+        // Red test cho Nhóm E: Danh sách nodes chưa sắp xếp và lồng nhiều cấp
+        // Order mong muốn trong cây:
+        // Folder n-root (order 1)
+        //   -> SubFolder n-sub (order 1)
+        //       -> Lesson l-target (order 1)
+        // Lesson l-wrong (order 2)
+        // Nhưng mảng trả về từ Gateway bị đảo thứ tự hoàn toàn: l-wrong xuất hiện trước n-root, subfolder xuất hiện sau cùng
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/enroll"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Thành công\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        String unsortedNodesJson = "{\"code\":1000,\"data\":{\"id\":\"s-101\",\"courseId\":\"c-101\",\"nodes\":[" +
+                "{\"id\":\"n-wrong\",\"type\":\"LESSON\",\"title\":\"Bài sau\",\"order\":2,\"lessonId\":\"l-wrong\",\"parentId\":null}," +
+                "{\"id\":\"n-root\",\"type\":\"FOLDER\",\"title\":\"Chương 1\",\"order\":1,\"parentId\":null}," +
+                "{\"id\":\"n-lesson-1\",\"type\":\"LESSON\",\"title\":\"Bài đầu tiên đúng\",\"order\":1,\"lessonId\":\"l-target\",\"parentId\":\"n-sub\"}," +
+                "{\"id\":\"n-sub\",\"type\":\"FOLDER\",\"title\":\"Chương 1.1\",\"order\":1,\"parentId\":\"n-root\"}" +
+                "]}}";
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/structure"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(unsortedNodesJson, MediaType.APPLICATION_JSON));
+
+        // Phải chuyển hướng chính xác đến bài học đầu tiên theo cây: l-target, KHÔNG PHẢI l-wrong
+        mockMvc.perform(post("/courses/c-101/enroll").with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl("/learn/c-101/lessons/l-target"));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void completeLesson_WithVideoLessonType_ReturnsUpdatedProgressInResponseData() throws Exception {
+        // Red test cho Nhóm D: Hoàn thành bài học VIDEO và trả về tiến độ mới
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/lessons/l-202/complete"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withSuccess("{\"code\":1000,\"message\":\"Đã đánh dấu hoàn thành\"}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Success\",\"data\":{\"courseId\":\"c-101\",\"totalLessons\":4,\"completedLessons\":3,\"percentComplete\":75.0,\"completedLessonIds\":[\"l-201\",\"l-202\",\"l-203\"]}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(post("/learn/c-101/lessons/l-202/complete")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"lessonType\":\"VIDEO\"}"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(1000))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.percentComplete").value(75.0))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.completedLessons").value(3))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.totalLessons").value(4));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void learningHub_RendersNativeVideo_WhenUrlIsDirectFile() throws Exception {
+        // Red test cho Nhóm F: Phân biệt video file trực tiếp (.mp4) -> dùng thẻ <video controls>
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"id\":\"c-101\",\"title\":\"Java Core\"}}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/structure"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"nodes\":[]}}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/lessons/l-video-direct"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"id\":\"l-video-direct\",\"lessonType\":\"VIDEO\",\"title\":\"Cài đặt JDK Video\",\"content\":{\"videoUrl\":\"https://minio.example.com/videos/lesson1.mp4\"}}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"completedLessonIds\":[]}}", MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(get("/learn/c-101/lessons/l-video-direct"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("courses/student/learning-hub"))
+                .andExpect(content().string(containsString("<video controls")))
+                .andExpect(content().string(containsString("src=\"https://minio.example.com/videos/lesson1.mp4\"")))
+                .andExpect(content().string(not(containsString("<iframe"))));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void learningHub_RendersIframe_WhenUrlIsYoutubeEmbed() throws Exception {
+        // Red test cho Nhóm F: URL là youtube embed -> render iframe
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"id\":\"c-101\",\"title\":\"Java Core\"}}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/structure"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"nodes\":[]}}", MediaType.APPLICATION_JSON));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/lessons/l-video-yt"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"id\":\"l-video-yt\",\"lessonType\":\"VIDEO\",\"title\":\"Video Youtube\",\"content\":{\"videoUrl\":\"https://www.youtube.com/embed/dQw4w9WgXcQ\"}}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/progress"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"completedLessonIds\":[]}}", MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(get("/learn/c-101/lessons/l-video-yt"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("courses/student/learning-hub"))
+                .andExpect(content().string(containsString("<iframe")))
+                .andExpect(content().string(containsString("src=\"https://www.youtube.com/embed/dQw4w9WgXcQ\"")))
+                .andExpect(content().string(containsString("allowfullscreen")));
+
+        mockServer.verify();
+    }
+
+    @Test
+    @WithMockUser(username = "bob", roles = "STUDENT")
+    void getAnnouncementsJson_WithPageParameter_CallsGatewayCorrectly() throws Exception {
+        // Red test cho Nhóm B: Phân trang thông báo
+        mockServer.expect(requestTo("http://localhost:8080/api/course/courses/c-101/announcements?page=2&size=10"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"content\":[{\"id\":10,\"title\":\"Thong bao page 2\"}],\"totalPages\":3,\"number\":2}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(get("/courses/c-101/announcements?page=2"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.data.content[0].title").value("Thong bao page 2"));
+
+        mockServer.verify();
     }
 }
