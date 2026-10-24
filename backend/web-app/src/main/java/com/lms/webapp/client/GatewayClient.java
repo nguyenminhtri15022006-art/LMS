@@ -26,4 +26,27 @@ public class GatewayClient {
                 .retrieve()
                 .body(responseType);
     }
+
+    public <T> T put(String uri, Object requestBody, Class<T> responseType) {
+        return restClient.put()
+                .uri(uri)
+                .body(requestBody)
+                .retrieve()
+                .body(responseType);
+    }
+
+    public <T> T patch(String uri, Object requestBody, Class<T> responseType) {
+        return restClient.patch()
+                .uri(uri)
+                .body(requestBody)
+                .retrieve()
+                .body(responseType);
+    }
+
+    public <T> T delete(String uri, Class<T> responseType) {
+        return restClient.delete()
+                .uri(uri)
+                .retrieve()
+                .body(responseType);
+    }
 }

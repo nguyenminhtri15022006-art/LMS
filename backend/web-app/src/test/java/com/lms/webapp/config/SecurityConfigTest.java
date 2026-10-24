@@ -60,9 +60,9 @@ class SecurityConfigTest {
         mockMvc.perform(get("/"))
                 .andExpect(status().isOk());
 
-        // Trang login được permitAll (chưa có controller Phase 2 nên MVC trả về 404, không bị redirect 302)
+        // Trang login được permitAll và trả về 200 OK từ AuthController Phase 2
         mockMvc.perform(get("/login"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         // Danh mục khóa học công khai không bị redirect login
         mockMvc.perform(get("/courses"))
