@@ -1046,90 +1046,663 @@ Nguồn tham chiếu đối chiếu chỉ đọc: `D:\LMS-main\Learning-Manageme
 
 ---
 
-## IV. Lộ Trình Phát Triển Frontend Toàn Diện (Dành Riêng Cho Đợt 3)
+## IV. Kế Hoạch Triển Khai Đợt 3: Giao Diện Spring Boot MVC + Thymeleaf + Bootstrap 5 (Kiến Trúc BFF Web-App)
 
-Tách bạch hoàn toàn phần Backend (Đợt 2) và phần Frontend (Đợt 3). Toàn bộ giao diện React 18 + Vite của Thành viên 2 sẽ được triển khai trong Đợt 3, tích hợp qua API Gateway (Port 8080) và tuân thủ các chuẩn UI/UX cao cấp (Loading Skeleton, Empty State, Error Toast, Responsive):
-
-### 1. Kiến trúc Frontend & Thư viện Cốt lõi
-- **Framework**: React 18, Vite SPA, Tailwind CSS / Vanilla CSS tokens.
-- **Quản lý trạng thái & API**: `AuthContext.jsx` lưu JWT Access Token trong memory và LocalStorage, Axios Interceptors (`services/api.client.js`) tự động gắn `Authorization: Bearer <token>` và xử lý xoay vòng Refresh Token (`POST /api/identity/auth/refresh`).
-- **Định tuyến bảo vệ**: `PrivateRoute.jsx` kiểm tra đăng nhập, `RoleRoute.jsx` kiểm tra quyền `ADMIN`, `INSTRUCTOR`, `STUDENT`.
-- **Lệnh kiểm thử & Build**: `npm run lint`, `npm run build` (Vite build production bundle không lỗi), `npm run preview`.
-
-### 2. Chi tiết 5 Phân hệ Giao diện Của Thành viên 2
-
-#### A. Phân hệ Xác thực & Quản lý Tài khoản cá nhân (`features/auth`, `features/settings`)
-- **Trang Đăng nhập / Đăng ký**:
-  - `features/auth/pages/AuthPage.jsx`: Form chuyển đổi mượt mà giữa Đăng nhập (`AuthenticationRequest`) và Đăng ký (`UserCreationRequest`).
-  - Validation: Kiểm tra định dạng email regex, mật khẩu tối thiểu 6 ký tự, trùng khớp confirm password.
-  - Xử lý trạng thái: Nút Submit có spinner loading, hiển thị lỗi validation trực tiếp dưới từng ô input.
-- **Xác thực OTP Email & Khôi phục Mật khẩu**:
-  - `features/auth/components/VerifyOtpModal.jsx`: Modal 6 ô nhập số OTP với countdown timer 60s đếm ngược, nút gửi lại mã (`POST /api/identity/auth/verify-email/send`).
-  - `features/auth/pages/ForgotPasswordPage.jsx`: Form 2 bước — Bước 1 nhập email nhận OTP; Bước 2 nhập OTP và mật khẩu mới (`POST /api/identity/auth/reset-password`).
-- **Đăng nhập Google SSO**:
-  - `features/auth/pages/SocialCallbackPage.jsx`: Tiếp nhận OAuth callback redirect từ Google, trích xuất mã code và gửi sang `POST /api/identity/auth/social-login/google`, lưu token và chuyển hướng về trang chủ.
-- **Hồ sơ Cá nhân & Cài đặt**:
-  - `features/settings/pages/SettingsPage.jsx` & `ProfilePage.jsx`:
-    * Xem và sửa thông tin cá nhân: Họ tên, số điện thoại, tiểu sử (`GET` và `PUT /api/identity/users/myinfo`).
-    * Đổi mật khẩu tài khoản (`PATCH /api/identity/users/myinfo/password`).
-    * Yêu cầu chuyển đổi vai trò sang Giảng viên (`PATCH /api/identity/users/myinfo/role`).
-    * Tải ảnh đại diện: Modal crop ảnh, gọi `POST /api/identity/storage/presigned-url` upload trực tiếp lên MinIO, cập nhật avatar URL.
-
-#### B. Phân hệ Khám phá Khóa học & Trình Học Trực tuyến (`features/courses/pages/student`)
-- **Danh mục & Tìm kiếm Khóa học**:
-  - `features/courses/pages/student/ListCoursePage.jsx`: Hiển thị lưới thẻ khóa học (Course Cards), thanh tìm kiếm từ khóa, bộ lọc đa chiều (Category, Level, Trạng thái).
-  - Trạng thái: Skeleton shimmer khi tải dữ liệu, Empty state thân thiện khi không tìm thấy khóa học.
-- **Trang Chi tiết Khóa học**:
-  - `features/courses/pages/student/DetailCoursePage.jsx`: Video/Ảnh bìa preview, thông tin giảng viên, mục tiêu học tập, yêu cầu tiên quyết, cây đề cương chương mục (Accordion).
-  - Nút hành động: "Ghi danh ngay" (`POST /api/course/courses/{id}/enroll`) -> Chuyển hướng sang giao diện học tập sau khi ghi danh thành công.
-- **Trình Học Trực Tuyến Hiện Đại (Learning Player Hub)**:
-  - `features/courses/pages/student/DetailMyCoursePage.jsx` & `CourseHubPage.jsx`:
-    * Khung phát video bài giảng hỗ trợ tua, chỉnh tốc độ.
-    * Khung hiển thị tài liệu lý thuyết Markdown có cú pháp code highlighting.
-    * Nút "Đánh dấu hoàn thành" (`POST /api/course/courses/{courseId}/lessons/{lessonId}/complete`) -> Cập nhật thanh tiến độ phần trăm khóa học real-time.
-    * Sidebar danh sách bài học có checkmark xanh cho các bài đã học xong.
-- **Lịch Học Trực Tuyến & Google Meet**:
-  - `features/courses/components/ScheduleModal.jsx`: Hiển thị danh sách các buổi học trực tuyến sắp tới, nút "Tham gia Meet" mở tab Google Meet an toàn.
-
-#### C. Phân hệ Quản trị Khóa học Dành Cho Giảng Viên (`features/courses/pages/teacher`)
-- **Trung tâm Quản trị Giảng viên**:
-  - `features/courses/pages/teacher/CourseManagementCenter.jsx`: Bảng thống kê tổng số khóa học, tổng số học viên, danh sách học viên mới ghi danh (`GET /api/course/courses/my/stats`, `recent-enrollments`).
-- **Tạo & Cập nhật Khóa học**:
-  - `features/courses/pages/teacher/CreateCoursePage.jsx` & `EditCoursePage.jsx`: Form nhập tiêu đề, mô tả, danh mục, level, kéo thả tải ảnh thumbnail đại diện (multipart).
-- **Trình Xây Dựng Cây Bài Giảng (Course Structure Builder)**:
-  - `features/courses/components/CourseStructureBuilder.jsx`:
-    * Quản lý cấu trúc cây chương mục trong MongoDB.
-    * Kéo thả sắp xếp thứ tự chương/bài (`PUT /api/course/courses/{courseId}/structure/reorder`).
-    * Thêm chương mới, thêm bài giảng mới, đổi tên node trực tiếp (inline edit), xóa node.
-- **Quản lý Học viên & Lịch học**:
-  - Mời học viên qua email (`POST /courses/{id}/invite`), xóa học viên khỏi khóa.
-  - `ScheduleManagement.jsx`: Tạo lịch học Google Meet (nhập thời gian bắt đầu, kết thúc, link Meet), sửa và xóa lịch học.
-
-#### D. Phân hệ Diễn Đàn & Blog Cộng Đồng (`features/blog/pages/student`)
-- **Danh sách Bài viết Blog**:
-  - `features/blog/pages/student/BlogHubPage.jsx`: Danh sách bài viết công khai, lọc theo danh sách Thẻ Tag, tìm kiếm bài viết, hiển thị số lượt xem, lượt vote và tác giả.
-- **Đọc Bài viết Chi tiết**:
-  - `features/blog/pages/student/BlogDetailPage.jsx`: Trình xem nội dung Markdown phong phú, gắn thẻ bài viết, thông tin tác giả.
-  - Hệ thống bình chọn Upvote/Downvote real-time (`POST /api/blog/posts/{postId}/vote`), tự động cập nhật số điểm hiển thị.
-- **Hệ thống Bình luận Đa cấp (Nested Comments)**:
-  - `features/blog/components/CommentSection.jsx`: Hiển thị cây bình luận lồng nhau theo cấp độ, nút "Trả lời" mở form con, nút sửa/xóa bình luận của chính mình, vote bình luận.
-- **Trình Soạn Thảo Bài Viết Blog**:
-  - `features/blog/pages/student/CreateBlogPostPage.jsx` & `EditBlogPostPage.jsx`: Trình soạn thảo Markdown chia đôi màn hình (Live Split Preview), tải ảnh bìa bài viết, chọn thẻ tag.
-
-#### E. Phân hệ Quản trị Viên Hệ Thống (`features/dashboard/pages/admin`, `layouts/AdminLayout`)
-- **Bố cục Quản trị Admin**:
-  - `layouts/AdminLayout/AdminLayout.jsx`: Thanh điều hướng riêng biệt, bảo vệ bằng `RoleRoute` (chỉ role `ADMIN` được truy cập).
-- **Quản lý Người dùng Toàn diện**:
-  - `features/dashboard/components/admin/Management/UserManagement.jsx`: Danh sách người dùng phân trang, tìm kiếm theo email/tên, lọc theo vai trò.
-  - Nút Khóa / Mở khóa tài khoản (`PATCH /api/identity/admin/users/{id}/active`).
-  - Modal Admin Reset mật khẩu cho người dùng (`PATCH /api/identity/admin/users/{id}/password`).
-  - `AdminManagement.jsx`: Quản trị viên cấp cao tạo tài khoản Admin mới (`POST /api/identity/admin/users/admins`).
-- **Quản lý Khóa học & Nội dung**:
-  - `features/dashboard/components/admin/Management/CourseManagement.jsx`: Xem danh sách tất cả các khóa học trong hệ thống, Khóa khóa học vi phạm kèm lý do (`/lock`), Mở khóa (`/unlock`).
-- **Quản lý Danh mục & Thẻ Tag**:
-  - `features/dashboard/components/admin/Management/WebContentMgmt.jsx`: CRUD danh mục khóa học (`/categories`) và CRUD thẻ bài viết Blog (`/tags`).
+Tài liệu này xác định kế hoạch kỹ thuật chi tiết, quy chuẩn kiến trúc và lộ trình triển khai Đợt 3 dành cho **Thành viên 2 (NVCuong3112)**, chuyển đổi và xây dựng phân hệ giao diện người dùng trên nền tảng **Spring Boot MVC + Thymeleaf + Bootstrap 5** theo mô hình **Backend-For-Frontend (BFF)**.
 
 ---
+
+### 1. Kiến Trúc Tổng Thể BFF Module `web-app`
+
+```mermaid
+flowchart TD
+    Browser[Trình duyệt Người dùng\nHTML5 / Bootstrap 5 / JSESSIONID] -- "HTTP (Port 8088)\nCookie HttpOnly + CSRF" --> WebApp[BFF Module: web-app\nSpring Boot MVC + Thymeleaf\nHttpSession Server-Side]
+    WebApp -- "RestClient (Đồng bộ)\nAuthorization: Bearer JWT" --> Gateway[API Gateway\nSpring Cloud Gateway (Port 8080)]
+    Gateway -- "Định tuyến lb://" --> Identity[identity-service (8081)]
+    Gateway -- "Định tuyến lb://" --> Course[course-service (8082)]
+    Gateway -- "Định tuyến lb://" --> Blog[blog-service (8084)]
+    WebApp -. "Upload Trực Tiếp Presigned POST" .-> MinIO[MinIO Storage S3 (9000)]
+```
+
+#### 1.1 Lựa chọn Module, Cổng Mạng (Port) & Thư Viện Cốt Lõi
+- **Định danh Module**: `backend/web-app` (được cấu hình là một child module trong [backend/pom.xml](file:///d:/LMS-main/backend/pom.xml)).
+- **Cổng Mạng (Port)**: `8088` (tránh xung đột với Gateway `8080`, các microservices `8081`–`8085`, Eureka `8761` và React `5173`).
+- **Thư viện chính (Dependencies)**:
+  1. `org.springframework.boot:spring-boot-starter-web`: Xử lý luồng Spring MVC Controller, form binding và blocking servlet container (Apache Tomcat).
+  2. `org.springframework.boot:spring-boot-starter-thymeleaf`: Template engine biên dịch giao diện HTML phía máy chủ.
+  3. `org.thymeleaf.extras:thymeleaf-extras-springsecurity6`: Taglib bảo mật Thymeleaf (`sec:authorize`, `sec:authentication`) để ẩn/hiện thành phần UI theo vai trò và trạng thái đăng nhập.
+  4. `org.springframework.boot:spring-boot-starter-security`: Quản lý phiên làm việc máy chủ (`HttpSession`), bộ lọc bảo mật BFF, cơ chế chống tấn công CSRF.
+  5. `org.springframework.boot:spring-boot-starter-validation`: Jakarta Bean Validation kiểm tra tính hợp lệ của Form DTO đầu vào trước khi gửi request tới API Gateway.
+  6. `org.webjars:bootstrap:5.3.3` & `org.webjars:bootstrap-icons:1.11.3`: Thư viện giao diện Bootstrap 5 và biểu tượng đồng bộ, kết hợp CSS tùy chỉnh.
+  7. `org.commonmark:commonmark:0.22.0`: Trình chuyển đổi nội dung bài viết Markdown sang HTML an toàn phía máy chủ cho phân hệ Blog và bài học.
+
+#### 1.2 Cơ Chế Gọi API Đồng Bộ Phía Máy Chủ (`RestClient`)
+- **Lựa chọn kỹ thuật**: Sử dụng **`RestClient`** (được giới thiệu từ Spring Boot 3.2 / Spring 6).
+- **Lý do lựa chọn**:
+  - `RestClient` là HTTP Client đồng bộ hiện đại, tối ưu hóa cho mô hình MVC Servlet truyền thống, thay thế cho `RestTemplate` (vốn đã ở chế độ bảo trì).
+  - Cung cấp cú pháp Fluent API trực quan, dễ bảo trì, dễ dàng tích hợp bộ chuyển đổi dữ liệu `HttpMessageConverter` để bọc/mở đối tượng chuẩn `ApiResponse<T>`.
+  - Không kéo theo toàn bộ ngăn xếp Reactive phức tạp (Netty, WebFlux) như `WebClient` khi chạy trên container Tomcat blocking.
+  - Cho phép gắn `ClientHttpRequestInterceptor` tập trung: tự động trích xuất JWT Access Token từ `HttpSession` gắn vào header `Authorization: Bearer <token>`, tự động gọi làm mới token khi nhận mã HTTP 401, và forward các thông tin nhận diện người dùng.
+- **Ràng buộc định tuyến bắt buộc**:
+  - Mọi yêu cầu dữ liệu từ `web-app` **BẮT BUỘC ĐI QUA API GATEWAY** (`http://api-gateway:8080/api` hoặc `http://localhost:8080/api`).
+  - **TUYỆT ĐỐI KHÔNG** gọi trực tiếp các cổng nội bộ của microservice (`8081`, `8082`, `8084`) nhằm bảo đảm tuân thủ quy tắc kiểm soát truy cập, Rate Limiting, Circuit Breaker và Logging tập trung của hệ thống.
+
+---
+
+### 2. Chiến Lược Chuyển Đổi Song Song & Điều Kiện Chấp Nhận Ngừng Frontend React
+
+#### 2.1 Cơ chế chạy song song (Dual-Frontend Strategy)
+- Trong toàn bộ quá trình phát triển Đợt 3, hệ sinh thái giao diện được duy trì chạy song song:
+  - **Cổng 5173 (`frontend/`)**: Giao diện React 18 SPA hiện có, tiếp tục chạy để phục vụ các bài kiểm thử tự động Vitest/Playwright và giữ ổn định các phân hệ của Thành viên 1.
+  - **Cổng 8088 (`backend/web-app`)**: Giao diện Spring Boot MVC + Thymeleaf mới của Thành viên 2.
+- **Cam kết an toàn mã nguồn**: **TUYỆT ĐỐI KHÔNG XÓA** thư mục `frontend/` hay bất kỳ mã nguồn React nào trong phase khởi tạo hoặc trong các phase triển khai phân hệ.
+
+#### 2.2 Điều kiện chấp nhận trước khi ngừng hoặc gỡ bỏ Frontend React
+Chỉ được xem xét ngừng hoặc gỡ bỏ `frontend/` khi thỏa mãn đồng thời cả 4 điều kiện:
+1. Toàn bộ 5 phân hệ của Thành viên 2 trên `web-app` hoàn thành 100% các tiêu chí nghiệm thu và vượt qua toàn bộ các bài kiểm thử đơn vị, kiểm thử tích hợp giao diện.
+2. Thành viên 1 (Nguyễn Minh Trí) hoàn tất việc chuyển đổi hoặc tích hợp các phân hệ phụ trách (Quiz, Code Judge, Chatbot AI) vào kiến trúc mới, hoặc thống nhất cơ chế nhúng/chuyển tiếp cổng ổn định.
+3. Chạy thành công bài kiểm thử khói (Smoke Test) và kiểm thử đầu cuối (E2E) trên toàn bộ hệ thống bằng Docker Compose với giao diện Thymeleaf.
+4. Có biên bản phê duyệt chính thức bằng văn bản giữa hai thành viên và Giảng viên / Người dùng.
+
+---
+
+### 3. Phân Định Ranh Giới Trách Nhiệm (Member 2 vs. Member 1)
+
+Căn cứ nghiêm ngặt theo [docs/TEAM_ROLES.md](file:///d:/LMS-main/docs/TEAM_ROLES.md):
+
+#### 3.1 Khối lượng công việc thuộc trách nhiệm Thành viên 2 (Bao phủ 100%)
+1. **Phân hệ Xác thực & Quản lý Tài khoản Cá nhân**:
+   - Màn hình Đăng nhập, Đăng ký, Đăng xuất.
+   - Luồng xác thực mã OTP gửi về Email khi đăng ký và khi quên/đặt lại mật khẩu.
+   - Luồng Đăng nhập qua mạng xã hội Google OAuth 2.0 (SSO).
+   - Màn hình Hồ sơ cá nhân (My Profile), Cập nhật thông tin cá nhân.
+   - Màn hình Đổi mật khẩu cá nhân.
+   - Tải lên ảnh đại diện (Avatar) qua MinIO Presigned POST.
+   - Yêu cầu nâng quyền vai trò Giảng viên (Role Update).
+2. **Phân hệ Khóa học — Luồng Học viên (Student)**:
+   - Danh sách khóa học công khai, tìm kiếm từ khóa, bộ lọc danh mục và cấp độ (Level).
+   - Chi tiết khóa học và cấu trúc đề cương chương mục (Syllabus Accordion).
+   - Ghi danh khóa học (Enroll Course).
+   - Trang khóa học của tôi (Enrolled Courses).
+   - Giao diện phòng học trực tuyến (Course Learning Hub): hiển thị video, tài liệu lý thuyết Markdown, cây bài học, đánh dấu hoàn thành bài học và thanh tiến độ học tập.
+   - Xem lịch học trực tuyến Google Meet và xem thông báo của khóa học.
+3. **Phân hệ Khóa học — Luồng Giảng viên (Instructor)**:
+   - Trung tâm quản lý khóa học của giảng viên, thống kê tổng quan và lượt ghi danh mới.
+   - Tạo mới khóa học, cập nhật thông tin và ảnh bìa khóa học.
+   - Trình xây dựng cây bài giảng (Course Structure Builder): thêm chương, thêm bài giảng, đổi tên node, xóa node, sắp xếp lại thứ tự node (Reorder) và cập nhật nội dung bài giảng.
+   - Quản lý học viên: xem danh sách, mời học viên qua email, xóa học viên khỏi khóa.
+   - Quản lý lịch học trực tuyến Google Meet (CRUD Schedule).
+   - Quản lý thông báo khóa học (Tạo và xóa Announcement).
+4. **Phân hệ Diễn đàn & Blog Cộng Đồng**:
+   - Trang chủ Blog công khai, danh sách bài viết phân trang, lọc theo Thẻ (Tag), tìm kiếm.
+   - Xem chi tiết bài viết với trình hiển thị Markdown đầy đủ.
+   - Bình chọn Upvote / Downvote bài viết và bình luận.
+   - Hệ thống bình luận lồng nhau đa cấp (Nested Comments): gửi, sửa, xóa bình luận.
+   - Soạn thảo bài viết mới (hỗ trợ nhập Markdown và tải ảnh bìa), cập nhật và xóa bài viết.
+   - Danh sách bài viết của tôi (My Blog Posts).
+5. **Phân hệ Quản trị Viên Hệ Thống (Admin)**:
+   - Trang quản lý người dùng toàn hệ thống: danh sách phân trang, tìm kiếm, lọc vai trò, xem thống kê dashboard người dùng.
+   - Khóa / Mở khóa tài khoản người dùng; Reset mật khẩu người dùng.
+   - Tạo tài khoản Admin mới và phân quyền Admin Active.
+   - Quản lý khóa học hệ thống: Khóa khóa học vi phạm (kèm lý do) và Mở khóa.
+   - Quản lý Danh mục khóa học (CRUD Category).
+   - Quản lý Thẻ bài viết Blog (CRUD Tag) và kiểm duyệt tất cả bài viết (kể cả DRAFT, HIDDEN).
+
+#### 3.2 Phân hệ KHÔNG thuộc phạm vi Thành viên 2 (Do Thành viên 1 — Nguyễn Minh Trí phụ trách)
+- Toàn bộ ngân hàng câu hỏi, tạo bài thi Quiz, lượt thi trắc nghiệm đếm ngược, chấm điểm và bảng điểm Quiz.
+- Toàn bộ bài tập lập trình (Problem), bộ testcases, trình soạn thảo code, nộp code qua Judge0 Sandbox và bảng xếp hạng Leaderboard.
+- Trợ lý ảo AI Chatbot (Chat session, streaming SSE, tự động sinh đề thi/testcase).
+- **Yêu cầu phối hợp kỹ thuật**:
+  - Trên thanh điều hướng (Navbar) và giao diện bài học của `web-app`, các mục dẫn sang Quiz, Chấm Code và Chatbot AI sẽ được thiết lập liên kết điều hướng sang cổng phục vụ của Thành viên 1 hoặc hiển thị thông báo trạng thái "Tính năng tích hợp bởi Thành viên 1".
+  - Giữ phiên làm việc đồng bộ giữa hai phân hệ thông qua cấu hình JWT Secret và Domain Cookie chung khi triển khai hệ thống.
+
+---
+
+### 4. Thiết Kế Bảo Mật Toàn Diện Cho Mô Hình BFF (Backend-For-Frontend)
+
+Mô hình BFF `web-app` đóng vai trò là lớp bảo vệ trung gian giữa trình duyệt người dùng và mạng lưới microservices:
+
+1. **Quản lý Phiên Phía Máy Chủ (Server-Side Session)**:
+   - Trình duyệt người dùng **TUYỆT ĐỐI KHÔNG** tiếp cận hoặc lưu trữ JWT Access Token / Refresh Token vào `localStorage`, `sessionStorage`, hay biến JavaScript toàn cục (loại bỏ hoàn toàn rủi ro bị đánh cắp token qua lỗ hổng XSS).
+   - Khi đăng nhập thành công, `web-app` lưu trữ `AuthenticationResponse` (chứa `accessToken`, `refreshToken`, user context) trong `HttpSession` được mã hóa phía máy chủ.
+   - Mọi yêu cầu từ trình duyệt chỉ kèm theo Session ID thông qua Cookie.
+2. **Cấu hình Cookie An Toàn (`JSESSIONID`)**:
+   - `HttpOnly = true`: Chặn hoàn toàn việc truy cập cookie từ JavaScript.
+   - `SameSite = Lax` (hoặc `Strict` cho các tuyến nhạy cảm): Ngăn chặn việc gửi cookie tự động trong các kịch bản Cross-Site Request Forgery.
+   - `Secure = true` trong môi trường Production (HTTPS). Cấu hình qua biến môi trường `SERVER_SERVLET_SESSION_COOKIE_SECURE`.
+3. **Bảo Vệ Chống CSRF (Cross-Site Request Forgery)**:
+   - Kích hoạt cơ chế CSRF Protection mặc định của Spring Security trên toàn bộ các phương thức thay đổi trạng thái (`POST`, `PUT`, `PATCH`, `DELETE`).
+   - Mọi Form HTML trong Thymeleaf bắt buộc sử dụng `th:action` để tự động chèn trường ẩn CSRF Token:
+     ```html
+     <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+     ```
+4. **Kiểm Tra Quyền & Quyền Sở Hữu Phía Máy Chủ (Server-Side Authorization)**:
+   - Bộ lọc Spring Security trên `web-app` giải mã quyền từ JWT/Session và gán `GrantedAuthority` tương ứng (`ROLE_STUDENT`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN`).
+   - Sử dụng `@PreAuthorize("hasRole('ADMIN')")` hoặc cấu hình `authorizeHttpRequests` trên controller để bảo vệ tuyệt đối các trang quản trị trước khi tiến hành render view.
+5. **Cơ Chế Làm Mới Phiên Tự Động & Xử Lý Lỗi Mạng Gateway**:
+   - `RestClient Interceptor` giám sát các phản hồi từ API Gateway:
+     * Nếu Gateway trả về mã HTTP 401: Interceptor tự động kích hoạt cuộc gọi `POST /api/identity/auth/refresh` bằng `refreshToken` lưu trong Session để nhận cặp token mới. Nếu thành công, cập nhật Session và thực hiện lại request gốc; nếu thất bại, hủy Session (`session.invalidate()`) và chuyển hướng người dùng về `/login?expired=true`.
+     * Nếu Gateway phản hồi timeout (504) hoặc Circuit Breaker mở (503): Chuyển tiếp sang trang thông báo lỗi thân thiện `error/503.html` thay vì hiển thị stacktrace thô.
+
+---
+
+### 5. Bảng Đối Chiếu Toàn Diện Kế Hoạch Với Mã Nguồn & API Contract Thực Tế
+
+> [!CAUTION]
+> **Đính chính các sai lệch kỹ thuật nghiêm trọng trong kế hoạch cũ**:
+> 1. **Quy định độ dài mật khẩu**: Mã nguồn thực tế tại [UserCreationRequest.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/dto/request/UserCreationRequest.java#L28-L32), [ResetPasswordRequest.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/dto/request/ResetPasswordRequest.java#L27-L32), và [UserUpdatePasswordRequest.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/dto/request/UserUpdatePasswordRequest.java#L19-L24) bắt buộc mật khẩu phải có **tối thiểu 8 ký tự** (`@Size(min = 8)`) và khớp regex không chứa khoảng trắng (`^\S{8,}$`). Kế hoạch cũ ghi "tối thiểu 6 ký tự" là **SAI**. Phải sửa thành **tối thiểu 8 ký tự**.
+> 2. **Endpoint xác thực OTP**: Mã nguồn thực tế tại [EmailVerificationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/EmailVerificationController.java) không có endpoint nào tên là `/verify-otp`. Endpoint đúng là **`POST /api/identity/auth/verify-email`** (xác thực đăng ký) và **`POST /api/identity/auth/reset-password`** (đặt lại mật khẩu bằng OTP).
+
+| STT | Chức năng / Màn hình giao diện | Endpoint qua Gateway | HTTP Method | Request DTO / Payload | Response Data Type | Phân quyền thực tế | Bằng chứng mã nguồn (File / Controller) | Trạng thái kiểm chứng |
+|:---:|---|---|:---:|---|---|:---:|---|:---:|
+| 1 | Trang Đăng nhập | `/api/identity/auth/login` | `POST` | `AuthenticationRequest` | `AuthenticationResponse` | Public | [AuthenticationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AuthenticationController.java#L30-L35) | `ĐÃ XÁC MINH` |
+| 2 | Trang Đăng ký tài khoản | `/api/identity/auth/register` | `POST` | `UserCreationRequest` (Mật khẩu >= 8 ký tự) | `UserCreationResponse` | Public | [AuthenticationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AuthenticationController.java#L23-L28) | `ĐÃ XÁC MINH` |
+| 3 | Gửi mã OTP xác thực email | `/api/identity/auth/verify-email/send` | `POST` | `SendEmailVerificationRequest` | `Void` | Public | [EmailVerificationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/EmailVerificationController.java#L28-L34) | `ĐÃ XÁC MINH` |
+| 4 | Xác thực mã OTP email | `/api/identity/auth/verify-email` | `POST` | `VerifyEmailRequest` (`email`, `otp` 6 số) | `Void` | Public | [EmailVerificationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/EmailVerificationController.java#L36-L42) | `ĐÃ XÁC MINH` |
+| 5 | Quên mật khẩu (Gửi OTP) | `/api/identity/auth/forgot-password` | `POST` | `ForgotPasswordRequest` (`email`) | `Void` | Public | [EmailVerificationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/EmailVerificationController.java#L44-L50) | `ĐÃ XÁC MINH` |
+| 6 | Đặt lại mật khẩu bằng OTP | `/api/identity/auth/reset-password` | `POST` | `ResetPasswordRequest` (Mật khẩu mới >= 8 ký tự) | `Void` | Public | [EmailVerificationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/EmailVerificationController.java#L52-L58) | `ĐÃ XÁC MINH` |
+| 7 | Đăng nhập Google OAuth | `/api/identity/auth/social-login/google` | `POST` | `SocialLoginRequest` (`code`, `redirectUri`) | `AuthenticationResponse` | Public | [AuthenticationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AuthenticationController.java#L37-L44) | `ĐÃ XÁC MINH` |
+| 8 | Đăng xuất người dùng | `/api/identity/auth/logout` | `POST` | `LogoutRequest` (`token`) | `Void` | Authenticated | [AuthenticationController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AuthenticationController.java#L60-L67) | `ĐÃ XÁC MINH` |
+| 9 | Xem thông tin cá nhân (Profile) | `/api/identity/users/myinfo` | `GET` | Không | `UserFullResponse` | Authenticated | [UserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/UserController.java#L24-L29) | `ĐÃ XÁC MINH` |
+| 10 | Cập nhật thông tin cá nhân | `/api/identity/users/myinfo` | `PUT` | `UserUpdateRequest` | `UserFullResponse` | Authenticated | [UserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/UserController.java#L31-L36) | `ĐÃ XÁC MINH` |
+| 11 | Đổi mật khẩu cá nhân | `/api/identity/users/myinfo/password` | `PATCH` | `UserUpdatePasswordRequest` (Mật khẩu mới >= 8 ký tự) | `UserFullResponse` | Authenticated | [UserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/UserController.java#L38-L43) | `ĐÃ XÁC MINH` |
+| 12 | Yêu cầu đổi vai trò sang Instructor | `/api/identity/users/myinfo/role` | `PATCH` | `UserRoleUpdateRequest` | `UserFullResponse` | Authenticated | [UserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/UserController.java#L45-L50) | `ĐÃ XÁC MINH` |
+| 13 | Lấy URL ký trước tải Avatar MinIO | `/api/identity/storage/presigned-url` | `POST` | `PresignedUrlRequest` (`fileName`, `fileType`, `folder`) | `PresignedUrlResponse` | Authenticated | [StorageController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/StorageController.java#L24-L30) | `ĐÃ XÁC MINH` |
+| 14 | Xem hồ sơ công khai người khác | `/api/identity/users/{userId}/profile` | `GET` | Không | `UserPublicProfileResponse` | Public | [UserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/UserController.java#L52-L57) | `ĐÃ XÁC MINH` |
+| 15 | Khám phá khóa học & Tìm kiếm | `/api/course/courses` | `GET` | Params: `keyword`, `categoryId`, `level`, `pageable` | `Page<CourseResponse>` | Public | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L32-L42) | `ĐÃ XÁC MINH` |
+| 16 | Xem chi tiết khóa học | `/api/course/courses/{id}` | `GET` | Path variable `id` | `CourseResponse` | Public | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L44-L49) | `ĐÃ XÁC MINH` |
+| 17 | Xem đề cương bài học khóa học | `/api/course/courses/{id}/structure` | `GET` | Path variable `id` | `CourseStructureResponse` | Public | [CourseStructureController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L28-L34) | `ĐÃ XÁC MINH` |
+| 18 | Ghi danh khóa học | `/api/course/courses/{id}/enroll` | `POST` | Path variable `id` | `EnrollmentResponse` | Authenticated | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L96-L102) | `ĐÃ XÁC MINH` |
+| 19 | Khóa học đã ghi danh của tôi | `/api/course/courses/enrolled` | `GET` | Không | `List<CourseResponse>` | Authenticated | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L88-L94) | `ĐÃ XÁC MINH` |
+| 20 | Xem nội dung bài học (Học viên) | `/api/course/courses/{courseId}/lessons/{lessonId}` | `GET` | Path variables | `LessonResponse` | Authenticated | [LessonController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/LessonController.java#L22-L30) | `ĐÃ XÁC MINH` |
+| 21 | Đánh dấu hoàn thành bài học | `/api/course/courses/{courseId}/lessons/{lessonId}/complete` | `POST` | `CompleteLessonRequest` | `Void` | Authenticated | [LessonProgressController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/LessonProgressController.java#L18-L28) | `ĐÃ XÁC MINH` |
+| 22 | Xem tiến độ học tập khóa học | `/api/course/courses/{courseId}/progress` | `GET` | Path variable `courseId` | `CourseProgressResponse` | Authenticated | [LessonProgressController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/LessonProgressController.java#L30-L37) | `ĐÃ XÁC MINH` |
+| 23 | Xem lịch học Google Meet | `/api/course/courses/{courseId}/schedules` | `GET` | Path variable `courseId` | `List<ScheduleResponse>` | Authenticated | [ScheduleController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/ScheduleController.java#L25-L32) | `ĐÃ XÁC MINH` |
+| 24 | Xem thông báo khóa học | `/api/course/courses/{courseId}/announcements` | `GET` | Path variable `courseId`, `pageable` | `Page<AnnouncementResponse>` | Authenticated | [AnnouncementController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/AnnouncementController.java#L25-L33) | `ĐÃ XÁC MINH` |
+| 25 | Quản lý khóa học của Giảng viên | `/api/course/courses/my` | `GET` | Params: `pageable` | `Page<CourseResponse>` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L79-L86) | `ĐÃ XÁC MINH` |
+| 26 | Thống kê khóa học Giảng viên | `/api/course/courses/my/stats` | `GET` | Không | `InstructorStatsResponse` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L132-L138) | `ĐÃ XÁC MINH` |
+| 27 | Tạo mới khóa học (Giảng viên) | `/api/course/courses` | `POST` | `CreateCourseRequest` (Multipart form) | `CourseResponse` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L51-L58) | `ĐÃ XÁC MINH` |
+| 28 | Cập nhật khóa học (Giảng viên) | `/api/course/courses/{id}` | `PUT` | `UpdateCourseRequest` (Multipart form) | `CourseResponse` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L60-L68) | `ĐÃ XÁC MINH` |
+| 29 | Xóa khóa học (Giảng viên) | `/api/course/courses/{id}` | `DELETE` | Path variable `id` | `String` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L70-L77) | `ĐÃ XÁC MINH` |
+| 30 | Thêm node cây bài giảng | `/api/course/courses/{id}/structure/nodes` | `POST` | `AddNodeRequest` | `CourseStructureResponse` | `ADMIN`, `INSTRUCTOR` | [CourseStructureController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L36-L44) | `ĐÃ XÁC MINH` |
+| 31 | Sắp xếp thứ tự node bài giảng | `/api/course/courses/{id}/structure/reorder` | `PUT` | `ReorderNodesRequest` | `CourseStructureResponse` | `ADMIN`, `INSTRUCTOR` | [CourseStructureController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L56-L64) | `ĐÃ XÁC MINH` |
+| 32 | Đổi tên node bài giảng | `/api/course/courses/{id}/structure/nodes/{nodeId}` | `PATCH` | `UpdateNodeTitleRequest` | `CourseStructureResponse` | `ADMIN`, `INSTRUCTOR` | [CourseStructureController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L74-L83) | `ĐÃ XÁC MINH` |
+| 33 | Xóa node bài giảng | `/api/course/courses/{id}/structure/nodes/{nodeId}` | `DELETE` | Path variables | `String` | `ADMIN`, `INSTRUCTOR` | [CourseStructureController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L85-L94) | `ĐÃ XÁC MINH` |
+| 34 | Cập nhật nội dung chi tiết bài học | `/api/course/courses/{id}/lessons/{lessonId}` | `PUT` | `UpdateLessonRequest` | `LessonResponse` | `ADMIN`, `INSTRUCTOR` | [LessonController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/LessonController.java#L32-L41) | `ĐÃ XÁC MINH` |
+| 35 | Quản lý học viên trong khóa | `/api/course/courses/{id}/students` | `GET` | Params: `pageable` | `Page<CourseStudentResponse>` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L163-L171) | `ĐÃ XÁC MINH` |
+| 36 | Mời học viên vào khóa học | `/api/course/courses/{id}/invite` | `POST` | `InviteStudentRequest` (`studentEmail`) | `InviteResultResponse` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L104-L112) | `ĐÃ XÁC MINH` |
+| 37 | Xóa học viên khỏi khóa học | `/api/course/courses/{id}/students/{userId}` | `DELETE` | Path variables | `String` | `ADMIN`, `INSTRUCTOR` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L173-L182) | `ĐÃ XÁC MINH` |
+| 38 | Quản lý lịch học Meet (Tạo) | `/api/course/courses/{id}/schedules` | `POST` | `CreateScheduleRequest` | `ScheduleResponse` | `ADMIN`, `INSTRUCTOR` | [ScheduleController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/ScheduleController.java#L34-L42) | `ĐÃ XÁC MINH` |
+| 39 | Quản lý lịch học Meet (Xóa) | `/api/course/courses/{id}/schedules/{scheduleId}` | `DELETE` | Path variables | `String` | `ADMIN`, `INSTRUCTOR` | [ScheduleController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/ScheduleController.java#L55-L64) | `ĐÃ XÁC MINH` |
+| 40 | Quản lý thông báo (Tạo) | `/api/course/courses/{id}/announcements` | `POST` | `CreateAnnouncementRequest` | `AnnouncementResponse` | `ADMIN`, `INSTRUCTOR` | [AnnouncementController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/AnnouncementController.java#L35-L43) | `ĐÃ XÁC MINH` |
+| 41 | Danh sách Blog công khai | `/api/blog/posts/public` | `GET` | Params: `tagId`, `keyword`, `pageable` | `Page<PostSummaryResponse>` | Public | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L29-L38) | `ĐÃ XÁC MINH` |
+| 42 | Xem chi tiết bài viết Blog | `/api/blog/posts/public/{slug}` | `GET` | Path variable `slug` | `PostResponse` | Public | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L40-L45) | `ĐÃ XÁC MINH` |
+| 43 | Danh sách Thẻ Tag Blog | `/api/blog/tags` | `GET` | Không | `List<TagResponse>` | Public | [TagController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/TagController.java#L26-L31) | `ĐÃ XÁC MINH` |
+| 44 | Xem bình luận bài viết | `/api/blog/posts/{postId}/comments` | `GET` | Path variable `postId`, `pageable` | `Page<CommentResponse>` | Public | [CommentController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/CommentController.java#L26-L33) | `ĐÃ XÁC MINH` |
+| 45 | Gửi bình luận mới | `/api/blog/posts/{postId}/comments` | `POST` | `CreateCommentRequest` | `CommentResponse` | Authenticated | [CommentController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/CommentController.java#L35-L43) | `ĐÃ XÁC MINH` |
+| 46 | Bình chọn Upvote / Downvote bài viết | `/api/blog/posts/{postId}/vote` | `POST` | `VoteRequest` (`type`: `UPVOTE` / `DOWNVOTE`) | `VoteResponse` | Authenticated | [VoteController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/VoteController.java#L24-L32) | `ĐÃ XÁC MINH` |
+| 47 | Bình chọn bình luận | `/api/blog/posts/{postId}/comments/{commentId}/vote` | `POST` | `VoteRequest` | `VoteResponse` | Authenticated | [VoteController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/VoteController.java#L34-L43) | `ĐÃ XÁC MINH` |
+| 48 | Soạn bài viết Blog mới | `/api/blog/posts` | `POST` | `CreatePostRequest` (Multipart form) | `PostResponse` | Authenticated | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L79-L86) | `ĐÃ XÁC MINH` |
+| 49 | Cập nhật bài viết Blog | `/api/blog/posts/{id}` | `PUT` | `UpdatePostRequest` (Multipart form) | `PostResponse` | Authenticated | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L88-L96) | `ĐÃ XÁC MINH` |
+| 50 | Xóa bài viết Blog | `/api/blog/posts/{id}` | `DELETE` | Path variable `id` | `String` | Authenticated | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L98-L105) | `ĐÃ XÁC MINH` |
+| 51 | Bài viết của tôi (Tác giả) | `/api/blog/posts/me` | `GET` | Params: `status`, `pageable` | `Page<PostSummaryResponse>` | Authenticated | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L69-L77) | `ĐÃ XÁC MINH` |
+| 52 | Quản lý người dùng (Admin) | `/api/identity/admin/users` | `GET` | Params: `pageable`, `role`, `keyword` | `Page<UserSummaryResponse>` | `ADMIN` | [AdminUserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L30-L38) | `ĐÃ XÁC MINH` |
+| 53 | Thống kê Dashboard người dùng (Admin) | `/api/identity/admin/users/stats` | `GET` | Không | `UserDashboardResponse` | `ADMIN` | [AdminUserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L40-L45) | `ĐÃ XÁC MINH` |
+| 54 | Khóa / Mở khóa tài khoản (Admin) | `/api/identity/admin/users/{id}/active` | `PATCH` | Path variable `id` | `UserFullResponse` | `ADMIN` | [AdminUserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L54-L59) | `ĐÃ XÁC MINH` |
+| 55 | Cấp tài khoản Admin mới | `/api/identity/admin/users/admins` | `POST` | `AdminCreateAdminRequest` | `UserFullResponse` | `ADMIN` | [AdminUserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L61-L66) | `ĐÃ XÁC MINH` |
+| 56 | Reset mật khẩu người dùng (Admin) | `/api/identity/admin/users/{id}/password` | `PATCH` | `AdminResetPasswordRequest` | `UserFullResponse` | `ADMIN` | [AdminUserController.java](file:///d:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/controller/AdminUserController.java#L76-L82) | `ĐÃ XÁC MINH` |
+| 57 | Khóa khóa học hệ thống (Admin) | `/api/course/courses/{id}/lock` | `PATCH` | `LockCourseRequest` (`reason`) | `CourseResponse` | `ADMIN` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L114-L122) | `ĐÃ XÁC MINH` |
+| 58 | Mở khóa khóa học hệ thống (Admin) | `/api/course/courses/{id}/unlock` | `PATCH` | Path variable `id` | `CourseResponse` | `ADMIN` | [CourseController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L124-L130) | `ĐÃ XÁC MINH` |
+| 59 | Quản lý Danh mục (CRUD Admin) | `/api/course/categories` | `GET`, `POST`, `PUT`, `DELETE` | `CreateCategoryRequest`, `UpdateCategoryRequest` | `CategoryResponse` | `ADMIN` | [CategoryController.java](file:///d:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CategoryController.java#L26-L63) | `ĐÃ XÁC MINH` |
+| 60 | Quản lý Thẻ Tag Blog (CRUD Admin) | `/api/blog/tags` | `POST`, `PUT`, `DELETE` | `CreateTagRequest`, `UpdateTagRequest` | `TagResponse` | `ADMIN` | [TagController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/TagController.java#L48-L76) | `ĐÃ XÁC MINH` |
+| 61 | Quản lý duyệt bài viết Blog (Admin) | `/api/blog/posts/admin` | `GET` | Params: `status`, `tagId`, `keyword`, `pageable` | `Page<PostSummaryResponse>` | `ADMIN` | [PostController.java](file:///d:/LMS-main/backend/blog-service/src/main/java/com/lms/blogservice/controller/PostController.java#L48-L58) | `ĐÃ XÁC MINH` |
+| 62 | Luồng cấu hình Google OAuth Client | `/oauth2/authorization/google` | `GET` | Spring Security OAuth2 Client | Redirect Google Consent | Public | Cấu hình BFF | `CẦN XÁC NHẬN` *(Phụ thuộc biến môi trường Client ID/Secret thật)* |
+| 63 | Cơ chế điều hướng Quiz & Code Judge của Member 1 | `/courses/{id}/quiz`, `/code-judge` | `GET` | Tích hợp liên kết chéo hoặc iframe | View / Redirect React | Authenticated | Tương tác liên module | `CẦN XÁC NHẬN` *(Họp thống nhất phương án giao diện với Trí)* |
+| 64 | Cơ chế hiển thị cửa sổ Chatbot AI của Member 1 | Widget nổi góc màn hình | `JS / Event` | WebFlux SSE Streaming | Chat Widget | Authenticated | Phân hệ Chatbot AI | `CẦN XÁC NHẬN` *(Thống nhất script widget nhúng vào Thymeleaf)* |
+
+---
+
+### 6. Kế Hoạch Triển Khai Chi Tiết Từng Phase (Phase 12 đến Phase 18)
+
+Mỗi phase được xây dựng theo đúng phương pháp **TDD (Test-Driven Development)**, tuân thủ nguyên tắc 3 nhịp: **Red 1 (Compile Fail)** -> **Red 2 (Assertion Fail)** -> **Green (Logic tối thiểu PASS)**.
+
+```mermaid
+flowchart LR
+    P12[Phase 12\nKhung Nền Tảng\nBFF & Layouts] --> P13[Phase 13\nXác Thực & Hồ Sơ\nMinIO Avatar]
+    P13 --> P14[Phase 14\nKhóa Học Học Viên\nLearning Hub]
+    P14 --> P15[Phase 15\nQuản Trị Giảng Viên\nCourse Builder]
+    P15 --> P16[Phase 16\nDiễn Đàn Blog\nMarkdown & Votes]
+    P16 --> P17[Phase 17\nQuản Trị Admin\nUser & Courses]
+    P17 --> P18[Phase 18\nTích Hợp Monorepo\nDocker & Nghiệm Thu]
+```
+
+#### Phase 12: Thiết Lập Khung Nền Tảng BFF `web-app`, Spring Security Session, `RestClient` Gateway Client & Bootstrap 5 UI Shell
+- **Mục tiêu**:
+  - Khởi tạo Maven child module `backend/web-app`, cấu hình `pom.xml`, đăng ký vào `backend/pom.xml`.
+  - Cài đặt cấu hình bảo mật `SecurityConfig`: quản lý phiên `HttpSession`, cookie `JSESSIONID` (`HttpOnly=true`, `SameSite=Lax`), CSRF protection.
+  - Cài đặt `GatewayRestClient`: sử dụng Spring `RestClient`, cấu hình base URL `http://api-gateway:8080/api`, interceptor tự động gắn Bearer Token từ `HttpSession`, cơ chế làm mới token tự động khi gặp 401 và xử lý lỗi Circuit Breaker.
+  - Xây dựng hệ thống layout Thymeleaf dùng chung: `layout/main.html`, `fragments/navbar.html`, `fragments/footer.html`, `fragments/alerts.html` (thông báo Toast/Flash message), `error/403.html`, `error/404.html`, `error/500.html`, `error/503.html`.
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/pom.xml` (thêm `<module>web-app</module>`)
+  - `backend/web-app/pom.xml`
+  - `backend/web-app/src/main/resources/application.yml`
+  - `backend/web-app/src/main/resources/application-test.yml`
+  - `backend/web-app/src/main/java/com/lms/webapp/WebAppApplication.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/config/RestClientConfig.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/client/GatewayClient.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/client/interceptor/AuthTokenInterceptor.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/HomeController.java`
+  - `backend/web-app/src/main/resources/templates/layout/main.html`
+  - `backend/web-app/src/main/resources/templates/fragments/navbar.html`
+  - `backend/web-app/src/main/resources/templates/fragments/footer.html`
+  - `backend/web-app/src/main/resources/templates/fragments/alerts.html`
+  - `backend/web-app/src/main/resources/templates/home.html`
+  - `backend/web-app/src/main/resources/templates/error/403.html`
+  - `backend/web-app/src/main/resources/templates/error/404.html`
+  - `backend/web-app/src/main/resources/templates/error/503.html`
+  - `backend/web-app/src/main/resources/static/css/custom.css`
+- **Input / Output**:
+  - *Input*: Yêu cầu truy cập HTTP từ trình duyệt (`GET /`, `GET /error/**`).
+  - *Output*: Giao diện Bootstrap 5 hoàn chỉnh với thanh Navbar thay đổi theo trạng thái đăng nhập, container hiển thị flash alert.
+- **Dependencies**: `spring-boot-starter-web`, `spring-boot-starter-thymeleaf`, `thymeleaf-extras-springsecurity6`, `spring-boot-starter-security`, `webjars/bootstrap`, `webjars/bootstrap-icons`.
+- **Kịch bản kiểm thử TDD (Dự kiến 6 tests)**:
+  1. *Test 1 (Red 1 -> Red 2 -> Green)*: `WebAppApplicationTests.contextLoads()` — Kiểm tra Spring Context khởi động không lỗi.
+  2. *Test 2 (Red 1 -> Red 2 -> Green)*: `HomeControllerTest.homePageRenders200()` — Kiểm tra `GET /` trả về HTTP 200 và view `home`.
+  3. *Test 3 (Red 1 -> Red 2 -> Green)*: `SecurityConfigTest.csrfProtectionEnabled()` — Kiểm tra request POST không có token CSRF bị từ chối HTTP 403.
+  4. *Test 4 (Red 1 -> Red 2 -> Green)*: `SecurityConfigTest.sessionCookieHasHttpOnlyAndSameSite()` — Xác nhận cookie session có gắn thuộc tính bảo mật `HttpOnly`.
+  5. *Test 5 (Red 1 -> Red 2 -> Green)*: `GatewayClientTest.bearerTokenInjectedFromSession()` — Sử dụng `MockRestServiceServer` kiểm tra header `Authorization: Bearer <token>` được gắn tự động.
+  6. *Test 6 (Red 1 -> Red 2 -> Green)*: `GatewayClientTest.autoRefreshOn401()` — Mô phỏng phản hồi 401 từ Gateway, xác nhận client kích hoạt luồng gọi `/api/identity/auth/refresh` lấy token mới.
+- **Tiêu chí nghiệm thu**: `mvn test -pl web-app -f backend/pom.xml` PASS 100%, render giao diện cơ sở Bootstrap 5 không lỗi cú pháp Thymeleaf.
+
+---
+
+#### Phase 13: Phân Hệ Xác Thực, Quản Lý Phiên Làm Việc, Quản Lý Hồ Sơ & Tải Ảnh Đại Diện MinIO
+- **Mục tiêu**:
+  - Xây dựng luồng Đăng nhập, Đăng ký (validate mật khẩu >= 8 ký tự), Quên mật khẩu, Đặt lại mật khẩu.
+  - Tích hợp gửi và xác thực OTP qua `POST /api/identity/auth/verify-email/send` và `POST /api/identity/auth/verify-email`.
+  - Tích hợp Đăng nhập mạng xã hội Google OAuth SSO (`POST /api/identity/auth/social-login/google`).
+  - Xây dựng giao diện Hồ sơ cá nhân: Xem/sửa thông tin cá nhân, Đổi mật khẩu (`PATCH /api/identity/users/myinfo/password`), Yêu cầu nâng quyền vai trò Giảng viên.
+  - Tích hợp tải lên ảnh đại diện Avatar trực tiếp lên MinIO qua Presigned POST URL, cập nhật avatar URL vào User Profile.
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/AuthController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/ProfileController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/AuthService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/UserService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/LoginForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/RegisterForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/VerifyOtpForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ForgotPasswordForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ResetPasswordForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ChangePasswordForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ProfileUpdateForm.java`
+  - `backend/web-app/src/main/resources/templates/auth/login.html`
+  - `backend/web-app/src/main/resources/templates/auth/register.html`
+  - `backend/web-app/src/main/resources/templates/auth/verify-email.html`
+  - `backend/web-app/src/main/resources/templates/auth/forgot-password.html`
+  - `backend/web-app/src/main/resources/templates/auth/reset-password.html`
+  - `backend/web-app/src/main/resources/templates/profile/index.html`
+  - `backend/web-app/src/main/resources/templates/profile/change-password.html`
+  - `backend/web-app/src/main/resources/static/js/avatar-upload.js`
+- **Input / Output**:
+  - *Input*: Dữ liệu form submit từ người dùng (username, password >= 8 ký tự, email, OTP 6 số, file avatar).
+  - *Output*: Phiên làm việc xác thực lưu trong máy chủ, redirect trang chủ khi login thành công, hiển thị lỗi validate inline bằng thẻ `th:errors`.
+- **API Gateway liên quan**:
+  - `POST /api/identity/auth/login`
+  - `POST /api/identity/auth/register`
+  - `POST /api/identity/auth/verify-email/send`
+  - `POST /api/identity/auth/verify-email`
+  - `POST /api/identity/auth/forgot-password`
+  - `POST /api/identity/auth/reset-password`
+  - `POST /api/identity/auth/social-login/google`
+  - `GET`, `PUT /api/identity/users/myinfo`
+  - `PATCH /api/identity/users/myinfo/password`
+  - `POST /api/identity/storage/presigned-url`
+- **Kịch bản kiểm thử TDD (Dự kiến 8 tests)**:
+  1. *Test 1*: `AuthControllerTest.loginPageRenders()` — Kiểm tra `GET /login` hiển thị form đăng nhập và CSRF token.
+  2. *Test 2*: `AuthControllerTest.loginSuccessSetsSession()` — Mock phản hồi Gateway trả về token, kiểm tra Session máy chủ được thiết lập và redirect `/`.
+  3. *Test 3*: `AuthControllerTest.registerValidationRejectsShortPassword()` — Kiểm tra mật khẩu dưới 8 ký tự bị chặn ngay tại tầng Bean Validation, không gửi request sang Gateway.
+  4. *Test 4*: `AuthControllerTest.verifyEmailOtpSuccess()` — Gửi OTP hợp lệ, kiểm tra gọi endpoint `POST /api/identity/auth/verify-email`.
+  5. *Test 5*: `AuthControllerTest.resetPasswordEnforces8Chars()` — Xác nhận đặt lại mật khẩu thành công khi OTP đúng và mật khẩu mới >= 8 ký tự.
+  6. *Test 6*: `ProfileControllerTest.profileRequiresAuthentication()` — Truy cập `GET /profile` khi chưa đăng nhập bị chặn và chuyển hướng về `/login`.
+  7. *Test 7*: `ProfileControllerTest.updatePasswordSuccess()` — Đổi mật khẩu thành công khi mật khẩu cũ đúng và mật khẩu mới hợp lệ.
+  8. *Test 8*: `ProfileControllerTest.avatarPresignedPostRequested()` — Kiểm tra yêu cầu lấy presigned URL upload avatar MinIO thành công.
+- **Tiêu chí nghiệm thu**: 8/8 tests PASS 100%, luồng đăng nhập/đăng ký/OTP/hồ sơ hoạt động trơn tru trên trình duyệt.
+
+---
+
+#### Phase 14: Phân Hệ Khám Phá Khóa Học & Trình Học Trực Tuyến Dành Cho Học Viên
+- **Mục tiêu**:
+  - Xây dựng giao diện Khám phá khóa học công khai: lưới khóa học (Course Cards), thanh tìm kiếm từ khóa, bộ lọc đa tiêu chí (Category, Level).
+  - Giao diện Chi tiết khóa học: thông tin giảng viên, mục tiêu, yêu cầu, đề cương chương mục (Accordion).
+  - Giao diện Ghi danh khóa học (`POST /api/course/courses/{id}/enroll`) và Trang "Khóa học của tôi" (`GET /api/course/courses/enrolled`).
+  - Giao diện Trình học bài trực tuyến (Course Learning Hub):
+    * Khung phát video bài giảng và khung hiển thị tài liệu lý thuyết Markdown (chuyển đổi qua CommonMark).
+    * Sidebar hiển thị cây chương mục bài học với trạng thái checkmark hoàn thành.
+    * Nút "Đánh dấu hoàn thành" (`POST /api/course/courses/{courseId}/lessons/{lessonId}/complete`) và cập nhật thanh phần trăm tiến độ khóa học real-time.
+  - Xem danh sách lịch học trực tuyến Google Meet và xem thông báo của khóa học.
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/CourseStudentController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/CourseService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/view/CourseCatalogFilter.java`
+  - `backend/web-app/src/main/resources/templates/courses/student/catalog.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/detail.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/my-courses.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/learning-hub.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/fragments/lesson-content.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/fragments/schedule-modal.html`
+  - `backend/web-app/src/main/resources/templates/courses/student/fragments/announcement-modal.html`
+  - `backend/web-app/src/main/resources/static/js/learning-hub.js`
+- **Input / Output**:
+  - *Input*: Tham số tìm kiếm `keyword`, `categoryId`, `level`, ID khóa học, ID bài học.
+  - *Output*: Danh sách khóa học phân trang, đề cương cấu trúc bài giảng, HTML bài giảng render từ Markdown, tỷ lệ phần trăm tiến độ.
+- **API Gateway liên quan**:
+  - `GET /api/course/courses`
+  - `GET /api/course/categories`
+  - `GET /api/course/courses/{id}`
+  - `GET /api/course/courses/{id}/structure`
+  - `POST /api/course/courses/{id}/enroll`
+  - `GET /api/course/courses/enrolled`
+  - `GET /api/course/courses/{courseId}/lessons/{lessonId}`
+  - `POST /api/course/courses/{courseId}/lessons/{lessonId}/complete`
+  - `GET /api/course/courses/{courseId}/progress`
+  - `GET /api/course/courses/{courseId}/schedules`
+  - `GET /api/course/courses/{courseId}/announcements`
+- **Kịch bản kiểm thử TDD (Dự kiến 8 tests)**:
+  1. *Test 1*: `CourseStudentControllerTest.catalogPageRendersCourses()` — Kiểm tra `GET /courses` hiển thị danh sách khóa học và danh mục lọc.
+  2. *Test 2*: `CourseStudentControllerTest.courseDetailShowsSyllabus()` — Kiểm tra `GET /courses/{id}` tải dữ liệu chi tiết và cấu trúc đề cương.
+  3. *Test 3*: `CourseStudentControllerTest.enrollCourseRedirectsToHub()` — Ghi danh thành công điều hướng học viên vào phòng học `learning-hub`.
+  4. *Test 4*: `CourseStudentControllerTest.enrolledCoursesRequiresLogin()` — Khóa học của tôi yêu cầu đăng nhập trước khi xem.
+  5. *Test 5*: `CourseStudentControllerTest.learningHubRendersLessonMarkdown()` — Bài giảng Markdown được parse sang HTML đúng cú pháp.
+  6. *Test 6*: `CourseStudentControllerTest.completeLessonUpdatesProgress()` — Gọi API hoàn thành bài học và trả về cập nhật tiến độ mới.
+  7. *Test 7*: `CourseStudentControllerTest.schedulesListShowsGoogleMeetLink()` — Hiển thị lịch học với đường dẫn Google Meet an toàn.
+  8. *Test 8*: `CourseStudentControllerTest.announcementsListPaged()` — Danh sách thông báo khóa học được phân trang chính xác.
+- **Tiêu chí nghiệm thu**: 8/8 tests PASS 100%, luồng học viên từ tìm khóa học đến học bài và cập nhật tiến độ hoạt động hoàn chỉnh.
+
+---
+
+#### Phase 15: Phân Hệ Quản Trị Khóa Học Dành Cho Giảng Viên & Xây Dựng Cây Bài Giảng (Course Builder)
+- **Mục tiêu**:
+  - Giao diện Trung tâm quản trị giảng viên: Danh sách khóa học của tôi, Thống kê tổng số học viên và Lượt ghi danh gần đây.
+  - Tạo mới và Sửa khóa học: Form nhập dữ liệu và tải ảnh bìa thumbnail (Multipart form).
+  - Trình xây dựng cây bài giảng (Course Structure Builder):
+    * Thêm chương mới, thêm bài giảng mới (`POST /api/course/courses/{id}/structure/nodes`).
+    * Sắp xếp lại thứ tự bài học/chương bằng kéo thả hoặc nút di chuyển (`PUT /api/course/courses/{id}/structure/reorder`).
+    * Đổi tên node trực tiếp (Inline edit) và Xóa node bài giảng.
+    * Trình soạn thảo và lưu nội dung bài học chi tiết (`PUT /api/course/courses/{id}/lessons/{lessonId}`).
+  - Quản lý học viên trong khóa: xem danh sách, mời học viên qua email (`POST .../invite`), xóa học viên.
+  - Quản lý Lịch học Schedule (CRUD) và Quản lý Thông báo Announcement (Tạo, xóa).
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/CourseInstructorController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/CourseInstructorService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/CourseCreateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/CourseUpdateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/LessonContentForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/ScheduleForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/AnnouncementForm.java`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/center.html`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/create.html`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/edit.html`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/structure-builder.html`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/students.html`
+  - `backend/web-app/src/main/resources/templates/courses/instructor/schedules.html`
+  - `backend/web-app/src/main/resources/static/js/course-builder.js`
+- **Input / Output**:
+  - *Input*: Thông tin khóa học, file thumbnail, payload cấu trúc node cây đề cương, email mời học viên, lịch học.
+  - *Output*: Khóa học được tạo/sửa, cấu trúc cây trong MongoDB được cập nhật, hiển thị bảng học viên và lịch học.
+- **API Gateway liên quan**:
+  - `GET /api/course/courses/my`
+  - `GET /api/course/courses/my/stats`
+  - `GET /api/course/courses/my/recent-enrollments`
+  - `POST`, `PUT`, `DELETE /api/course/courses/**`
+  - `POST`, `PUT`, `PATCH`, `DELETE /api/course/courses/{id}/structure/**`
+  - `PUT /api/course/courses/{id}/lessons/{lessonId}`
+  - `GET`, `POST`, `DELETE /api/course/courses/{id}/students/**`
+  - `POST`, `DELETE /api/course/courses/{id}/schedules/**`
+  - `POST`, `DELETE /api/course/courses/{id}/announcements/**`
+- **Kịch bản kiểm thử TDD (Dự kiến 8 tests)**:
+  1. *Test 1*: `CourseInstructorControllerTest.accessDeniedForStudent()` — Học viên không có quyền truy cập trang quản trị giảng viên (HTTP 403).
+  2. *Test 2*: `CourseInstructorControllerTest.instructorCenterShowsStats()` — Giảng viên truy cập trung tâm quản lý hiển thị thống kê học viên.
+  3. *Test 3*: `CourseInstructorControllerTest.createCourseMultipart()` — Tạo khóa học gửi multipart/form-data thành công qua Gateway.
+  4. *Test 4*: `CourseInstructorControllerTest.structureBuilderAddsNode()` — Thêm node chương/bài mới cập nhật cây cấu trúc.
+  5. *Test 5*: `CourseInstructorControllerTest.reorderNodesSubmitsList()` — Gửi danh sách thứ tự node mới qua endpoint reorder.
+  6. *Test 6*: `CourseInstructorControllerTest.updateLessonContentSaves()` — Lưu nội dung chi tiết bài học thành công.
+  7. *Test 7*: `CourseInstructorControllerTest.inviteStudentByEmail()` — Gửi lời mời học viên qua email thành công.
+  8. *Test 8*: `CourseInstructorControllerTest.scheduleCrudOperations()` — Tạo và xóa lịch học Google Meet hoạt động chuẩn xác.
+- **Tiêu chí nghiệm thu**: 8/8 tests PASS 100%, bảo vệ chặt chẽ vai trò `INSTRUCTOR`, đầy đủ luồng quản trị khóa học và bài giảng.
+
+---
+
+#### Phase 16: Phân Hệ Diễn Đàn & Blog Cộng Đồng (Markdown, Nested Comments & Upvote/Downvote)
+- **Mục tiêu**:
+  - Danh sách bài viết Blog công khai: phân trang, lọc theo Thẻ Tag, tìm kiếm bài viết theo từ khóa, hiển thị lượt vote/xem.
+  - Xem chi tiết bài viết Blog: render nội dung Markdown phong phú, thông tin tác giả, thẻ tag.
+  - Hệ thống bình chọn tương tác: nút Upvote / Downvote bài viết và bình luận (`POST .../vote`), cập nhật điểm vote ngay trên giao diện.
+  - Hệ thống bình luận lồng nhau đa cấp (Nested Comments): hiển thị dạng cây phân cấp, gửi bình luận mới, trả lời bình luận con, sửa/xóa bình luận của chính mình.
+  - Soạn thảo và chỉnh sửa bài viết: hỗ trợ nhập Markdown với khung xem trước (Live Preview), tải ảnh bìa bài viết, chọn danh sách tag.
+  - Quản lý bài viết của tôi (`GET /api/blog/posts/me`): xem trạng thái (PUBLISHED, DRAFT, HIDDEN), chỉnh sửa hoặc xóa bài viết.
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/BlogController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/BlogService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/PostCreateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/PostUpdateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/CommentForm.java`
+  - `backend/web-app/src/main/resources/templates/blog/index.html`
+  - `backend/web-app/src/main/resources/templates/blog/detail.html`
+  - `backend/web-app/src/main/resources/templates/blog/create.html`
+  - `backend/web-app/src/main/resources/templates/blog/edit.html`
+  - `backend/web-app/src/main/resources/templates/blog/my-posts.html`
+  - `backend/web-app/src/main/resources/templates/blog/fragments/comment-tree.html`
+  - `backend/web-app/src/main/resources/static/js/blog.js`
+- **Input / Output**:
+  - *Input*: Tham số tìm kiếm `tagId`, `keyword`, tiêu đề, nội dung markdown, ảnh bìa, vote type (`UPVOTE`/`DOWNVOTE`), comment payload.
+  - *Output*: Danh sách bài viết, HTML bài viết chi tiết, cây bình luận đa cấp, cập nhật điểm vote.
+- **API Gateway liên quan**:
+  - `GET /api/blog/posts/public`
+  - `GET /api/blog/posts/public/{slug}`
+  - `GET /api/blog/tags`
+  - `GET /api/blog/posts/{postId}/comments`
+  - `POST`, `PUT`, `DELETE /api/blog/posts/{postId}/comments/**`
+  - `POST /api/blog/posts/{postId}/vote`
+  - `POST /api/blog/posts/{postId}/comments/{commentId}/vote`
+  - `POST`, `PUT`, `DELETE /api/blog/posts/**`
+  - `GET /api/blog/posts/me`
+- **Kịch bản kiểm thử TDD (Dự kiến 8 tests)**:
+  1. *Test 1*: `BlogControllerTest.publicBlogListRenders()` — Kiểm tra `GET /blog` tải danh sách bài viết công khai và tag.
+  2. *Test 2*: `BlogControllerTest.postDetailShowsMarkdownContent()` — Kiểm tra `GET /blog/{slug}` render nội dung Markdown bài viết thành HTML.
+  3. *Test 3*: `BlogControllerTest.votePostIncrementsScore()` — Người dùng đăng nhập vote UPVOTE cập nhật điểm vote thành công.
+  4. *Test 4*: `BlogControllerTest.commentTreeRendersRecursively()` — Cây bình luận lồng nhau được render đúng cấp bậc cha-con.
+  5. *Test 5*: `BlogControllerTest.addCommentRequiresLogin()` — Chưa đăng nhập gửi bình luận bị chặn 401/redirect login.
+  6. *Test 6*: `BlogControllerTest.createPostWithThumbnail()` — Tạo bài viết kèm ảnh thumbnail gửi multipart thành công.
+  7. *Test 7*: `BlogControllerTest.editPostRestrictedToAuthor()` — Chỉ tác giả bài viết mới được mở form chỉnh sửa bài viết của mình.
+  8. *Test 8*: `BlogControllerTest.myPostsListFilterStatus()` — Danh sách bài viết của tôi lọc chính xác theo trạng thái bài viết.
+- **Tiêu chí nghiệm thu**: 8/8 tests PASS 100%, diễn đàn Blog hoạt động mượt mà, đầy đủ tính năng tương tác Markdown và bình luận lồng nhau.
+
+---
+
+#### Phase 17: Phân Hệ Quản Trị Viên Hệ Thống (Admin User, Course, Category, Tag & Content Management)
+- **Mục tiêu**:
+  - Bố cục trang Quản trị Admin riêng biệt: bảo vệ nghiêm ngặt bằng vai trò `ROLE_ADMIN`.
+  - Quản lý người dùng toàn hệ thống:
+    * Danh sách phân trang, tìm kiếm theo tên/email, lọc theo vai trò (STUDENT, INSTRUCTOR, ADMIN).
+    * Thống kê Dashboard người dùng (`GET /api/identity/admin/users/stats`).
+    * Khóa và Mở khóa tài khoản người dùng (`PATCH .../active`).
+    * Tạo tài khoản Admin mới (`POST .../admins`) và Quản lý quyền Admin Active (`PATCH .../admin-active`).
+    * Đặt lại mật khẩu cho người dùng (`PATCH .../password`).
+  - Quản lý khóa học hệ thống: xem danh sách toàn bộ khóa học, Khóa khóa học vi phạm (kèm lý do) và Mở khóa.
+  - Quản lý Danh mục khóa học: CRUD Category (`/api/course/categories`).
+  - Quản lý Thẻ Tag Blog: CRUD Tag (`/api/blog/tags`).
+  - Quản lý kiểm duyệt Blog: xem toàn bộ bài viết hệ thống kể cả trạng thái DRAFT và HIDDEN (`GET /api/blog/posts/admin`).
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/AdminController.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/service/AdminService.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/AdminCreateForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/AdminResetPasswordForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/CategoryForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/TagForm.java`
+  - `backend/web-app/src/main/java/com/lms/webapp/dto/form/LockCourseForm.java`
+  - `backend/web-app/src/main/resources/templates/admin/layout/admin-main.html`
+  - `backend/web-app/src/main/resources/templates/admin/users/index.html`
+  - `backend/web-app/src/main/resources/templates/admin/users/create-admin.html`
+  - `backend/web-app/src/main/resources/templates/admin/courses/index.html`
+  - `backend/web-app/src/main/resources/templates/admin/categories/index.html`
+  - `backend/web-app/src/main/resources/templates/admin/tags/index.html`
+  - `backend/web-app/src/main/resources/templates/admin/blog/index.html`
+  - `backend/web-app/src/main/resources/static/css/admin.css`
+- **Input / Output**:
+  - *Input*: Tham số lọc người dùng, ID người dùng, ID khóa học, lý do khóa, dữ liệu danh mục, thẻ tag.
+  - *Output*: Bảng điều khiển quản trị Admin, cập nhật trạng thái người dùng/khóa học, phản hồi flash message.
+- **API Gateway liên quan**:
+  - `GET /api/identity/admin/users/**`
+  - `PATCH /api/identity/admin/users/{id}/active`
+  - `POST /api/identity/admin/users/admins`
+  - `PATCH /api/identity/admin/users/{id}/admin-active`
+  - `PATCH /api/identity/admin/users/{id}/password`
+  - `PATCH /api/course/courses/{id}/lock`
+  - `PATCH /api/course/courses/{id}/unlock`
+  - `GET`, `POST`, `PUT`, `DELETE /api/course/categories/**`
+  - `GET`, `POST`, `PUT`, `DELETE /api/blog/tags/**`
+  - `GET /api/blog/posts/admin`
+- **Kịch bản kiểm thử TDD (Dự kiến 8 tests)**:
+  1. *Test 1*: `AdminControllerTest.adminAccessForbiddenForNonAdmin()` — Người dùng role STUDENT hoặc INSTRUCTOR bị từ chối truy cập `/admin/**` (HTTP 403).
+  2. *Test 2*: `AdminControllerTest.userListShowsStatsAndUsers()` — Admin truy cập danh sách người dùng hiển thị bảng dữ liệu và số liệu thống kê.
+  3. *Test 3*: `AdminControllerTest.toggleUserActiveStatus()` — Thao tác Khóa/Mở khóa tài khoản người dùng gửi request PATCH đúng ID.
+  4. *Test 4*: `AdminControllerTest.createAdminAccount()` — Tạo tài khoản Admin mới với validation nghiêm ngặt.
+  5. *Test 5*: `AdminControllerTest.lockCourseWithReason()` — Khóa khóa học vi phạm kèm lý do gửi `LockCourseRequest` thành công.
+  6. *Test 6*: `AdminControllerTest.categoryCrudSuccess()` — Thêm, sửa, xóa danh mục khóa học hoạt động chính xác.
+  7. *Test 7*: `AdminControllerTest.tagCrudSuccess()` — Thêm, sửa, xóa thẻ tag bài viết hoạt động chính xác.
+  8. *Test 8*: `AdminControllerTest.blogAdminListShowsDraftAndHidden()` — Trang kiểm duyệt bài viết hiển thị cả các bài viết ở trạng thái DRAFT và HIDDEN.
+- **Tiêu chí nghiệm thu**: 8/8 tests PASS 100%, bảo mật phân quyền `ROLE_ADMIN` chặt chẽ, toàn bộ các chức năng quản trị hệ thống sẵn sàng vận hành.
+
+---
+
+#### Phase 18: Kiểm Thử Tích Hợp Toàn Diện Monorepo, Cấu Hình Docker Compose Deployment & Nghiệm Thu Tổng Đợt 3
+- **Mục tiêu**:
+  - Xây dựng Dockerfile đa tầng (Multi-stage build) cho module `backend/web-app`.
+  - Cấu hình tích hợp service `lms-web-app` vào [docker-compose.yml](file:///d:/LMS-main/docker-compose.yml): định nghĩa cổng `8088:8088`, biến môi trường `GATEWAY_URL=http://api-gateway:8080/api`, cơ chế phụ thuộc `depends_on` và kiểm tra sức khỏe `healthcheck`.
+  - Thực hiện kiểm thử hồi quy toàn diện toàn bộ kho lưu trữ Monorepo (tất cả các module backend và frontend React).
+  - Viết kịch bản kiểm thử khói (Smoke Test) và tài liệu hướng dẫn vận hành cho giao diện Thymeleaf.
+  - Chuẩn bị đầy đủ các điều kiện để người dùng đánh giá nghiệm thu hoàn thành Đợt 3.
+- **Danh sách file dự kiến tạo mới / cập nhật**:
+  - `backend/web-app/Dockerfile`
+  - `docker-compose.yml` (bổ sung service `lms-web-app`)
+  - `backend/web-app/src/test/java/com/lms/webapp/integration/WebAppIntegrationTest.java`
+  - `docs/progress/member-2.md` (ghi nhận bằng chứng nghiệm thu Đợt 3)
+  - `docs/FEATURE_PARITY_MATRIX.md` (cập nhật trạng thái các tính năng đã qua kiểm thử)
+- **Kịch bản kiểm thử TDD & Hồi quy (Dự kiến 4 tests tích hợp + Toàn bộ Monorepo)**:
+  1. *Test 1*: `WebAppIntegrationTest.fullStackHealthCheck()` — Xác nhận `web-app` khởi động và endpoint `/actuator/health` phản hồi `UP`.
+  2. *Test 2*: `WebAppIntegrationTest.gatewayRouteConnectivity()` — Kiểm tra kết nối từ `web-app` qua Gateway tới các microservices.
+  3. *Test 3*: `WebAppIntegrationTest.csrfAndSessionPersistence()` — Kiểm tra chu trình gửi form và lưu session trên môi trường container.
+  4. *Test 4*: `WebAppIntegrationTest.errorPageRouting()` — Kiểm tra chuyển hướng trang lỗi 403, 404, 503 hiển thị view chuẩn.
+- **Lệnh thực thi bắt buộc**:
+  - Kiểm thử `web-app`: `mvn test -f backend/pom.xml -pl web-app`
+  - Kiểm tra giao diện React: `npm test --prefix frontend -- --run` và `npm run build --prefix frontend`
+  - Hồi quy toàn bộ Monorepo: `mvn clean test -f backend/pom.xml`
+- **Tiêu chí nghiệm thu**: Toàn bộ các module Monorepo biên dịch và test PASS 100%, Docker Compose khởi động ổn định `lms-web-app`, không phát sinh lỗi xung đột cổng hay cấu hình.
+
+---
+
+### 7. Quy Chuẩn Lệnh Maven & Kiểm Thử TDD Trong Quá Trình Thực Hiện
+
+Để đảm bảo tuân thủ nghiêm ngặt các quy định tại [AGENTS.md](file:///d:/LMS-main/AGENTS.md):
+
+1. **Lệnh kiểm tra biên dịch module `web-app`**:
+   ```bash
+   mvn clean test-compile -f backend/pom.xml -pl web-app
+   ```
+2. **Lệnh chạy kiểm thử đơn vị & tích hợp của `web-app`**:
+   ```bash
+   mvn test -f backend/pom.xml -pl web-app
+   ```
+3. **Lệnh kiểm tra hồi quy Frontend React (khi duy trì song song)**:
+   ```bash
+   npm test --prefix frontend -- --run
+   npm run build --prefix frontend
+   ```
+4. **Lệnh kiểm thử hồi quy toàn bộ Backend Monorepo**:
+   ```bash
+   mvn clean test -f backend/pom.xml
+   ```
+> [!IMPORTANT]
+> - Trong các bài test unit của `web-app`, **bắt buộc chạy trên profile `test`** với cấu hình Eureka bị tắt (`eureka.client.enabled=false`), sử dụng `MockRestServiceServer` để giả lập phản hồi của Gateway theo đúng hợp đồng DTO thực tế.
+> - **Tuyệt đối không dùng mock dữ liệu cứng trong Controller** để làm bài test vượt qua giả tạo.
+> - **Tuyệt đối không ghi sẵn số test PASS dự kiến như một kết quả đã đạt được** trong tài liệu; chỉ cập nhật số lượng test thực tế sau khi đã chạy lệnh thật và thu thập log.
+
+---
+
+### 8. Quy Chuẩn Cấu Hình Docker & Triển Khai Module `web-app`
+
+#### 8.1 Dockerfile Đa Tầng (`backend/web-app/Dockerfile`)
+```dockerfile
+# Stage 1: Build artifact
+FROM maven:3.9.9-eclipse-temurin-21-alpine AS builder
+WORKDIR /build
+COPY pom.xml .
+COPY web-app/pom.xml web-app/
+COPY web-app/src web-app/src
+RUN mvn clean package -pl web-app -am -DskipTests
+
+# Stage 2: Runtime image
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+RUN addgroup -S lmsgroup && adduser -S lmsuser -G lmsgroup
+COPY --from=builder /build/web-app/target/*.jar app.jar
+USER lmsuser
+EXPOSE 8088
+ENV SERVER_PORT=8088
+HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:8088/actuator/health || exit 1
+ENTRYPOINT ["java", "-jar", "app.jar"]
+```
+
+#### 8.2 Khai Báo Trong `docker-compose.yml`
+```yaml
+  lms-web-app:
+    build:
+      context: ./backend
+      dockerfile: web-app/Dockerfile
+    container_name: lms-web-app
+    ports:
+      - "8088:8088"
+    environment:
+      - SERVER_PORT=8088
+      - GATEWAY_URL=http://api-gateway:8080/api
+      - SPRING_PROFILES_ACTIVE=prod
+      - EUREKA_URL=http://service-registry:8761/eureka
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    networks:
+      - lms-network
+    restart: unless-stopped
+```
+
+---
+
+### 9. Nguyên Tắc Quản Lý Nhánh Git & Quy Ước Commit Đề Xuất
+
+1. **Nguyên tắc phân nhánh**:
+   - Khi được phép bắt đầu triển khai, nhánh làm việc sẽ được khởi tạo từ `develop`:
+     ```bash
+     git checkout develop
+     git pull origin develop
+     git checkout -b feature/member-2/thymeleaf-web-app
+     ```
+   - Các phase có thể được chia nhỏ thành các nhánh nhánh tính năng ngắn hạn (ví dụ: `cuong-phase12`, `cuong-phase13`) và merge tuần tự vào `feature/member-2/thymeleaf-web-app`.
+2. **Quy ước Commit (Conventional Commits tiếng Việt có dấu)**:
+   - `feat(web-app): khởi tạo module web-app bff spring boot mvc và bootstrap 5 shell`
+   - `feat(web-app-auth): triển khai giao diện đăng nhập đăng ký otp và hồ sơ cá nhân`
+   - `feat(web-app-course): triển khai khám phá khóa học ghi danh và phòng học learning hub`
+   - `feat(web-app-builder): triển khai trung tâm giảng viên và trình xây dựng bài giảng`
+   - `feat(web-app-blog): triển khai diễn đàn bài viết markdown bình luận lồng nhau và vote`
+   - `feat(web-app-admin): hoàn thiện trang quản trị người dùng khóa học danh mục và tag`
+   - `test(web-app): bổ sung kiểm thử tích hợp docker deployment và nghiệm thu đợt 3`
+3. **Quy tắc bất di bất dịch**:
+   - **TUYỆT ĐỐI KHÔNG TỰ Ý CHẠY GIT COMMIT, PUSH HOẶC MERGE** nếu chưa có lệnh rõ ràng từ người dùng.
+   - Mọi commit chỉ được thực hiện sau khi code đã được viết thật và vượt qua toàn bộ các lệnh build/test.
+
+---
+
 
 ## V. Quy Định Vận Hành Bắt Buộc Sau Mỗi Phase (Mandatory Operational Protocol)
 
@@ -1181,7 +1754,13 @@ flowchart TD
 
 ## VI. Tiến Độ Thực Hiện & Bằng Chứng Nghiệm Thu Đợt 3 (Frontend & Tích Hợp)
 
+> [!NOTE]
+> **Bối Cảnh Lịch Sử & Cơ Chế Chuyển Đổi Song Song**:
+> - **Phase 11** dưới đây là bằng chứng kiểm thử thực tế độc lập đã hoàn thành trên nền tảng React 18 SPA. Trong suốt giai đoạn chuyển đổi, mã nguồn và test suite của React vẫn được duy trì nguyên vẹn và chạy song song trên cổng `5173`.
+> - Kế hoạch triển khai giao diện chính thức Đợt 3 của Thành viên 2 theo kiến trúc **Spring Boot MVC + Thymeleaf + Bootstrap 5 (BFF web-app)** sẽ được thực hiện tuần tự từ **Phase 12 đến Phase 18** theo đặc tả tại [Mục IV](#iv-kế-hoạch-triển-khai-đợt-3-giao-diện-spring-boot-mvc--thymeleaf--bootstrap-5-kiến-trúc-bff-web-app).
+
 ### Phase 11: Nền Tảng Cốt Lõi, Quản Lý Phiên, 401 Refresh Queue & Phân Hệ Xác Thực (`features/auth`, `features/settings`)
+
 
 - **Thời điểm hoàn thành**: 14/10/2026
 - **Người thực hiện**: Thành viên 2 (`NVCuong3112`)
@@ -1244,10 +1823,18 @@ flowchart TD
   - **Kết quả**: **23/23 test files PASS, 170/170 test cases PASS 100%** (0 failures, 0 errors, thời gian chạy: 9.20s).
 - **Kiểm tra Linting**:
   - **Lệnh thực thi**: `npm run lint`
-  - **Kết quả**: **0 errors**, 17 warnings (react-refresh / useEffect dependencies không ảnh hưởng logic).
+  - **Kết quả**: **0 errors**, 15 warnings (toàn bộ 2 cảnh báo Phase 11 trong `AuthContext.jsx` và `SocialCallbackPage.jsx` đã được khắc phục triệt để; 15 cảnh báo còn lại thuộc phân hệ Assignment của Thành viên 1, Course Builder và Blog).
 - **Biên dịch & Đóng gói Production**:
   - **Lệnh thực thi**: `npm run build`
-  - **Kết quả**: `✓ built in 5.49s`, toàn bộ bundles HTML/CSS/JS tạo thành công trong thư mục `dist/`.
+  - **Kết quả**: `✓ built in 5.95s`, toàn bộ bundles HTML/CSS/JS tạo thành công trong thư mục `dist/`.
+- **Đính chính Tỷ lệ Tiến độ Dự án (Chuẩn hóa ma trận tính năng)**:
+  - **Tỷ lệ TESTED**: **43 / 76 = 56,58%** (Đã kiểm thử unit/service/component độc lập).
+  - **Tỷ lệ VERIFIED**: **6 / 76 = 7,89%** (Đã kiểm thử liên thông đạt 13 tiêu chí).
+  - **Tổng tính năng đã qua kiểm thử (TESTED + VERIFIED)**: **49 / 76 = 64,47%**.
+  - **Tính năng chưa bắt đầu (NOT_STARTED)**: **27 / 76 = 35,53%**.
+
+- **Kiểm thử E2E (Playwright)**:
+  - **Trạng thái**: **Đã viết, chưa chạy** (Kịch bản `e2e/auth-flow.spec.js` đã được viết và cài đặt browser engine Chromium; tuyệt đối **không gọi là PASS** khi chưa chạy kiểm thử thực tế với API Gateway, Mailpit và MinIO trên môi trường container thật).
 
 #### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành
 - [x] **1. Giao diện người dùng**: Hoàn chỉnh với Loading, Empty, Success, Inline Error, Modal OTP và Toast.
@@ -1257,9 +1844,104 @@ flowchart TD
 - [x] **5. Xử lý ngoại lệ**: Chuẩn hóa phản hồi qua `ApiResponse<T>`, hiển thị Toast thông báo lỗi rõ ràng.
 - [x] **6. Lưu trữ CSDL thật**: Tích hợp với bảng `users`, `refresh_tokens`, `email_verifications` (MySQL) và MinIO bucket.
 - [x] **7. Kiểm thử tự động**: 41 tests Phase 11 PASS; 170 tests toàn bộ frontend PASS 100%.
-- [x] **8. Biên dịch & Đóng gói**: `npm run build` PASS trong 5.49s, không phát sinh lỗi.
-- [ ] **9. Docker Compose Full-stack**: Hạ tầng Mailpit và seed mount đã cấu hình; kiểm thử E2E liên thông Playwright trên container sẽ được thực thi khi khởi chạy toàn bộ stack Docker.
+- [x] **8. Biên dịch & Đóng gói**: `npm run build` PASS trong 4.73s, không phát sinh lỗi.
+- [ ] **9. Docker Compose Full-stack & E2E**: **Đã viết, chưa chạy** (Kịch bản E2E Playwright `e2e/auth-flow.spec.js` đã được bổ sung đầy đủ luồng upload avatar qua MinIO Presigned POST và kiểm thử xử lý lỗi; tuyệt đối không gọi là PASS khi chưa chạy thực tế với Gateway, Mailpit và MinIO trên hạ tầng container).
 - [x] **10. API Contract**: Khớp 100% với đặc tả tại `docs/API_CONTRACT.md`.
 - [x] **11. Commit Conventional**: Cam kết tuân thủ quy tắc commit tiếng Việt trên nhánh `cuong-phase11`.
 - [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận đầy đủ kịch bản và lệnh chạy.
 - [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm giao diện và luồng xử lý tương đương 100% project mẫu.
+
+---
+
+### Phase 1: Thiết Lập Nền Tảng BFF `web-app`, Spring Security, RestClient & Layouts Cơ Sở
+*(Tương ứng Phase 12 trong lộ trình tổng thể Member 2)*
+
+- **Thời điểm hoàn thành**: 24/10/2026
+- **Người thực hiện**: Thành viên 2 (`NVCuong3112`)
+- **Nhánh làm việc**: `feature/member-2-thymeleaf-web-app`
+- **Phương pháp thực hiện**: Test-Driven Development (TDD: Red 1 -> Red 2 -> Green cho cả 6 tests), profile test cô lập (`test`) sử dụng CSDL H2 in-memory, tắt Eureka, hoàn toàn không phụ thuộc Docker container hay dịch vụ bên ngoài.
+
+#### 1. Mục tiêu & Các hạng mục đã hoàn thành
+1. **Khởi tạo module BFF `backend/web-app` trong Maven Reactor**:
+   - Khai báo `<module>web-app</module>` trong parent `backend/pom.xml`.
+   - Cấu hình `backend/web-app/pom.xml` với Spring Web, Thymeleaf, Spring Security 6, Spring Session Core, Actuator, WebJars Bootstrap 5.3.3, Bootstrap Icons 1.11.3, CommonMark 0.24.0, H2 Database và Spring Security Test.
+   - Cấu hình Maven Surefire tách biệt nhóm `@Tag("docker-smoke")` khỏi vòng test mặc định.
+2. **Cấu hình Spring Security, CSRF & Bảo mật Cookie Session**:
+   - `com.lms.webapp.config.SecurityConfig`:
+     * Kích hoạt bảo vệ CSRF hai lớp cho toàn bộ các mutation HTTP requests (POST, PUT, DELETE, PATCH).
+     * Phân quyền URL công khai: `/`, `/courses/**`, `/blog/**`, `/login`, `/register`, `/auth/**`, `/webjars/**`, `/css/**`, `/js/**`, `/images/**`, `/actuator/**`.
+     * Cấu hình `DefaultCookieSerializer` với `SameSite=Lax` và `HttpOnly=true`, đặt tên cookie `JSESSIONID` để đảm bảo duy trì phiên khi chuyển hướng Google OAuth 2.0.
+3. **Cơ chế GatewayClient, RestClient & Tự Động Refresh Token 401**:
+   - `com.lms.webapp.config.RestClientConfig`: Khởi tạo Bean `RestClient` dùng chung với `BearerTokenInterceptor` và `TokenRefreshInterceptor`.
+   - `com.lms.webapp.client.BearerTokenInterceptor`: Đọc JWT `accessToken` từ `HttpSession` (thông qua `RequestContextHolder`) và tự động gắn vào header `Authorization: Bearer <token>`.
+   - `com.lms.webapp.client.TokenRefreshInterceptor`:
+     * Bắt mã HTTP `401 Unauthorized` từ API Gateway.
+     * Chặn lặp vô hạn với cờ retry `X-LMS-Retry` (tối đa 1 lần retry duy nhất cho mỗi request).
+     * Không kích hoạt refresh đối với chính endpoint refresh `/identity/auth/refresh`.
+     * Tự động gọi Gateway `POST /api/identity/auth/refresh`, trích xuất cặp token mới và cập nhật lại vào `HttpSession`.
+     * Replay lại request ban đầu với token mới và trả về response cho client.
+     * Hủy phiên `session.invalidate()` nếu refresh thất bại.
+4. **Hệ thống Layout & Giao Diện Bootstrap 5 Cơ Sở**:
+   - `templates/layouts/main.html`: Template layout chuẩn tích hợp WebJars Bootstrap 5.3.3, Bootstrap Icons 1.11.3, custom CSS và các dynamic blocks (`title`, `contentBlock`, `scriptBlock`).
+   - `templates/fragments/navbar.html`: Thanh điều hướng responsive với trạng thái Anonymous (Đăng nhập, Đăng ký) và Authenticated (Dropdown tài khoản, Phân quyền RBAC Student/Teacher/Admin, Form đăng xuất bảo vệ CSRF).
+   - `templates/fragments/footer.html`: Chân trang chuẩn nhận diện thương hiệu EduLearn LMS.
+   - `templates/fragments/alerts.html`: Component hiển thị thông báo flash (Success, Error, Info, Warning).
+   - `templates/home.html`: Trang chủ với Hero Banner hiện đại, CTA button, Feature Cards giới thiệu nền tảng.
+   - `templates/error/403.html`, `404.html`, `503.html`: Các trang thông báo lỗi giao diện đẹp, nút điều hướng về trang chủ và đăng nhập.
+   - `static/css/main.css`: Thiết lập design tokens CSS và hiệu ứng chuyển động mượt mà.
+
+#### 2. Danh sách file tạo mới và cập nhật
+- **Cấu hình & Mã nguồn BFF**:
+  - `backend/pom.xml` (Khai báo module `web-app`)
+  - `backend/web-app/pom.xml` (Dependencies Spring Boot Web, Thymeleaf, Security, WebJars, Test)
+  - `backend/web-app/src/main/resources/application.yml` (Cấu hình port 8088, thymeleaf, gateway base-url)
+  - `backend/web-app/src/test/resources/application-test.yaml` (Profile test cô lập H2, tắt Eureka)
+  - `backend/web-app/src/main/java/com/lms/webapp/WebAppApplication.java` (Entrypoint Spring Boot)
+  - `backend/web-app/src/main/java/com/lms/webapp/config/SecurityConfig.java` (Spring Security, CSRF, CookieSerializer SameSite=Lax)
+  - `backend/web-app/src/main/java/com/lms/webapp/config/RestClientConfig.java` (Bean RestClient gắn interceptors)
+  - `backend/web-app/src/main/java/com/lms/webapp/client/GatewayClient.java` (Client gọi API Gateway)
+  - `backend/web-app/src/main/java/com/lms/webapp/client/BearerTokenInterceptor.java` (Interceptor gắn Bearer token từ session)
+  - `backend/web-app/src/main/java/com/lms/webapp/client/TokenRefreshInterceptor.java` (Interceptor bắt 401 & auto refresh token)
+  - `backend/web-app/src/main/java/com/lms/webapp/controller/HomeController.java` (Controller trang chủ GET /)
+  - `backend/web-app/src/main/resources/templates/layouts/main.html` (Layout chính)
+  - `backend/web-app/src/main/resources/templates/fragments/navbar.html` (Thanh điều hướng)
+  - `backend/web-app/src/main/resources/templates/fragments/footer.html` (Chân trang)
+  - `backend/web-app/src/main/resources/templates/fragments/alerts.html` (Flash alerts)
+  - `backend/web-app/src/main/resources/templates/home.html` (Trang chủ)
+  - `backend/web-app/src/main/resources/templates/error/403.html` (Lỗi 403)
+  - `backend/web-app/src/main/resources/templates/error/404.html` (Lỗi 404)
+  - `backend/web-app/src/main/resources/templates/error/503.html` (Lỗi 503)
+  - `backend/web-app/src/main/resources/static/css/main.css` (Stylesheet tùy chỉnh)
+- **Kiểm thử tự động TDD (Unit & Integration Tests cô lập)**:
+  - `backend/web-app/src/test/java/com/lms/webapp/WebAppApplicationTests.java` (Test 1: `contextLoads`)
+  - `backend/web-app/src/test/java/com/lms/webapp/controller/HomeControllerTest.java` (Test 2: `homePageRenders200`)
+  - `backend/web-app/src/test/java/com/lms/webapp/config/SecurityConfigTest.java` (Test 3: `csrfProtectionEnabled`, Test 4: `sessionCookieHasHttpOnlyAndSameSiteLax`)
+  - `backend/web-app/src/test/java/com/lms/webapp/client/GatewayClientTest.java` (Test 5: `bearerTokenInjectedFromSession`, Test 6: `autoRefreshOn401`)
+
+#### 3. Bằng chứng kiểm thử thực tế
+- **Lệnh thực thi toàn bộ Test Suite Phase 1**:
+  ```bash
+  mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+  ```
+- **Kết quả thực tế**: **4/4 test files PASS, 6/6 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 12.542 s):
+  * `WebAppApplicationTests.contextLoads()`: PASS (Khởi động ApplicationContext sạch trên H2 in-memory).
+  * `HomeControllerTest.homePageRenders200()`: PASS (Render view `home`, HTTP 200, hiển thị giao diện hợp lệ).
+  * `SecurityConfigTest.csrfProtectionEnabled()`: PASS (POST không có CSRF token bị chặn HTTP 403 Forbidden).
+  * `SecurityConfigTest.sessionCookieHasHttpOnlyAndSameSiteLax()`: PASS (Header `Set-Cookie` chứa `HttpOnly` và `SameSite=Lax`).
+  * `GatewayClientTest.bearerTokenInjectedFromSession()`: PASS (Tự động inject `Authorization: Bearer mock-jwt` từ HttpSession).
+  * `GatewayClientTest.autoRefreshOn401()`: PASS (Bắt 401, tự gọi refresh endpoint, cập nhật token mới vào session và replay request thành công).
+
+#### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành
+- [x] **1. Giao diện người dùng**: Layout Bootstrap 5 hoàn chỉnh với Navbar, Footer, Alerts, Hero Section và Error Pages (403, 404, 503).
+- [x] **2. API Gateway routing**: Toàn bộ luồng BFF của web-app được cấu hình gọi qua Gateway `http://api-gateway:8080/api` (hoặc mock gateway trong test).
+- [x] **3. Validation chặt chẽ**: Cấu hình Spring Validation starter trong `pom.xml`.
+- [x] **4. Phân quyền RBAC**: Cấu hình `SecurityFilterChain` phân chia rõ tuyến public và private.
+- [x] **5. Xử lý ngoại lệ**: Có các trang lỗi 403, 404, 503 hiển thị thân thiện.
+- [x] **6. Lưu trữ CSDL thật**: Module `web-app` tuân thủ nguyên tắc không kết nối trực tiếp DB; trạng thái session được quản lý qua Spring Session.
+- [x] **7. Kiểm thử tự động**: 6/6 tests TDD Phase 1 PASS 100% qua lệnh Maven test thật.
+- [x] **8. Biên dịch & Đóng gói**: `mvn test-compile` và `mvn test` BUILD SUCCESS không lỗi.
+- [ ] **9. Docker Compose Full-stack & E2E**: Chưa chạy (các bài Docker Smoke Test thuộc phạm vi Phase 7).
+- [x] **10. API Contract**: Khớp với đặc tả trong `docs/KE_HOACH_CHUYEN_DOI_GIAO_DIEN.md`.
+- [x] **11. Commit Conventional**: Tạo commit `feat(web-app): ...` theo quy tắc Conventional Commits bằng tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
+- [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết lệnh test cô lập và kết quả log.
+- [x] **13. Hành vi nghiệp vụ tương đương**: Cấu trúc layout và trang chủ tương đương với project mẫu.

@@ -133,27 +133,35 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `frontend` | Trang chủ hệ thống & Giới thiệu khóa học nổi bật | `features/home/pages/HomePage.jsx` | `CourseController.java` | `GET /courses` | Bảng `courses` | UI Smoke Test | `NOT_STARTED` |
+| `frontend` | Trang chủ hệ thống & Giới thiệu khóa học nổi bật | `templates/home.html` (`features/home/pages/HomePage.jsx`) | `HomeController.java`, `CourseController.java` | `GET /` | Bảng `courses` | `HomeControllerTest.java` | `TESTED` |
 | `frontend` | Dashboard Học viên (Tổng quan tiến độ & Điểm số) | `features/dashboard/pages/student/DashboardStudent.jsx` | `services/dashboard.api.js` | Tích hợp Identity + Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
 | `frontend` | Dashboard Giảng viên (Khóa học, Thống kê sinh viên) | `features/dashboard/pages/teacher/HomePageInstructor.jsx` | `services/instructorDashboard.api.js` | Tích hợp Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
 | `frontend` | Admin Service Health Monitor Dashboard | `features/dashboard/pages/admin/HomePageAdmin.jsx` | Actuator liveness endpoints | `GET /api/*/actuator/health/liveness` | — | UI Smoke Test | `NOT_STARTED` |
 | `frontend` | Bảo vệ định tuyến phía Client (`PrivateRoute`, `RoleRoute`)| `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | — | Kiểm tra token & role trong AuthContext | LocalStorage | `PrivateRoute.test.jsx`, `RoleRoute.test.jsx` | `TESTED` |
-| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `features/errors/pages/AppErrorPage.jsx`, `routes/FallbackRoute.jsx` | — | — | — | `appError.test.js` | `TESTED` |
+| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `templates/error/*.html`, `features/errors/pages/AppErrorPage.jsx` | — | — | — | `appError.test.js` | `TESTED` |
 
 ---
 
 ## 8. Bảng Tổng Hợp Trạng Thái Tiến Độ
 
-| Phân hệ / Module | Tổng số chức năng | NOT_STARTED | IN_PROGRESS | IMPLEMENTED | TESTED | VERIFIED | % Hoàn thành thực tế |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 100% |
-| Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
-| Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100% |
-| Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0% |
-| Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100% |
-| Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0% |
-| Frontend & Dashboard | 6 | 4 | 0 | 0 | 2 | 0 | 33.3% |
-| **TỔNG CỘNG** | **76** | **27** | **0** | **0** | **43** | **6** | **64.5%** |
+| Phân hệ / Module | Tổng số chức năng | NOT_STARTED | IN_PROGRESS | IMPLEMENTED | TESTED | VERIFIED | % TESTED | % VERIFIED | % Đã kiểm thử (TESTED + VERIFIED) |
+|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 14,29% | 85,71% | 100,00% |
+| Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
+| Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
+| Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0,00% | 0,00% | 0,00% |
+| Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100,00% | 0,00% | 100,00% |
+| Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0,00% | 0,00% | 0,00% |
+| Frontend & Dashboard | 6 | 3 | 0 | 0 | 3 | 0 | 50,00% | 0,00% | 50,00% |
+| **TỔNG CỘNG** | **76** | **26** | **0** | **0** | **44** | **6** | **57,89%** | **7,89%** | **65,79%** |
 
-*(Bảng này sẽ được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.
+> [!NOTE]
+> **Giải thích tỷ lệ tiến độ chuẩn hóa**:
+> - **Tỷ lệ TESTED**: **44 / 76 = 57,89%** (Các chức năng đã vượt qua kiểm thử tự động unit/service/component nhưng chưa qua kiểm thử liên thông trên Docker Compose thật).
+> - **Tỷ lệ VERIFIED**: **6 / 76 = 7,89%** (Các chức năng đã thỏa mãn đủ 13 tiêu chí tại AGENTS.md, bao gồm cả kiểm thử hạ tầng và đóng gói).
+> - **Tổng số tính năng đã qua kiểm thử (TESTED + VERIFIED)**: **50 / 76 = 65,79%**.
+> - **Số tính năng chưa bắt đầu (NOT_STARTED)**: **26 / 76 = 34,21%**.
+
+*(Bảng này được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.
+
 

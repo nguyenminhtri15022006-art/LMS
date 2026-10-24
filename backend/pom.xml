@@ -23,6 +23,7 @@
         <module>identity-service</module>
         <module>course-service</module>
         <module>blog-service</module>
+        <module>web-app</module>
     </modules>
 
     <properties>
