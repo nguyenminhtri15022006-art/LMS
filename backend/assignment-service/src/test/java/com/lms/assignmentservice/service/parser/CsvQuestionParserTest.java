@@ -36,4 +36,46 @@ class CsvQuestionParserTest {
         assertThat(items.get(4).hasError()).isFalse();
         assertThat(items.get(4).getQuestion().getContent()).isEqualTo("Valid");
     }
+
+    @Test
+    void parseHandlesEmptyContentAndMalformedRowsGracefully() {
+        String csv = String.join("\n",
+                "So thu tu,Noi dung cau hoi,Dap an A,Dap an B,Dap an C,Dap an D,Dap an dung",
+                "",
+                "   ",
+                "1,Incomplete row",
+                "2,Invalid answer index format,A,B,C,D,XYZ");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "malformed.csv",
+                "text/csv",
+                csv.getBytes(StandardCharsets.UTF_8));
+
+        List<ParsedQuestionItem> items = parser.parse(file);
+
+        assertThat(items).isNotEmpty();
+        assertThat(items).allSatisfy(item -> assertThat(item.hasError()).isTrue());
+    }
+
+    @Test
+    void parseHandlesMultipleCorrectAnswersForMultipleChoice() {
+        String csv = String.join("\n",
+                "So thu tu,Noi dung cau hoi,Dap an A,Dap an B,Dap an C,Dap an D,Dap an dung",
+                "1,Select prime numbers,2,3,4,6,\"A,B\"");
+        MockMultipartFile file = new MockMultipartFile(
+                "file",
+                "multiple.csv",
+                "text/csv",
+                csv.getBytes(StandardCharsets.UTF_8));
+
+        List<ParsedQuestionItem> items = parser.parse(file);
+
+        assertThat(items).hasSize(1);
+        ParsedQuestionItem item = items.get(0);
+        assertThat(item.hasError()).isFalse();
+        assertThat(item.getQuestion().getAnswers())
+                .filteredOn(ans -> ans.isCorrect())
+                .extracting(ans -> ans.getContent())
+                .containsExactlyInAnyOrder("2", "3");
+    }
 }
