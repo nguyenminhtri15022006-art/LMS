@@ -12,6 +12,8 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -22,7 +24,9 @@ import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -200,6 +204,48 @@ public class AuthController {
         } catch (Exception e) {
             model.addAttribute("otpError", "Có lỗi xảy ra khi xác thực OTP.");
             return "auth/verify-email";
+        }
+    }
+
+    @PostMapping(value = "/verify-email/resend", produces = MediaType.APPLICATION_JSON_VALUE)
+    @ResponseBody
+    public ResponseEntity<?> resendVerifyEmailOtp(@RequestBody(required = false) Map<String, String> payload,
+                                                 @RequestParam(value = "email", required = false) String emailParam) {
+        String email = (payload != null && payload.containsKey("email")) ? payload.get("email") : emailParam;
+        if (email == null || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "code", 400,
+                    "message", "Email không được để trống"
+            ));
+        }
+
+        try {
+            JsonNode response = gatewayClient.post("/identity/auth/verify-email/send", Map.of("email", email.trim()), JsonNode.class);
+            String message = (response != null && response.hasNonNull("message"))
+                    ? response.get("message").asText()
+                    : "Mã xác thực đã được gửi đến " + email.trim();
+            return ResponseEntity.ok(Map.of(
+                    "code", 1000,
+                    "message", message
+            ));
+        } catch (RestClientResponseException e) {
+            String errMsg = "Không thể gửi lại mã OTP. Vui lòng thử lại sau.";
+            try {
+                JsonNode errNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(e.getResponseBodyAsString());
+                if (errNode != null && errNode.hasNonNull("message")) {
+                    errMsg = errNode.get("message").asText();
+                }
+            } catch (Exception ignored) {
+            }
+            return ResponseEntity.status(e.getStatusCode()).body(Map.of(
+                    "code", e.getStatusCode().value(),
+                    "message", errMsg
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                    "code", 500,
+                    "message", "Có lỗi xảy ra khi gửi lại mã OTP. Vui lòng thử lại sau."
+            ));
         }
     }
 

@@ -15,8 +15,10 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -155,5 +157,57 @@ class AuthControllerTest {
         assertThat(session.getAttribute("accessToken")).isEqualTo("google-jwt-access");
         assertThat(session.getAttribute("refreshToken")).isEqualTo("google-jwt-refresh");
         mockServer.verify();
+    }
+
+    @Test
+    void resendVerifyEmailOtpSuccessCallsGatewayEndpoint() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.email").value("bob@example.com"))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"message\":\"Mã xác thực đã được gửi đến bob@example.com\"}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(post("/verify-email/resend")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"bob@example.com\"}"))
+                .andExpect(status().isOk())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(1000))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").value(containsString("bob@example.com")));
+
+        mockServer.verify();
+    }
+
+    @Test
+    void resendVerifyEmailOtpFailureWhenGatewayReturnsError() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(jsonPath("$.email").value("bob@example.com"))
+                .andRespond(withBadRequest()
+                        .body("{\"code\":1001,\"message\":\"Email không tồn tại hoặc tài khoản đã được kích hoạt\"}")
+                        .contentType(MediaType.APPLICATION_JSON));
+
+        mockMvc.perform(post("/verify-email/resend")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"bob@example.com\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(400))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").isNotEmpty());
+
+        mockServer.verify();
+    }
+
+    @Test
+    void resendVerifyEmailOtpRejectsBlankEmail() throws Exception {
+        mockMvc.perform(post("/verify-email/resend")
+                        .with(csrf())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.code").value(400))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").isNotEmpty());
     }
 }

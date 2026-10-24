@@ -2079,18 +2079,21 @@ flowchart TD
     ```bash
     mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
     ```
-  * Kết quả thực tế: **BUILD SUCCESS, 6/6 test files PASS, 23/23 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 26.978 s):
+  * Kết quả thực tế: **BUILD SUCCESS, 6/6 test files PASS, 26/26 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 22.544 s):
     - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
     - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
     - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
     - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).
-    - `AuthControllerTest`: 6 tests PASS:
+    - `AuthControllerTest`: 9 tests PASS:
       * `loginPageRendersWithCsrf`: PASS (Render HTTP 200, view `auth/login`, input `_csrf`).
       * `loginSuccessSetsSessionAndRedirects`: PASS (Gọi Gateway `/api/identity/auth/login`, lưu token, username vào session, redirect `/`).
       * `registerValidationRejectsShortPassword`: PASS (Mật khẩu < 8 ký tự bị chặn tại Bean Validation với mã lỗi `Size`).
       * `verifyEmailOtpSuccess`: PASS (Gọi Gateway `/api/identity/auth/verify-email`, redirect `/login?verified=true`).
       * `resetPasswordEnforces8Chars`: PASS (Gọi Gateway `/api/identity/auth/reset-password`, redirect `/login?reset=true`).
       * `googleOAuthFlowValidatesState`: PASS (State sai nhận 400 Bad Request; state chuẩn gọi Gateway `/api/identity/auth/social-login/google`, lưu token và redirect `/`).
+      * `resendVerifyEmailOtpSuccessCallsGatewayEndpoint`: PASS (Gọi BFF `POST /verify-email/resend`, BFF gọi Gateway `POST /identity/auth/verify-email/send` với payload `email`, trả về 200 OK và thông báo thành công).
+      * `resendVerifyEmailOtpFailureWhenGatewayReturnsError`: PASS (Khi Gateway trả về 400 hoặc lỗi, BFF chuyển tiếp mã lỗi và thông báo lỗi chính xác về client, không bỏ qua việc gọi endpoint).
+      * `resendVerifyEmailOtpRejectsBlankEmail`: PASS (Kiểm tra validation từ chối request email rỗng với mã lỗi 400 Bad Request).
     - `ProfileControllerTest`: 5 tests PASS:
       * `updateProfileCallsPutEndpointWithAccurateFields`: PASS (Kiểm tra chính xác HTTP `PUT /api/identity/users/myinfo`, bắt buộc các trường `fullname`, `phone`, `dob`, `bio`, `avatarUrl`, cấm các trường sai `fullName`, `phoneNumber`).
       * `changePasswordCallsPatchEndpointWithOldNewAndConfirmPassword`: PASS (Kiểm tra chính xác HTTP `PATCH /api/identity/users/myinfo/password`, gửi đủ `oldPassword`, `newPassword`, `confirmPassword`, cấm trường sai `currentPassword`).
@@ -2103,16 +2106,16 @@ flowchart TD
 > Bài test `avatarPresignedPostRequested` chạy trong môi trường cô lập `test` thông qua `MockRestServiceServer` để xác thực hợp đồng API Gateway cấp Presigned URL Policy. **Tuyệt đối chưa tuyên bố upload avatar đã được kiểm chứng với MinIO thật** vì việc upload nhị phân trực tiếp multipart từ trình duyệt lên container MinIO thật yêu cầu cấu hình S3 bucket, CORS và network container, sẽ được kiểm thử toàn trình tại **Phase 7 (Docker Compose & Smoke Tests)**.
 
 #### 4. Đánh giá đối chiếu 13 tiêu chí hoàn thành
-- [x] **1. Giao diện người dùng**: Giao diện hoàn chỉnh cho Login, Register, Verify Email OTP, Forgot Password, Reset Password và Profile với Bootstrap 5 responsive.
-- [x] **2. API Gateway routing**: Toàn bộ yêu cầu nghiệp vụ định tuyến chuẩn xác qua API Gateway `http://localhost:8080/api/**`.
+- [x] **1. Giao diện người dùng**: Giao diện hoàn chỉnh cho Login, Register, Verify Email OTP (có đếm ngược và gửi lại OTP), Forgot Password, Reset Password và Profile với Bootstrap 5 responsive.
+- [x] **2. API Gateway routing**: Toàn bộ yêu cầu nghiệp vụ định tuyến chuẩn xác qua API Gateway `http://localhost:8080/api/**` (bao gồm gửi lại OTP qua `/api/identity/auth/verify-email/send`).
 - [x] **3. Validation chặt chẽ**: Jakarta Bean Validation (`@NotBlank`, `@Email`, `@Size(min = 8)`, regex tên, regex SĐT) và so khớp xác nhận mật khẩu.
 - [x] **4. Phân quyền RBAC**: Phân định bảo vệ route công khai và private; chuyển đổi vai trò `STUDENT` và `INSTRUCTOR` an toàn qua chu trình kết thúc phiên làm việc.
 - [x] **5. Xử lý ngoại lệ**: Bắt ngoại lệ `RestClientResponseException`, hiển thị flash errors thân thiện.
-- [x] **6. Lưu trữ CSDL thật**: Khớp 100% hợp đồng dữ liệu backend MySQL (`users`, `refresh_tokens`) qua API Gateway.
-- [x] **7. Kiểm thử tự động**: 23/23 test cases PASS 100% qua lệnh Maven test cô lập (tăng từ 20 lên 23 test cases).
-- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS trong 26.978 s.
+- [x] **6. Lưu trữ CSDL thật**: Khớp 100% hợp đồng dữ liệu backend MySQL (`users`, `refresh_tokens`, `email_verifications`) qua API Gateway.
+- [x] **7. Kiểm thử tự động**: 26/26 test cases PASS 100% qua lệnh Maven test cô lập (tăng từ 23 lên 26 test cases).
+- [x] **8. Biên dịch & Đóng gói**: `mvn clean test` BUILD SUCCESS trong 22.544 s.
 - [ ] **9. Docker Compose Full-stack & E2E**: Chưa chạy (thuộc phạm vi Phase 7).
-- [x] **10. API Contract**: Khớp 100% đặc tả API Contract với `identity-service` (cập nhật chính xác `fullname`, `phone`, `dob`, `oldPassword`, `newPassword`, `confirmPassword`).
+- [x] **10. API Contract**: Khớp 100% đặc tả API Contract với `identity-service` (cập nhật chính xác `fullname`, `phone`, `dob`, `oldPassword`, `newPassword`, `confirmPassword`, `verify-email/send`).
 - [x] **11. Commit Conventional**: Cam kết commit chuẩn tiếng Việt có dấu trên nhánh `feature/member-2-thymeleaf-web-app`.
 - [x] **12. Hướng dẫn sử dụng & kiểm thử**: Ghi nhận chi tiết kết quả và lệnh kiểm thử.
-- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm xác thực, OTP, đổi role và cập nhật hồ sơ tương đương 100% so với project mẫu.
+- [x] **13. Hành vi nghiệp vụ tương đương**: Trải nghiệm xác thực, gửi lại OTP, đổi role và cập nhật hồ sơ tương đương 100% so với project mẫu.
