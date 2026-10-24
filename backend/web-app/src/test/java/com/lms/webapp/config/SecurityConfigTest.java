@@ -148,5 +148,50 @@ class SecurityConfigTest {
         // User với role STUDENT truy cập /instructor/** phải bị 403 Forbidden
         mockMvc.perform(get("/instructor/courses"))
                 .andExpect(status().isForbidden());
+
+        // User với role STUDENT truy cập /courses/my (quản lý khóa học của giảng viên) phải bị 403 Forbidden
+        mockMvc.perform(get("/courses/my"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "INSTRUCTOR")
+    void instructorRoutesAccessibleForInstructorRole() throws Exception {
+        // Giảng viên với role thực tế INSTRUCTOR (ROLE_INSTRUCTOR trong token) được phép truy cập /courses/my
+        mockMvc.perform(get("/courses/my"))
+                .andExpect(status().isNotFound()); // Security cho phép qua, đến MVC trả về 404 vì controller thuộc phase sau
+
+        // Giảng viên với role INSTRUCTOR được phép truy cập /instructor/courses
+        mockMvc.perform(get("/instructor/courses"))
+                .andExpect(status().isNotFound());
+
+        // Giảng viên không có quyền truy cập /admin -> 403 Forbidden
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "TEACHER")
+    void instructorRoutesAccessibleForTeacherRoleAlias() throws Exception {
+        // Hỗ trợ tương thích alias TEACHER (ROLE_TEACHER) được phép truy cập các route quản lý giảng viên
+        mockMvc.perform(get("/courses/my"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/instructor/courses"))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void adminHasAccessToAllAdminAndInstructorRoutes() throws Exception {
+        // Quản trị viên ADMIN có quyền truy cập cả trang admin lẫn các route giảng viên
+        mockMvc.perform(get("/admin"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/courses/my"))
+                .andExpect(status().isNotFound());
+
+        mockMvc.perform(get("/instructor/courses"))
+                .andExpect(status().isNotFound());
     }
 }

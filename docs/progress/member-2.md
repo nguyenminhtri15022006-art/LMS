@@ -1965,3 +1965,29 @@ flowchart TD
     - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
     - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
     - `SecurityConfigTest`: 5 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`).
+
+#### 6. Khắc Phục Phần Phân Quyền Giảng Viên & Đối Chiếu Role Thực Tế (RBAC Remediation)
+- **Đối chiếu Role thực tế & Giải quyết mâu thuẫn (`INSTRUCTOR` vs `TEACHER`)**:
+  * **Mã nguồn `identity-service`**: Enum định nghĩa vai trò là `RoleType` gồm `STUDENT, INSTRUCTOR, ADMIN` ([RoleType.java](file:///D:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/enums/RoleType.java)). Khi phát hành JWT, phương thức `generateToken()` sinh claim `scope` bằng `SecutityConstants.ROLE_PREFIX + user.getRole()`, tức giá trị thực tế trong token là `ROLE_INSTRUCTOR`, `ROLE_STUDENT`, `ROLE_ADMIN` ([AuthenticationServiceImpl.java](file:///D:/LMS-main/backend/identity-service/src/main/java/com/lms/identityservice/service/impl/AuthenticationServiceImpl.java#L468)).
+  * **Mã nguồn `api-gateway`**: Bộ lọc `AuthFilter.java` trích xuất `scope` từ JWT và gán vào các header chuyển tiếp: `X-User-Role` và `X-User-Roles` dưới dạng `ROLE_INSTRUCTOR`, `ROLE_STUDENT`, `ROLE_ADMIN` ([AuthFilter.java](file:///D:/LMS-main/backend/api-gateway/src/main/java/com/lms/apigateway/configuration/AuthFilter.java#L72-L83)).
+  * **Mã nguồn `course-service`**: Toàn bộ controllers quản lý khóa học của giảng viên đều dùng `@PreAuthorize("hasAnyRole('ADMIN', 'INSTRUCTOR')")` ([CourseController.java](file:///D:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseController.java#L52-L133), [CourseStructureController.java](file:///D:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/CourseStructureController.java#L37-L86), [ScheduleController.java](file:///D:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/controller/ScheduleController.java#L35-L56)). Riêng [LessonServiceImpl.java](file:///D:/LMS-main/backend/course-service/src/main/java/com/lms/courseservice/service/impl/LessonServiceImpl.java#L89-L90) hỗ trợ song song cả `"ROLE_INSTRUCTOR"` và `"ROLE_TEACHER"`.
+  * **Mã nguồn `frontend`**: `AuthContext.jsx` có hàm `normalizeRole` tự động chuyển đổi vai trò `TEACHER` về định dạng chuẩn hệ thống là `INSTRUCTOR` ([AuthContext.jsx](file:///D:/LMS-main/frontend/src/context/AuthContext.jsx#L23-L27)).
+  * **Tài liệu & Kế hoạch**: Bảng API Contract quy định vai trò chuẩn là `ROLE_INSTRUCTOR` ([docs/API_CONTRACT.md](file:///D:/LMS-main/docs/API_CONTRACT.md#L329)). Kế hoạch giao diện có một số vị trí gọi tên giao diện là `TEACHER` theo thói quen ngôn ngữ đời thường.
+  * **Giải pháp chuẩn xác**: Cấu hình Spring Security trong `web-app` hỗ trợ `.hasAnyRole("INSTRUCTOR", "TEACHER", "ADMIN")`. Cách cấu hình này đảm bảo khớp 100% authority thực tế từ JWT token (`ROLE_INSTRUCTOR`), đồng thời tương thích ngược với alias `ROLE_TEACHER` và cho phép quản trị viên `ROLE_ADMIN` quản lý khóa học.
+- **Bảo vệ toàn diện các Route Giảng Viên**:
+  * Các route: `/courses/my`, `/courses/my/**`, `/instructor/**` được bảo vệ chặt chẽ với quyền `.hasAnyRole("INSTRUCTOR", "TEACHER", "ADMIN")`.
+  * Người dùng có role `STUDENT` khi truy cập `/courses/my` hoặc `/instructor/**` sẽ bị từ chối với mã HTTP 403 Forbidden.
+  * Người dùng chưa đăng nhập (anonymous) khi truy cập `/courses/my` hoặc `/instructor/**` được chuyển hướng HTTP 3xx về `/login`.
+  * Giảng viên với role chuẩn `INSTRUCTOR` (hoặc alias `TEACHER`) và `ADMIN` được phép truy cập qua SecurityFilterChain.
+- **Kết quả kiểm thử TDD thực tế**:
+  * Đã bổ sung 3 test cases mới và 1 assertion trong `SecurityConfigTest.java`:
+    1. Assertion kiểm tra role `STUDENT` truy cập `/courses/my` nhận HTTP 403 Forbidden (chứng minh trạng thái Red trước khi sửa và Green sau khi sửa).
+    2. `instructorRoutesAccessibleForInstructorRole`: Kiểm tra role `INSTRUCTOR` được phép truy cập `/courses/my` và `/instructor/courses` (không 403), đồng thời bị 403 khi vào `/admin`.
+    3. `instructorRoutesAccessibleForTeacherRoleAlias`: Kiểm tra role alias `TEACHER` được phép truy cập `/courses/my` và `/instructor/courses`.
+    4. `adminHasAccessToAllAdminAndInstructorRoutes`: Kiểm tra role `ADMIN` có quyền truy cập cả `/admin`, `/courses/my` và `/instructor/courses`.
+  * Lệnh thực thi: `mvn clean test -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"`
+  * Kết quả: **4/4 test files PASS, 12/12 test cases PASS 100%** (0 failures, 0 errors, tổng thời gian chạy: 19.714 s):
+    - `WebAppApplicationTests`: 1 test PASS (`contextLoads`).
+    - `HomeControllerTest`: 1 test PASS (`homePageRenders200`).
+    - `GatewayClientTest`: 2 tests PASS (`bearerTokenInjectedFromSession`, `autoRefreshOn401`).
+    - `SecurityConfigTest`: 8 tests PASS (`csrfProtectionEnabled`, `sessionCookieHasHttpOnlyAndSameSiteLax`, `publicRoutesAccessibleWithoutLogin`, `protectedRoutesRedirectToLoginWhenAnonymous`, `roleRestrictedRoutesForbiddenForInsufficientRole`, `instructorRoutesAccessibleForInstructorRole`, `instructorRoutesAccessibleForTeacherRoleAlias`, `adminHasAccessToAllAdminAndInstructorRoutes`).

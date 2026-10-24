@@ -48,9 +48,13 @@ public class SecurityConfig {
                 ).permitAll()
                 // Phân quyền cho trang quản trị viên
                 .requestMatchers("/admin/**").hasRole("ADMIN")
-                // Phân quyền cho studio giảng viên
-                .requestMatchers("/instructor/**").hasAnyRole("TEACHER", "ADMIN")
-                // Mọi route khác (bao gồm /profile/**, /settings/**, /my-courses, /courses/my/**, /learn/** và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
+                // Phân quyền cho studio giảng viên và các route quản lý khóa học của giảng viên (hỗ trợ cả role chuẩn INSTRUCTOR và alias TEACHER)
+                .requestMatchers(
+                    "/courses/my",
+                    "/courses/my/**",
+                    "/instructor/**"
+                ).hasAnyRole("INSTRUCTOR", "TEACHER", "ADMIN")
+                // Mọi route khác (bao gồm /profile/**, /settings/**, /my-courses, /learn/**, /courses/*/enroll và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form
