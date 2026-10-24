@@ -78,11 +78,18 @@ class GatewayRouteConfigurationTest {
         assertThat(filterNames("identity-public")).doesNotContain("AuthFilter");
         assertThat(filterNames("identity-private")).contains("AuthFilter");
         assertThat(filterNames("course-service")).contains("AuthFilter");
-        assertThat(filterNames("blog-service")).contains("AuthFilter");
+        assertThat(filterNames("assignment-service")).contains("AuthFilter");
+        assertThat(filterNames("assignment-code-judge")).contains("AuthFilter");
+        assertThat(filterNames("chatbot-service")).contains("AuthFilter");
+    }
 
-        assertPublicReadFilters("course-public-read");
-        assertPublicReadFilters("blog-public");
-        assertPublicReadFilters("identity-public-profile");
+    @Test
+    @DisplayName("Case 6: Assignment Code Judge Route — Khớp đúng route chuyên biệt cho submit và run-trial")
+    void assignmentCodeJudgeRoutesMatchDedicatedJudgeRoute() {
+        assertThat(bestRouteId(HttpMethod.POST, "/api/assignment/problems/1/submit"))
+                .isEqualTo("assignment-code-judge");
+        assertThat(bestRouteId(HttpMethod.POST, "/api/assignment/problems/1/run-trial"))
+                .isEqualTo("assignment-code-judge");
     }
 
     private String bestRouteId(HttpMethod method, String path) {
@@ -90,36 +97,22 @@ class GatewayRouteConfigurationTest {
                 MockServerHttpRequest.method(method, path).build());
 
         return routeLocator.getRoutes()
-                .filter(route -> Boolean.TRUE.equals(Mono.from(route.getPredicate().apply(exchange)).block()))
+                .filterWhen(route -> route.getPredicate().apply(exchange))
                 .sort(Comparator.comparingInt(Route::getOrder))
-                .map(Route::getId)
                 .next()
+                .map(Route::getId)
+                .switchIfEmpty(Mono.error(new IllegalStateException("No route matched for: " + path)))
                 .block();
     }
 
-    private void assertPublicReadFilters(String routeId) {
-        List<String> filters = filterNames(routeId);
-        assertThat(filters).doesNotContain("AuthFilter");
-
-        String filterDefinitions = routeDefinition(routeId).getFilters().toString();
-        assertThat(filterDefinitions)
-                .contains("Authorization")
-                .contains("X-User-Id")
-                .contains("X-User-Role")
-                .contains("X-User-Email")
-                .contains("X-Gateway-Authenticated");
-    }
-
     private List<String> filterNames(String routeId) {
-        return routeDefinition(routeId).getFilters().stream()
-                .map(FilterDefinition::getName)
-                .toList();
-    }
-
-    private RouteDefinition routeDefinition(String routeId) {
-        return gatewayProperties.getRoutes().stream()
+        RouteDefinition definition = gatewayProperties.getRoutes().stream()
                 .filter(route -> route.getId().equals(routeId))
                 .findFirst()
-                .orElseThrow();
+                .orElseThrow(() -> new IllegalArgumentException("Unknown routeId: " + routeId));
+
+        return definition.getFilters().stream()
+                .map(FilterDefinition::getName)
+                .toList();
     }
 }

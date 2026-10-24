@@ -25,6 +25,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: course-health
           uri: lb://course-service
@@ -35,6 +39,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: assignment-health
           uri: lb://assignment-service
@@ -45,6 +53,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: blog-health
           uri: lb://blog-service
@@ -55,6 +67,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: chatbot-health
           uri: lb://chatbot-service
@@ -65,6 +81,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         # ===== Identity Service =====
         - id: identity-public
@@ -74,6 +94,10 @@ spring:
           filters:
             - StripPrefix=1
             - RemoveRequestHeader=Authorization
+            - RemoveRequestHeader=X-User-Id
+            - RemoveRequestHeader=X-User-Role
+            - RemoveRequestHeader=X-User-Email
+            - RemoveRequestHeader=X-Gateway-Authenticated
 
         - id: identity-public-profile
           uri: lb://identity-service
@@ -95,6 +119,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: identityServiceCircuitBreaker
+                fallbackUri: forward:/fallback/identity-service
 
         - id: identity-admin
           uri: lb://identity-service
@@ -103,6 +131,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: identityServiceCircuitBreaker
+                fallbackUri: forward:/fallback/identity-service
 
         - id: identity-storage
           uri: lb://identity-service
@@ -111,6 +143,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: identityServiceCircuitBreaker
+                fallbackUri: forward:/fallback/identity-service
 
         # ===== Storage Service =====
         - id: storage-service
@@ -120,6 +156,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: courseServiceCircuitBreaker
+                fallbackUri: forward:/fallback/course-service
 
         - id: course-private-read-shortcuts
           uri: lb://course-service
@@ -130,6 +170,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: courseServiceCircuitBreaker
+                fallbackUri: forward:/fallback/course-service
 
         - id: course-public-read
           uri: lb://course-service
@@ -152,8 +196,12 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: courseServiceCircuitBreaker
+                fallbackUri: forward:/fallback/course-service
 
-        # ===== Assignment Service AI preview =====
+        # ===== Assignment Service =====
         - id: assignment-quiz-ai-service
           uri: lb://assignment-service
           order: -20
@@ -162,6 +210,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: assignmentAiServiceCircuitBreaker
+                fallbackUri: forward:/fallback/assignment-service
 
         - id: assignment-testcase-ai-service
           uri: lb://assignment-service
@@ -171,6 +223,23 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: assignmentAiServiceCircuitBreaker
+                fallbackUri: forward:/fallback/assignment-service
+
+        - id: assignment-code-judge
+          uri: lb://assignment-service
+          order: -10
+          predicates:
+            - Path=${app.prefix-api}/assignment/problems/*/submit,${app.prefix-api}/assignment/problems/*/run-trial
+          filters:
+            - StripPrefix=1
+            - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: assignmentJudgeCircuitBreaker
+                fallbackUri: forward:/fallback/assignment-service
 
         - id: assignment-service
           uri: lb://assignment-service
@@ -180,6 +249,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: assignmentServiceCircuitBreaker
+                fallbackUri: forward:/fallback/assignment-service
 
         # ===== Blog Service =====
         - id: blog-public
@@ -202,6 +275,10 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: blogServiceCircuitBreaker
+                fallbackUri: forward:/fallback/blog-service
 
         # ===== Chatbot Service =====
         - id: chatbot-service
@@ -211,9 +288,42 @@ spring:
           filters:
             - StripPrefix=1
             - AuthFilter
+            - name: CircuitBreaker
+              args:
+                name: chatbotServiceCircuitBreaker
+                fallbackUri: forward:/fallback/chatbot-service
 
 eureka:
   client:
     enabled: false
     register-with-eureka: false
     fetch-registry: false
+
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+  timelimiter:
+    configs:
+      default:
+        timeout-duration: 10s
+    instances:
+      identityServiceCircuitBreaker:
+        timeout-duration: 10s
+      courseServiceCircuitBreaker:
+        timeout-duration: 15s
+      assignmentServiceCircuitBreaker:
+        timeout-duration: 15s
+      assignmentJudgeCircuitBreaker:
+        timeout-duration: 60s
+      assignmentAiServiceCircuitBreaker:
+        timeout-duration: 130s
+      chatbotServiceCircuitBreaker:
+        timeout-duration: 130s
+      blogServiceCircuitBreaker:
+        timeout-duration: 10s
