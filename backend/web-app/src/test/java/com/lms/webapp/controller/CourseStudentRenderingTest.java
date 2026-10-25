@@ -52,7 +52,7 @@ class CourseStudentRenderingTest {
 
     private String renderHub(String videoUrl) throws Exception {
         courseAndTree();
-        var lesson = mapper.createObjectNode().put("id", "l-deep").put("lessonType", "VIDEO");
+        var lesson = mapper.createObjectNode().put("id", "l-deep").put("lessonType", "video");
         lesson.putObject("content").put("videoUrl", videoUrl);
         respond("/lessons/l-deep", lesson.toString());
         respond("/progress", "{\"totalLessons\":4,\"completedLessons\":1,\"percentComplete\":25,\"completedLessonIds\":[\"l-late\"]}");
@@ -60,6 +60,27 @@ class CourseStudentRenderingTest {
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         server.verify();
         return html;
+    }
+
+    @Test
+    void videoLessonWithLowercaseSerializationRendersPlayerAndNotDocument() throws Exception {
+        String html = renderHub("https://cdn.example/lesson.mp4");
+        assertThat(html).contains("<video", "src=\"https://cdn.example/lesson.mp4\"")
+                .doesNotContain("Tài liệu học tập đang được hiển thị");
+    }
+
+    @Test
+    void documentLessonWithLowercaseSerializationRendersMarkdownAndNotPlayer() throws Exception {
+        courseAndTree();
+        var lesson = mapper.createObjectNode().put("id", "l-doc").put("lessonType", "document");
+        lesson.putObject("content").put("text", "## Lý thuyết cơ bản");
+        respond("/lessons/l-doc", lesson.toString());
+        respond("/progress", "{\"totalLessons\":4,\"completedLessons\":1,\"percentComplete\":25,\"completedLessonIds\":[]}");
+        String html = mvc.perform(get("/learn/c-101/lessons/l-doc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        server.verify();
+        assertThat(html).contains("markdown-body", "Lý thuyết cơ bản")
+                .doesNotContain("<video", "<iframe");
     }
 
     @Test

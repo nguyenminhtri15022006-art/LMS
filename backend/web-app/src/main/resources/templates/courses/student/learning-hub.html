@@ -38,7 +38,7 @@
         <div class="col-lg-8">
             <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white mb-4">
                 <!-- Video / Media Container -->
-                <div th:if="${lesson != null and lesson.hasNonNull('lessonType') and lesson.get('lessonType').asText() == 'VIDEO'}" class="ratio ratio-16x9 bg-black position-relative">
+                <div th:if="${lesson != null and lesson.hasNonNull('lessonType') and lesson.get('lessonType').asText().equalsIgnoreCase('VIDEO')}" class="ratio ratio-16x9 bg-black position-relative">
                     <iframe th:if="${videoSource.embed}" th:src="${videoSource.url}"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                             allowfullscreen class="w-100 h-100 border-0" title="Video bài học"></iframe>
@@ -55,7 +55,7 @@
                 </div>
 
                 <!-- Document / Markdown Reader Container -->
-                <div th:if="${lesson != null and (lesson.hasNonNull('lessonType') and lesson.get('lessonType').asText() != 'VIDEO')}" class="p-4 p-md-5 bg-white border-bottom">
+                <div th:if="${lesson != null and (lesson.hasNonNull('lessonType') and !lesson.get('lessonType').asText().equalsIgnoreCase('VIDEO'))}" class="p-4 p-md-5 bg-white border-bottom">
                     <div th:if="${safeContentHtml != null and !safeContentHtml.isEmpty()}" class="markdown-body" th:utext="${safeContentHtml}">
                         <!-- Rendered safe markdown HTML -->
                     </div>

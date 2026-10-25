@@ -327,6 +327,25 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
+                    <!-- Loading state inside modal -->
+                    <div id="lessonContentLoading" class="text-center py-4 d-none">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải nội dung bài học...</span>
+                        </div>
+                        <p class="text-muted small mt-2 mb-0">Đang tải dữ liệu bài học...</p>
+                    </div>
+
+                    <!-- Error state inside modal -->
+                    <div id="lessonContentAlert" class="alert alert-danger d-none my-2 small" role="alert">
+                        <div class="d-flex align-items-center justify-content-between">
+                            <div>
+                                <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                <span id="lessonContentAlertMsg">Không thể tải nội dung bài học.</span>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-outline-danger" id="btnRetryLoadLesson">Thử lại</button>
+                        </div>
+                    </div>
+
                     <form id="lessonContentForm">
                         <input type="hidden" id="lessonIdInput">
                         

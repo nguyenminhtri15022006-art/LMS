@@ -44,7 +44,7 @@ test('complete click sends VIDEO and CSRF, then updates actual rendered progress
     assert.equal(calls[0].url, '/learn/c-101/lessons/l-deep/complete');
     assert.equal(calls[0].options.method, 'POST');
     assert.equal(calls[0].options.headers['X-CSRF-TOKEN'], doc.querySelector('input[name="_csrf"]').value);
-    assert.deepEqual(JSON.parse(calls[0].options.body), { lessonType: 'VIDEO' });
+    assert.deepEqual(JSON.parse(calls[0].options.body), { lessonType: 'video' });
     assert.equal(el('courseProgressBar').style.width, '75%');
     assert.equal(el('progressPercentText').textContent, '75');
     assert.equal(el('completedLessonsCount').textContent, '3');

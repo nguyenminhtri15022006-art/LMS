@@ -2385,7 +2385,7 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 - Loại bỏ hoàn toàn việc ghép nối chuỗi HTML vào `innerHTML` với dữ liệu người dùng/API. Tất cả các thành phần trong `curriculum-builder.js` và `instructor-management.js` được tạo qua `document.createElement()` và gán giá trị bằng `textContent`.
 - Hàm `showAlert()` tạo DOM và gán nội dung bằng `textContent`.
 
-##### Nhóm lỗi 9: Bằng chứng kiểm thử tự động
+##### Nhóm lỗi 9: Bằng chứng kiểm thử đợt 1
 1. **Lệnh chạy Maven Verify (Java)**:
    ```bash
    mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
@@ -2412,5 +2412,84 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 - Các kiểm thử tự động đã cô lập và kiểm chứng chặt chẽ các ranh giới HTTP, serialization JSON, rendering Thymeleaf và tương tác DOM jsdom với Bootstrap thật.
 - Các dịch vụ ngoài thực tế như SMTP gửi email thật, Google OAuth và MinIO bucket thật sẽ được kiểm thử tích hợp khi khởi chạy toàn bộ hệ thống bằng Docker Compose.
 - **Không triển khai Phase 5** trong đợt bàn giao này theo đúng yêu cầu nghiêm ngặt của người dùng.
+
+##### Nhóm lỗi 10: Khắc phục dứt điểm 2 lỗi còn lại của Phase 4
+
+###### Lỗi 1: Learning Hub không hiển thị video với dữ liệu thật
+- **Khảo sát mã nguồn**:
+  - Backend `LessonType` (`backend/course-service/src/main/java/com/lms/courseservice/enums/LessonType.java`) serialize giá trị thành `"video"` và `"document"` (chữ thường) qua `@JsonValue public String getValue() { return name().toLowerCase(); }`.
+  - Template `backend/web-app/src/main/resources/templates/courses/student/learning-hub.html` trước đó so sánh cứng `lesson.get('lessonType').asText() == 'VIDEO'`, dẫn đến khi nhận dữ liệu thật từ backend thì container video player bị bỏ qua và rơi vào khối document.
+- **Red Phase**:
+  - Cập nhật fixture dữ liệu và viết regression test trong `CourseStudentRenderingTest.java`:
+    - `videoLessonWithLowercaseSerializationRendersPlayerAndNotDocument`: truyền `lessonType: "video"`, assert HTML phải chứa thẻ `<video` và thuộc tính `src="..."`, đồng thời không chứa thẻ markdown `# Chi tiết bài học`.
+  - Chạy test kiểm chứng Red: `AssertionError: expected to contain <video, src=... but could not find`.
+- **Green Phase**:
+  - Cập nhật `learning-hub.html`:
+    - Thay thế so sánh video thành: `th:if="${lesson.hasNonNull('lessonType') and lesson.get('lessonType').asText().equalsIgnoreCase('VIDEO')}"`.
+    - Thay thế so sánh document thành: `th:if="${lesson.hasNonNull('lessonType') and !lesson.get('lessonType').asText().equalsIgnoreCase('VIDEO')}"`.
+  - Bổ sung test đối ứng `documentLessonWithLowercaseSerializationRendersMarkdownAndNotPlayer` trong `CourseStudentRenderingTest.java`.
+  - Cập nhật assertion trong `backend/web-app/src/test/js/learning-hub.test.js` để kiểm tra payload hoàn thành bài học gửi `{ lessonType: 'video' }`.
+  - Kết quả: Đạt chuẩn hiển thị video player cho `"video"` / `"VIDEO"`, hiển thị Markdown và không hiển thị player cho `"document"`, giữ nguyên cơ chế kiểm tra an toàn URL và chống XSS.
+
+###### Lỗi 2: Tải nội dung bài học lỗi nhưng vẫn mở form trống và cho lưu
+- **Khảo sát mã nguồn**:
+  - Trong `backend/web-app/src/main/resources/static/js/curriculum-builder.js`, hàm `openLessonContentModal(lessonId)` trước đó bắt `.catch(() => { if (lessonModal) lessonModal.show(); })`, mở modal ngay cả khi GET 500. Nút lưu (`btnSaveLessonContent`) không bị vô hiệu hóa, khi bấm lưu sẽ gửi PUT với `content.videoUrl=""`, gây nguy cơ xóa trắng nội dung trên backend.
+- **Red Phase**:
+  - Viết 5 regression tests trong `backend/web-app/src/test/js/curriculum-builder.test.js` mô phỏng trên HTML Thymeleaf được render thật và Bootstrap modal:
+    1. `lesson content modal GET failure blocks save button, shows error and prevents PUT`: kiểm tra alert lỗi hiển thị, có nút thử lại, nút lưu bị disabled và click không gửi PUT.
+    2. `retry loading lesson content succeeds, hides error and enables save button`: kiểm tra bấm nút thử lại sẽ gọi lại GET và kích hoạt nút lưu khi thành công.
+    3. `block saving while lesson content is actively loading`: kiểm tra khi đang tải dữ liệu thì nút lưu bị disabled và hiển thị spinner.
+    4. `save lesson PUT failure preserves entered content, shows alert danger and keeps modal open`: kiểm tra khi lưu thất bại thì giữ nguyên URL/text người dùng đã nhập, giữ modal mở và báo lỗi alert.
+    5. `stale response from previous lesson does not overwrite current selected lesson`: kiểm tra race condition khi mở nhanh bài 1 rồi chuyển sang bài 2, phản hồi chậm của bài 1 không được ghi đè form bài 2.
+  - Chạy test kiểm chứng Red qua `cmd.exe /c "npm --prefix backend/web-app test"`: **FAIL 5/5 tests** đúng các assertion kỳ vọng.
+- **Green Phase**:
+  - Cập nhật giao diện modal trong `management-center.html`: bổ sung `#lessonContentLoading` (spinner) và `#lessonContentAlert` (chứa `#lessonContentAlertMsg` và `#btnRetryLoadLesson`).
+  - Sửa `curriculum-builder.js`:
+    - Quản lý trạng thái bằng 2 biến `activeLessonLoadingId` và `activeLoadedLessonId`.
+    - Khi bắt đầu mở modal: hiển thị loading spinner, ẩn alert, ẩn form, disable nút lưu (`btnSaveLessonContent.disabled = true`), gán `activeLoadedLessonId = null`.
+    - Khi GET thất bại: ẩn loading, hiện `#lessonContentAlert` với thông báo lỗi cụ thể, gán sự kiện click cho `#btnRetryLoadLesson`, giữ nguyên nút lưu bị disable.
+    - Khi GET thành công: kiểm tra `activeLessonLoadingId === lessonId` (bỏ qua nếu là stale response), ẩn loading, hiển thị form và nạp dữ liệu, gán `activeLoadedLessonId = lessonId`, kích hoạt `btnSaveLessonContent.disabled = false`.
+    - Khi bấm lưu: chặn tuyệt đối và không gửi PUT nếu nút đang disabled hoặc `activeLoadedLessonId !== lessonIdInput.value`. Khi gửi PUT, tạm thời disable nút lưu; nếu PUT thất bại thì bật lại nút lưu, giữ nguyên nội dung đã nhập, không đóng modal và hiển thị alert lỗi nguy hiểm.
+
+##### Nhóm lỗi 11: Tổng kết bằng chứng nghiệm thu toàn diện sau khi hoàn tất
+
+1. **Kiểm thử Java Web-App (Maven Verify với JDK 21)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS`.
+   - **Số lượng test Java**: **77/77 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Các test liên quan trực tiếp**:
+     - `CourseStudentRenderingTest`: 7/7 tests PASS (bao gồm 2 test hoa thường cho video và document).
+     - `CourseInstructorRenderingTest`: 3/3 tests PASS (bao gồm kiểm thử render modal loading, alert và retry button).
+     - `CourseStudentControllerTest`: 20/20 tests PASS.
+     - `CourseInstructorControllerTest`: 20/20 tests PASS.
+     - Các test khác (`VideoSourceTest`, `MarkdownServiceTest`, `ProfileControllerTest`, v.v.): 27/27 tests PASS.
+
+2. **Kiểm thử JavaScript (Node test runner + jsdom trên HTML Thymeleaf thật)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**:
+     - `learning-hub.test.js`: **8/8 tests PASS**.
+     - `curriculum-builder.test.js`: **12/12 tests PASS** (bổ sung đầy đủ 5 kịch bản kiểm thử tải lỗi, thử lại, chặn lưu khi đang tải, giữ form khi PUT thất bại, và chống race condition).
+     - `instructor-management.test.js`: **6/6 tests PASS**.
+     - **Tổng cộng JavaScript**: **26/26 tests PASS 100%** (0 Failures, 0 Skipped).
+
+3. **Kiểm tra cú pháp JS (Syntax check)**:
+   ```bash
+   cmd.exe /c "node --check backend/web-app/src/main/resources/static/js/curriculum-builder.js"
+   ```
+   - **Kết quả**: Exit code 0, không có lỗi cú pháp.
+
+##### Giới hạn kiểm chứng & Trạng thái nghiệm thu (Verification Limits)
+- **Đã kiểm chứng (Verified)**:
+  - Kiểm thử đơn vị và tích hợp cô lập (MockMvc, Thymeleaf TemplateEngine, jsdom DOM emulation với Bootstrap 5 thật) đã PASS 100% cho toàn bộ các giao diện và kịch bản lỗi biên của Phase 4.
+  - Serialization case-insensitivity giữa Spring Boot BFF và Thymeleaf đã được xác thực hoàn toàn khớp với định dạng enum backend thật.
+  - Chống race condition và cơ chế bảo vệ dữ liệu khi API thất bại trong Curriculum Builder đã hoạt động chính xác.
+- **Chờ kiểm thử khói / E2E (Pending Smoke/E2E)**:
+  - Kiểm thử E2E liên microservices và trình duyệt thực tế (Gateway -> Course Service -> MinIO -> MySQL/MongoDB) khi toàn bộ hệ thống được triển khai bằng Docker Compose.
+- **Ranh giới giai đoạn**: Đã hoàn thành nghiệm thu toàn diện Phase 4. **Tuyệt đối dừng lại tại đây, chưa triển khai Phase 5**.
+
 
 

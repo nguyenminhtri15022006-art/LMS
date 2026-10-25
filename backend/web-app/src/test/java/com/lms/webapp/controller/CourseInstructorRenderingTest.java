@@ -135,6 +135,9 @@ class CourseInstructorRenderingTest {
         assertThat(html).contains("id=\"curriculumRetryBtn\"");
         assertThat(html).contains("id=\"studentsPagination\"");
         assertThat(html).contains("id=\"announcementsPagination\"");
+        assertThat(html).contains("id=\"lessonContentLoading\"");
+        assertThat(html).contains("id=\"lessonContentAlert\"");
+        assertThat(html).contains("id=\"btnRetryLoadLesson\"");
         assertThat(html).contains("curriculum-builder.js");
         assertThat(html).contains("instructor-management.js");
     }

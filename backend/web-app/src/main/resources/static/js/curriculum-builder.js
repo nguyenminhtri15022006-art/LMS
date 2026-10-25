@@ -33,6 +33,11 @@
 
         const lessonModalEl = doc.getElementById('lessonContentModal');
         const lessonModal = (win.bootstrap && lessonModalEl) ? new win.bootstrap.Modal(lessonModalEl) : null;
+        const lessonContentLoading = doc.getElementById('lessonContentLoading');
+        const lessonContentAlert = doc.getElementById('lessonContentAlert');
+        const lessonContentAlertMsg = doc.getElementById('lessonContentAlertMsg');
+        const btnRetryLoadLesson = doc.getElementById('btnRetryLoadLesson');
+        const lessonContentForm = doc.getElementById('lessonContentForm');
         const lessonIdInput = doc.getElementById('lessonIdInput');
         const lessonVideoUrl = doc.getElementById('lessonVideoUrl');
         const lessonDocumentContent = doc.getElementById('lessonDocumentContent');
@@ -43,6 +48,8 @@
         const btnSaveLessonContent = doc.getElementById('btnSaveLessonContent');
 
         let currentNodes = [];
+        let activeLessonLoadingId = null;
+        let activeLoadedLessonId = null;
 
         function getHeaders() {
             const h = { 'Content-Type': 'application/json', 'Accept': 'application/json' };
@@ -462,39 +469,87 @@
                 win.alert('Bài học này chưa có mã lessonId.');
                 return;
             }
+
+            activeLessonLoadingId = lessonId;
+            activeLoadedLessonId = null;
+
+            if (btnSaveLessonContent) btnSaveLessonContent.disabled = true;
             if (lessonIdInput) lessonIdInput.value = lessonId;
             if (lessonVideoUrl) lessonVideoUrl.value = '';
             if (lessonDocumentContent) lessonDocumentContent.value = '';
+
+            if (lessonContentAlert) lessonContentAlert.classList.add('d-none');
+            if (lessonContentLoading) lessonContentLoading.classList.remove('d-none');
+            if (lessonContentForm) lessonContentForm.classList.add('d-none');
+
+            if (lessonModal) lessonModal.show();
 
             win.fetch(`/instructor/courses/${courseId}/lessons/${lessonId}`, {
                 headers: { 'Accept': 'application/json' }
             })
             .then(res => {
-                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                if (!res.ok) {
+                    return res.json().then(data => {
+                        throw new Error(data.message || `Lỗi HTTP ${res.status}`);
+                    }).catch(e => {
+                        throw new Error(e.message || `Lỗi HTTP ${res.status}`);
+                    });
+                }
                 return res.json();
             })
             .then(res => {
+                // Chống race condition / stale responses: bỏ qua nếu đã chuyển sang bài khác
+                if (activeLessonLoadingId !== lessonId) {
+                    return;
+                }
+
+                if (lessonContentLoading) lessonContentLoading.classList.add('d-none');
+                if (lessonContentAlert) lessonContentAlert.classList.add('d-none');
+                if (lessonContentForm) lessonContentForm.classList.remove('d-none');
+
                 const lData = res.data || res;
                 const lType = (lData.lessonType || 'VIDEO').toUpperCase();
                 if (lType === 'VIDEO') {
                     if (typeVideoRadio) typeVideoRadio.checked = true;
                     if (videoUrlGroup) videoUrlGroup.style.display = 'block';
                     if (documentContentGroup) documentContentGroup.style.display = 'none';
-                    if (lessonVideoUrl && lData.content && lData.content.videoUrl) {
-                        lessonVideoUrl.value = lData.content.videoUrl;
+                    if (lessonVideoUrl) {
+                        lessonVideoUrl.value = (lData.content && lData.content.videoUrl) ? lData.content.videoUrl : '';
                     }
                 } else {
                     if (typeDocumentRadio) typeDocumentRadio.checked = true;
                     if (videoUrlGroup) videoUrlGroup.style.display = 'none';
                     if (documentContentGroup) documentContentGroup.style.display = 'block';
-                    if (lessonDocumentContent && lData.content && lData.content.text) {
-                        lessonDocumentContent.value = lData.content.text;
+                    if (lessonDocumentContent) {
+                        lessonDocumentContent.value = (lData.content && lData.content.text) ? lData.content.text : '';
                     }
                 }
-                if (lessonModal) lessonModal.show();
+
+                // Đã tải thành công đúng bài học này
+                activeLoadedLessonId = lessonId;
+                if (btnSaveLessonContent) btnSaveLessonContent.disabled = false;
             })
-            .catch(() => {
-                if (lessonModal) lessonModal.show();
+            .catch(err => {
+                if (activeLessonLoadingId !== lessonId) {
+                    return;
+                }
+
+                if (lessonContentLoading) lessonContentLoading.classList.add('d-none');
+                if (lessonContentForm) lessonContentForm.classList.add('d-none');
+
+                if (lessonContentAlert) {
+                    lessonContentAlert.classList.remove('d-none');
+                    if (lessonContentAlertMsg) {
+                        lessonContentAlertMsg.textContent = 'Không thể tải nội dung bài học: ' + (err.message || 'Lỗi kết nối máy chủ');
+                    }
+                }
+
+                if (btnRetryLoadLesson) {
+                    btnRetryLoadLesson.onclick = () => openLessonContentModal(lessonId);
+                }
+
+                activeLoadedLessonId = null;
+                if (btnSaveLessonContent) btnSaveLessonContent.disabled = true;
             });
         }
 
@@ -563,6 +618,15 @@
         if (btnSaveLessonContent) {
             btnSaveLessonContent.onclick = function () {
                 const lId = lessonIdInput ? lessonIdInput.value : '';
+
+                // CHẶN LƯU VÀ TUYỆT ĐỐI KHÔNG GỬI PUT KHI:
+                // 1. Nút lưu đang bị disable
+                // 2. Chưa tải xong nội dung (activeLoadedLessonId falsy)
+                // 3. activeLoadedLessonId không khớp với ID bài học trong form
+                if (btnSaveLessonContent.disabled || !activeLoadedLessonId || activeLoadedLessonId !== lId) {
+                    return;
+                }
+
                 const isVideo = typeVideoRadio ? typeVideoRadio.checked : true;
                 const lessonType = isVideo ? 'VIDEO' : 'DOCUMENT';
                 const content = {};
@@ -572,6 +636,9 @@
                 } else {
                     content.text = lessonDocumentContent ? lessonDocumentContent.value.trim() : '';
                 }
+
+                // Vô hiệu hoá nút lưu trong lúc đang gửi request để tránh duplicate submissions
+                btnSaveLessonContent.disabled = true;
 
                 win.fetch(`/instructor/courses/${courseId}/lessons/${lId}`, {
                     method: 'PUT',
@@ -592,11 +659,13 @@
                     return res.json();
                 })
                 .then(() => {
+                    btnSaveLessonContent.disabled = false;
                     if (lessonModal) lessonModal.hide();
                     showAlert('success', 'Đã lưu nội dung bài học thành công!');
                 })
                 .catch(err => {
-                    // GIỮ FORM, KHÔNG ĐÓNG MODAL KHI THẤT BẠI
+                    // GIỮ FORM VÀ NỘI DUNG ĐÃ NHẬP, KHÔNG ĐÓNG MODAL KHI THẤT BẠI, BẬT LẠI NÚT LƯU ĐỂ SỬA
+                    btnSaveLessonContent.disabled = false;
                     showAlert('danger', 'Lỗi lưu bài học: ' + err.message);
                 });
             };
