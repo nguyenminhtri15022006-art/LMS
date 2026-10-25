@@ -68,19 +68,37 @@ class BlogControllerTest {
     }
 
     @Test
-    @DisplayName("Test 2: publicDetailBySlugRendersMarkdownSafely — GET /blog/{slug} gọi /api/blog/posts/public/{slug} và render Markdown an toàn")
+    @DisplayName("Test 2: publicDetailBySlugRendersMarkdownSafely — GET /blog/{slug} gọi /api/blog/posts/public/{slug}, tra cứu tác giả từ Identity Service và render Markdown an toàn")
     void publicDetailBySlugRendersMarkdownSafely() throws Exception {
+        // PostResponse chuẩn backend: chỉ có authorId, không có authorName
         mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/public/hoc-spring-boot-3"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
-                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Hoc Spring Boot 3\",\"slug\":\"hoc-spring-boot-3\",\"content\":\"# Tieu De Lon\\n\\nNoi dung mo ta chi tiet.\",\"authorName\":\"Nguyen Van A\",\"upvoteCount\":12,\"downvoteCount\":0,\"commentCount\":1}}",
+                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Hoc Spring Boot 3\",\"slug\":\"hoc-spring-boot-3\",\"content\":\"# Tieu De Lon\\n\\nNoi dung mo ta chi tiet.\",\"authorId\":\"author-123\",\"upvoteCount\":12,\"downvoteCount\":0,\"commentCount\":1}}",
                         MediaType.APPLICATION_JSON
                 ));
 
+        // Tra cứu profile tác giả bài viết từ Identity Service
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/author-123/profile"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"userId\":\"author-123\",\"fullname\":\"Nguyen Van Tac Gia\",\"avatarUrl\":\"https://cdn/author.jpg\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        // CommentResponse chuẩn backend: chỉ có userId, không có authorName
         mockServer.expect(requestTo(containsString("http://localhost:8080/api/blog/posts/10/comments")))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
-                        "{\"code\":1000,\"data\":{\"content\":[{\"id\":101,\"content\":\"Bai viet rat huu ich!\",\"authorName\":\"Le Van B\",\"createdAt\":\"2026-10-25T10:00:00\",\"upvoteCount\":2,\"downvoteCount\":0}],\"totalPages\":1,\"totalElements\":1}}",
+                        "{\"code\":1000,\"data\":{\"content\":[{\"id\":101,\"content\":\"Bai viet rat huu ich!\",\"userId\":\"commenter-456\",\"createdAt\":\"2026-10-25T10:00:00\",\"upvoteCount\":2,\"downvoteCount\":0}],\"totalPages\":1,\"totalElements\":1}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        // Tra cứu profile người bình luận từ Identity Service
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/commenter-456/profile"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"userId\":\"commenter-456\",\"fullname\":\"Tran Thi Binh Luan\",\"avatarUrl\":\"https://cdn/commenter.jpg\"}}",
                         MediaType.APPLICATION_JSON
                 ));
 
@@ -88,6 +106,33 @@ class BlogControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(view().name("blog/detail"))
                 .andExpect(model().attributeExists("post", "renderedContent", "comments"));
+    }
+
+    @Test
+    @DisplayName("Test 2b: publicDetailAuthorLookupFailureFallsBackGracefully — Khi tra cứu tác giả lỗi 404, fallback an toàn không ném ngoại lệ")
+    void publicDetailAuthorLookupFailureFallsBackGracefully() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/public/hoc-spring-boot-3"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Hoc Spring Boot 3\",\"slug\":\"hoc-spring-boot-3\",\"content\":\"Noi dung\",\"authorId\":\"deleted-user-999\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        // Identity trả về 404 Not Found (user đã bị xóa)
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/deleted-user-999/profile"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withStatus(org.springframework.http.HttpStatus.NOT_FOUND));
+
+        mockServer.expect(requestTo(containsString("http://localhost:8080/api/blog/posts/10/comments")))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"content\":[],\"totalPages\":0,\"totalElements\":0}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(get("/blog/hoc-spring-boot-3"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("blog/detail"));
     }
 
     @Test
@@ -105,7 +150,14 @@ class BlogControllerTest {
         mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/10"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
-                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Hoc Spring Boot 3\",\"slug\":\"hoc-spring-boot-3\",\"content\":\"# Noi dung\",\"upvoteCount\":0,\"downvoteCount\":0}}",
+                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Hoc Spring Boot 3\",\"slug\":\"hoc-spring-boot-3\",\"content\":\"# Noi dung\",\"authorId\":\"author-123\",\"upvoteCount\":0,\"downvoteCount\":0}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/author-123/profile"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"userId\":\"author-123\",\"fullname\":\"Tac Gia Mau\"}}",
                         MediaType.APPLICATION_JSON
                 ));
 
@@ -123,10 +175,14 @@ class BlogControllerTest {
 
     @Test
     @WithMockUser(username = "instructor1", roles = {"USER"})
-    @DisplayName("Test 4: createPostMultipartCallsGateway — POST /blog/new gửi multipart gọi /api/blog/posts")
+    @DisplayName("Test 4: createPostMultipartCallsGateway — POST /blog/new gửi multipart với tên part 'thumbnail', filename và content type")
     void createPostMultipartCallsGateway() throws Exception {
+        // Bắt buộc request gửi sang Gateway phải có part tên là "thumbnail" (chứ không phải "file"), có filename và content type
         mockServer.expect(requestTo("http://localhost:8080/api/blog/posts"))
                 .andExpect(method(HttpMethod.POST))
+                .andExpect(content().string(containsString("name=\"thumbnail\"; filename=\"cover.png\"")))
+                .andExpect(content().string(containsString("Content-Type: image/png")))
+                .andExpect(content().string(containsString("fake image content")))
                 .andRespond(withSuccess(
                         "{\"code\":1000,\"data\":{\"id\":25,\"title\":\"Bai Viet Moi\",\"slug\":\"bai-viet-moi\"}}",
                         MediaType.APPLICATION_JSON
@@ -149,6 +205,65 @@ class BlogControllerTest {
                         .with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/blog/bai-viet-moi"));
+    }
+
+    @Test
+    @WithMockUser(username = "instructor1", roles = {"USER"})
+    @DisplayName("Test 4b: updatePostWithEmptyTagsSendsClearTagsTrue — Sửa bài viết bỏ toàn bộ tags phải gửi clearTags=true và không gửi tagIds")
+    void updatePostWithEmptyTagsSendsClearTagsTrue() throws Exception {
+        // Khi bỏ chọn hết tags: phải gửi clearTags=true, không gửi tagIds, không gửi thumbnail nếu không có file mới
+        mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/10"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().string(containsString("name=\"clearTags\"")))
+                .andExpect(content().string(containsString("true")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"tagIds\""))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"thumbnail\""))))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Bai Viet Da Sua\",\"slug\":\"bai-viet-da-sua\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        mockMvc.perform(multipart("/blog/10/edit")
+                        .param("title", "Bai Viet Da Sua")
+                        .param("summary", "Tom tat moi")
+                        .param("content", "Noi dung markdown moi")
+                        .param("status", "PUBLISHED")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/blog/bai-viet-da-sua"));
+    }
+
+    @Test
+    @WithMockUser(username = "instructor1", roles = {"USER"})
+    @DisplayName("Test 4c: updatePostWithNewThumbnailAndSelectedTagsSendsBothCorrectly — Sửa bài có thumbnail mới và tags phải gửi part 'thumbnail' và 'tagIds'")
+    void updatePostWithNewThumbnailAndSelectedTagsSendsBothCorrectly() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/10"))
+                .andExpect(method(HttpMethod.PUT))
+                .andExpect(content().string(containsString("name=\"thumbnail\"; filename=\"new-thumb.png\"")))
+                .andExpect(content().string(containsString("name=\"tagIds\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(containsString("name=\"clearTags\""))))
+                .andRespond(withSuccess(
+                        "{\"code\":1000,\"data\":{\"id\":10,\"title\":\"Bai Viet Da Cap Nhat\",\"slug\":\"bai-viet-da-cap-nhat\"}}",
+                        MediaType.APPLICATION_JSON
+                ));
+
+        MockMultipartFile newThumb = new MockMultipartFile(
+                "file",
+                "new-thumb.png",
+                MediaType.IMAGE_PNG_VALUE,
+                "new thumb content".getBytes()
+        );
+
+        mockMvc.perform(multipart("/blog/10/edit")
+                        .file(newThumb)
+                        .param("title", "Bai Viet Da Cap Nhat")
+                        .param("summary", "Tom tat cap nhat")
+                        .param("content", "Noi dung cap nhat")
+                        .param("status", "PUBLISHED")
+                        .param("tagIds", "3", "4")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/blog/bai-viet-da-cap-nhat"));
     }
 
     @Test

@@ -2633,10 +2633,83 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
    - **Kết quả**: Exit code 0, không có lỗi cú pháp.
 
 #### 4. Giới Hạn Kiểm Chứng & Ranh Giới Giai Đoạn (Verification Limits)
-- **Đã kiểm chứng (Verified)**:
+- **Đã kiểm thử cô lập (Isolated Testing Completed)**:
   - Toàn bộ luồng BFF của Phân hệ Diễn đàn Blog: Đọc bài public/slug, xem bài authenticated, tạo/sửa/xóa bài viết, bình luận lồng nhau đa cấp, bình chọn Up/Down vote, render Markdown an toàn, và bảo vệ CSRF/XSS.
   - Các giao diện Thymeleaf render hoàn hảo từ fixture sinh thực tế và vượt qua kiểm thử DOM jsdom với Bootstrap 5.
-- **Ranh giới giai đoạn**: Đã hoàn thành 100% Phase 5. **Chưa triển khai Phase 6 (Admin Portal) hay Phase 7 (Docker Compose)**.
+- **Ranh giới giai đoạn**: Đã hoàn thành đợt kiểm thử cô lập Phase 5. **Chưa triển khai Phase 6 (Admin Portal) hay Phase 7 (Docker Compose)**.
+
+---
+
+### Đợt Khắc Phục 4 Nhóm Lỗi Rà Soát Của Phase 5 (BFF Community Blog & Discussions)
+
+#### 1. Chi Tiết Các Lỗi, Nguyên Nhân & Giải Pháp Triển Khai
+
+| STT | Lỗi Phát Hiện | Nguyên Nhân Kỹ Thuật | Giải Pháp Triển Khai (Mã Nguồn BFF & UI) |
+| :--- | :--- | :--- | :--- |
+| **1** | **Sai tên part multipart upload ảnh bìa** | `BlogController` gửi part `"file"`, trong khi `CreatePostRequest` và `UpdatePostRequest` của `blog-service` nhận part `"thumbnail"`. | - Sửa mapping multipart trong cả `createPost` và `updatePost` từ `"file"` sang `"thumbnail"`.<br>- Khi cập nhật không chọn file ảnh bìa mới, giữ nguyên ảnh cũ (không gửi part `"thumbnail"` rỗng).<br>- Giữ nguyên file name và `Content-Type` chuẩn của `MultipartFile`. |
+| **2** | **Bình luận lồng nhau biến mất khi reload trang** | `detail.html` chỉ duyệt danh sách phẳng `comments.content`, bỏ qua trường đệ quy `replies` do backend trả về. | - Tạo fragment đệ quy `fragments/comment-thread.html` (`commentThread(comments, depth)`).<br>- Duyệt đệ quy toàn bộ cây bình luận cha → con → cháu, giữ nguyên `parentId`, `commentId`, cấu trúc thụt lề Bootstrap (`ms-3 ms-md-4 border-start ps-3`).<br>- Escape XSS an toàn qua Thymeleaf `th:text`.<br>- Tích hợp đầy đủ nút tương tác Trả lời, Sửa, Xóa, Vote trên mọi cấp bình luận lồng nhau. |
+| **3** | **Không thể xóa toàn bộ tags khi sửa bài** | Khi bỏ chọn hết tags trên form sửa, BFF không gửi `tagIds` cũng không gửi `clearTags=true`, khiến `PostServiceImpl` backend giữ nguyên tags cũ. | - Đọc `UpdatePostRequest` và `PostServiceImpl.updatePost`: xác nhận quy ước `clearTags=true`.<br>- Trong `BlogController.updatePost`: nếu `form.getTagIds()` null hoặc rỗng, thêm form field `body.add("clearTags", "true")`.<br>- Nếu có tags được chọn, gửi danh sách `tagIds` và không gửi `clearTags`. |
+| **4** | **Thiếu bước đồng bộ thông tin tác giả** | `PostResponse` backend chỉ trả `authorId`, `CommentResponse` chỉ trả `userId`. BFF chưa gọi Identity Service để làm giàu tên/avatar. | - Khảo sát Gateway whitelist: route `identity-public-profile` mở public cho `GET /api/identity/users/{id}/profile`.<br>- Thêm phương thức `enrichPostWithAuthor` và `enrichCommentsWithAuthors` trong `BlogController` qua Gateway client.<br>- Lưu cache profile trong vòng đời request để tránh gọi lặp cho cùng một user.<br>- Xử lý fallback an toàn: hiển thị `"Người dùng LMS"` hoặc `"Người dùng"` khi user bị xóa (404) hoặc service lỗi, không làm vỡ trang. |
+
+#### 2. Quá Trình Kiểm Thử TDD: Bằng Chứng Red → Green
+
+1. **Giai đoạn Red (Regression Tests thất bại trước khi sửa)**:
+   - Đã viết regression test cô lập trong `BlogControllerTest` và `BlogRenderingTest`:
+     * `createPostMultipartCallsGateway`: FAIL do gửi part `"file"` thay vì `"thumbnail"`.
+     * `updatePostWithEmptyTagsSendsClearTagsTrue`: FAIL do không gửi `clearTags=true`.
+     * `updatePostWithNewThumbnailAndSelectedTagsSendsBothCorrectly`: FAIL do gửi sai tên part thumbnail.
+     * `publicDetailBySlugRendersMarkdownSafely`, `postByIdAuthenticatedReturnsDetailView`, `publicDetailAuthorLookupFailureFallsBackGracefully`: FAIL do thiếu bước gọi `GET /api/identity/users/{id}/profile`.
+     * `renderNestedCommentsTreePreservesHierarchyAndEscapesContent`: FAIL do thiếu bình luận con/cháu trong cây Thymeleaf.
+   - Kết quả chạy thực tế: **7 tests FAILED**.
+
+2. **Giai đoạn Green (Mã nguồn đã sửa và toàn bộ test vượt qua)**:
+   - Sửa `BlogController.java`, tạo mới `comment-thread.html`, cập nhật `detail.html`, cập nhật fixture render `BlogRenderingTest.java` và bổ sung 4 test JS trong `blog-interactions.test.js`.
+   - Kết quả chạy lại: **100% tests PASS**.
+
+#### 3. Bằng Chứng Nghiệm Thu Thực Tế (Execution Evidence)
+
+1. **Kiểm thử Toàn bộ Module `web-app` bằng Maven Verify (JDK 21)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 57.652 s).
+   - **Tổng số test Java**: **93/93 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Riêng phân hệ Diễn đàn Blog**:
+     * `BlogControllerTest`: **13/13 tests PASS**.
+     * `BlogRenderingTest`: **3/3 tests PASS** (Bao gồm test render cây bình luận lồng nhau 3 cấp cha → con → cháu và chống XSS).
+   - **Đóng gói thành phẩm**: Tạo thành công `backend/web-app/target/web-app-0.0.1-SNAPSHOT.jar`.
+
+2. **Kiểm thử Toàn bộ Test JavaScript (Node.js + jsdom)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**: **37/37 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 3.51 s).
+   - **Riêng `blog-interactions.test.js`**: **11/11 tests PASS**, bao gồm các test tương tác bình luận lồng nhau:
+     * `vote post sends POST /blog/posts/{id}/vote with UPVOTE and updates vote counts`
+     * `vote post failure does not crash and re-enables button`
+     * `submit root comment sends POST /blog/posts/{id}/comments and appends new card to tree`
+     * `reply comment opens reply box and sends parentId`
+     * `edit comment prompts new text and sends PUT`
+     * `delete comment confirms and sends DELETE, then removes element from DOM`
+     * `vote comment sends POST to comment vote URL and updates count`
+     * `reply nested child comment 502 opens its reply box and sends parentId 502`
+     * `edit nested child comment 502 updates text on 502 without modifying parent or grandchild`
+     * `delete nested grandchild comment 503 removes 503 from DOM while keeping parent 501 and child 502 intact`
+     * `vote nested child comment 502 updates vote counts exclusively on 502`
+
+3. **Kiểm tra cú pháp JavaScript (Syntax Check)**:
+   ```bash
+   cmd.exe /c "node --check backend/web-app/src/main/resources/static/js/blog-interactions.js"
+   ```
+   - **Kết quả**: Exit code 0, không có bất kỳ lỗi cú pháp nào.
+
+#### 4. Trạng Thái Hoàn Thành & Các Hạng Mục Chờ Nghiệm Thu Toàn Trình
+- **Trạng thái**: `ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT` (Chưa đánh dấu "NGHIỆM THU 100%" hoặc "VERIFIED" theo quy chuẩn 13 tiêu chí của dự án).
+- **Hạng mục chờ kiểm thử trên môi trường thực tế (Phase 7 - Docker Compose)**:
+  1. Upload ảnh bìa vào MinIO thật qua S3 Direct Upload và xác nhận policy/CORS.
+  2. Xác thực liên thông qua API Gateway thật bằng Bearer JWT token từ Identity Service.
+  3. Kiểm thử luồng E2E từ trình duyệt thật kết nối toàn bộ hệ thống Microservices.
+- **Ranh giới công việc**: Dừng sau khi hoàn thành toàn diện đợt khắc phục Phase 5; **chưa triển khai Phase 6 (Admin Portal)**.
 
 
 

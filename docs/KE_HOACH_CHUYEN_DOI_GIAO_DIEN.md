@@ -1157,7 +1157,14 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
      - **Red 1**: Viết test khi chưa có method `voteComment`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Lỗi mong đợi: `cannot find symbol: method voteComment(...)`.
      - **Red 2**: Method gọi sai URL (thiếu postId hoặc commentId). Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Lỗi mong đợi: `AssertionFailedError: expected URL containing /comments/5/vote but was /comments/vote`.
      - **Green**: Gọi Gateway `POST /api/blog/posts/{postId}/comments/{commentId}/vote` với DTO `VoteRequest`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Kết quả mong đợi: `BUILD SUCCESS`.
-* **Trạng thái**: `[HOÀN THÀNH - ĐÃ NGHIỆM THU 100%]` (Bao phủ 12 test Java mới [10 MockMvc + 2 Thymeleaf Rendering], 7 test JavaScript jsdom mới; Tổng toàn module: 89/89 tests Java PASS, 33/33 tests JS PASS).
+* **Trạng thái**: `[ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT - CHỜ SMOKE TEST DOCKER / MINIO THẬT / E2E]`
+  - Đã khắc phục triệt để 4 lỗi rà soát Phase 5:
+    1. Đổi part multipart ảnh bìa từ `"file"` thành `"thumbnail"` cho cả tạo và sửa bài viết (`CreatePostRequest`/`UpdatePostRequest`), bảo toàn ảnh cũ khi không chọn file mới.
+    2. Render bình luận lồng nhau sau khi tải lại trang qua fragment Thymeleaf đệ quy `commentThread`, giữ nguyên cấu trúc cha → con → cháu, bảo vệ chống XSS, kiểm thử thành công tương tác trả lời, sửa, xóa và vote trên bình luận lồng nhau.
+    3. Hỗ trợ xóa toàn bộ thẻ bài viết (`clearTags=true`) khi người dùng bỏ chọn toàn bộ tags trên form cập nhật, giữ nguyên danh sách khi còn chọn tag.
+    4. Đồng bộ thông tin tác giả bài viết (`authorId`) và người bình luận (`userId`) qua Gateway endpoint `GET /api/identity/users/{id}/profile`, có fallback an toàn `Người dùng LMS` / `Người dùng` khi gặp lỗi hoặc user không tồn tại.
+  - Số lượng kiểm thử cô lập đạt chuẩn: 16 test Java Phase 5 (13 `BlogControllerTest` + 3 `BlogRenderingTest`), 11 test JavaScript `blog-interactions.test.js`. Tổng toàn bộ module `web-app`: **93/93 tests Java PASS 100%**, **37/37 tests JavaScript PASS 100%**.
+  - Phần còn lại chờ nghiệm thu toàn trình: Upload ảnh bìa vào MinIO thật, xác thực liên thông JWT qua Gateway thật và kiểm thử E2E trên Docker Compose tại Phase 7.
 
 ---
 

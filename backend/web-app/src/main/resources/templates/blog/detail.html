@@ -40,7 +40,13 @@
                 <!-- Author & Meta Info -->
                 <div class="d-flex align-items-center justify-content-between pb-4 mb-4 border-bottom flex-wrap gap-2">
                     <div class="d-flex align-items-center gap-3">
-                        <div class="avatar-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center rounded-circle"
+                        <img th:if="${post.hasNonNull('authorAvatar') and !#strings.isEmpty(post.get('authorAvatar').asText())}"
+                             th:src="${post.get('authorAvatar').asText()}"
+                             class="rounded-circle border"
+                             style="width: 44px; height: 44px; object-fit: cover;"
+                             th:alt="${post.hasNonNull('authorName') ? post.get('authorName').asText() : 'Avatar'}">
+                        <div th:unless="${post.hasNonNull('authorAvatar') and !#strings.isEmpty(post.get('authorAvatar').asText())}"
+                             class="avatar-circle bg-primary text-white fw-bold d-flex align-items-center justify-content-center rounded-circle"
                              style="width: 44px; height: 44px;">
                             <i class="bi bi-person-fill fs-5"></i>
                         </div>
@@ -113,66 +119,7 @@
                 <!-- Comments Tree List Container -->
                 <div id="commentsTreeContainer" class="d-flex flex-column gap-3">
                     <div th:if="${comments != null and comments.has('content') and comments.get('content').isArray() and !comments.get('content').isEmpty()}">
-                        <div th:each="c : ${comments.get('content')}"
-                             class="comment-card border rounded-3 p-3 bg-white mb-2 shadow-xs"
-                             th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                            <div class="d-flex justify-content-between align-items-center mb-2">
-                                <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-person-circle fs-5 text-secondary"></i>
-                                    <span class="fw-bold small" th:text="${c.hasNonNull('authorName') ? c.get('authorName').asText() : 'Người dùng'}">Người dùng</span>
-                                    <span class="text-muted small" th:text="${c.hasNonNull('createdAt') ? c.get('createdAt').asText() : ''}">Thời gian</span>
-                                </div>
-
-                                <!-- Action Buttons -->
-                                <div class="d-flex gap-1 align-items-center">
-                                    <button type="button" class="btn btn-sm btn-link text-decoration-none btn-reply-comment text-secondary p-0 me-2"
-                                            th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                        <i class="bi bi-reply me-1"></i>Trả lời
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-link text-decoration-none btn-edit-comment text-primary p-0 me-2"
-                                            th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                        <i class="bi bi-pencil me-1"></i>Sửa
-                                    </button>
-                                    <button type="button" class="btn btn-sm btn-link text-decoration-none btn-delete-comment text-danger p-0"
-                                            th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                        <i class="bi bi-trash me-1"></i>Xóa
-                                    </button>
-                                </div>
-                            </div>
-
-                            <!-- Comment Content -->
-                            <p class="comment-text mb-2 text-dark small" th:text="${c.hasNonNull('content') ? c.get('content').asText() : ''}">Nội dung bình luận...</p>
-
-                            <!-- Comment Vote Buttons -->
-                            <div class="d-flex align-items-center gap-2">
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 btn-vote-comment"
-                                        data-vote-type="UPVOTE"
-                                        th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                    <i class="bi bi-hand-thumbs-up"></i>
-                                    <span class="comment-upvote-count small" th:text="${c.hasNonNull('upvoteCount') ? c.get('upvoteCount').asLong() : 0}">0</span>
-                                </button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 btn-vote-comment"
-                                        data-vote-type="DOWNVOTE"
-                                        th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                    <i class="bi bi-hand-thumbs-down"></i>
-                                    <span class="comment-downvote-count small" th:text="${c.hasNonNull('downvoteCount') ? c.get('downvoteCount').asLong() : 0}">0</span>
-                                </button>
-                            </div>
-
-                            <!-- Reply Box Container (Initially hidden) -->
-                            <div class="reply-box-container mt-3 d-none">
-                                <div class="card border rounded-2 p-2 bg-light">
-                                    <textarea class="form-control form-control-sm mb-2 reply-input" rows="2" placeholder="Nhập câu trả lời..."></textarea>
-                                    <div class="d-flex justify-content-end gap-2">
-                                        <button type="button" class="btn btn-sm btn-light btn-cancel-reply">Hủy</button>
-                                        <button type="button" class="btn btn-sm btn-primary btn-submit-reply"
-                                                th:attr="data-parent-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
-                                            Gửi trả lời
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        <th:block th:replace="~{fragments/comment-thread :: commentThread(${comments.get('content')}, 0)}"></th:block>
                     </div>
 
                     <!-- No comments state -->
@@ -190,7 +137,13 @@
             <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
                 <h6 class="fw-bold text-uppercase text-secondary small mb-3">Tác giả bài viết</h6>
                 <div class="d-flex align-items-center gap-3 mb-3">
-                    <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
+                    <img th:if="${post.hasNonNull('authorAvatar') and !#strings.isEmpty(post.get('authorAvatar').asText())}"
+                         th:src="${post.get('authorAvatar').asText()}"
+                         class="rounded-circle border"
+                         style="width: 50px; height: 50px; object-fit: cover;"
+                         th:alt="${post.hasNonNull('authorName') ? post.get('authorName').asText() : 'Avatar'}">
+                    <div th:unless="${post.hasNonNull('authorAvatar') and !#strings.isEmpty(post.get('authorAvatar').asText())}"
+                         class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center"
                          style="width: 50px; height: 50px;">
                         <i class="bi bi-person-fill fs-4"></i>
                     </div>

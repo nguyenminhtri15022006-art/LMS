@@ -2,6 +2,7 @@ package com.lms.webapp.controller;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.lms.webapp.client.GatewayClient;
 import com.lms.webapp.dto.form.CommentForm;
 import com.lms.webapp.dto.form.PostForm;
@@ -24,7 +25,9 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @Slf4j
@@ -68,6 +71,7 @@ public class BlogController {
         try {
             JsonNode res = gatewayClient.get(uri.toString(), JsonNode.class);
             JsonNode dataNode = (res != null && res.has("data")) ? res.get("data") : null;
+            enrichPostsWithAuthors(dataNode);
             model.addAttribute("posts", dataNode);
         } catch (Exception e) {
             log.warn("Không thể tải danh sách bài viết từ Gateway: {}", e.getMessage());
@@ -99,6 +103,7 @@ public class BlogController {
                 return "error/404";
             }
 
+            enrichPostWithAuthor(post);
             model.addAttribute("post", post);
 
             // Render Markdown an toàn
@@ -139,6 +144,7 @@ public class BlogController {
                 return "error/404";
             }
 
+            enrichPostWithAuthor(post);
             model.addAttribute("post", post);
 
             String rawContent = post.hasNonNull("content") ? post.get("content").asText() : "";
@@ -201,7 +207,7 @@ public class BlogController {
             }
 
             if (form.getFile() != null && !form.getFile().isEmpty()) {
-                body.add("file", form.getFile().getResource());
+                body.add("thumbnail", form.getFile().getResource());
             }
 
             JsonNode res = gatewayClient.postMultipart("/blog/posts", body, JsonNode.class);
@@ -286,14 +292,16 @@ public class BlogController {
             body.add("content", form.getContent());
             body.add("status", form.getStatus() != null ? form.getStatus() : "PUBLISHED");
 
-            if (form.getTagIds() != null) {
+            if (form.getTagIds() != null && !form.getTagIds().isEmpty()) {
                 for (Long tagId : form.getTagIds()) {
                     body.add("tagIds", tagId);
                 }
+            } else {
+                body.add("clearTags", "true");
             }
 
             if (form.getFile() != null && !form.getFile().isEmpty()) {
-                body.add("file", form.getFile().getResource());
+                body.add("thumbnail", form.getFile().getResource());
             }
 
             JsonNode res = gatewayClient.putMultipart("/blog/posts/" + id, body, JsonNode.class);
@@ -464,10 +472,99 @@ public class BlogController {
         try {
             JsonNode commentsRes = gatewayClient.get("/blog/posts/" + postId + "/comments?page=0&size=100", JsonNode.class);
             JsonNode data = (commentsRes != null && commentsRes.has("data")) ? commentsRes.get("data") : null;
+            enrichCommentsWithAuthors(data);
             model.addAttribute("comments", data);
         } catch (Exception e) {
             log.warn("Không thể tải comments cho bài viết {}: {}", postId, e.getMessage());
             model.addAttribute("comments", null);
+        }
+    }
+
+    private JsonNode fetchPublicProfile(String userId) {
+        if (userId == null || userId.trim().isEmpty()) {
+            return null;
+        }
+        try {
+            JsonNode res = gatewayClient.get("/identity/users/" + userId.trim() + "/profile", JsonNode.class);
+            return (res != null && res.has("data") && !res.get("data").isNull()) ? res.get("data") : null;
+        } catch (Exception e) {
+            log.warn("Không thể tải thông tin profile cho userId {}: {}", userId, e.getMessage());
+            return null;
+        }
+    }
+
+    private void enrichPostWithAuthor(JsonNode post) {
+        if (post == null || !post.isObject()) return;
+        ObjectNode obj = (ObjectNode) post;
+        String authorId = post.hasNonNull("authorId") ? post.get("authorId").asText() : null;
+        if (authorId != null && !authorId.trim().isEmpty()) {
+            JsonNode profile = fetchPublicProfile(authorId);
+            if (profile != null && profile.hasNonNull("fullname") && !profile.get("fullname").asText().trim().isEmpty()) {
+                obj.put("authorName", profile.get("fullname").asText());
+                if (profile.hasNonNull("avatarUrl")) {
+                    obj.put("authorAvatar", profile.get("avatarUrl").asText());
+                }
+                return;
+            }
+        }
+        if (!obj.hasNonNull("authorName")) {
+            obj.put("authorName", "Người dùng LMS");
+        }
+    }
+
+    private void enrichPostsWithAuthors(JsonNode postsPage) {
+        if (postsPage == null || !postsPage.has("content") || !postsPage.get("content").isArray()) return;
+        Map<String, JsonNode> cache = new HashMap<>();
+        for (JsonNode p : postsPage.get("content")) {
+            if (p.isObject()) {
+                ObjectNode obj = (ObjectNode) p;
+                String authorId = p.hasNonNull("authorId") ? p.get("authorId").asText() : null;
+                if (authorId != null && !authorId.trim().isEmpty()) {
+                    JsonNode profile = cache.computeIfAbsent(authorId, this::fetchPublicProfile);
+                    if (profile != null && profile.hasNonNull("fullname") && !profile.get("fullname").asText().trim().isEmpty()) {
+                        obj.put("authorName", profile.get("fullname").asText());
+                        if (profile.hasNonNull("avatarUrl")) {
+                            obj.put("authorAvatar", profile.get("avatarUrl").asText());
+                        }
+                        continue;
+                    }
+                }
+                if (!obj.hasNonNull("authorName")) {
+                    obj.put("authorName", "Người dùng LMS");
+                }
+            }
+        }
+    }
+
+    private void enrichCommentsWithAuthors(JsonNode commentsData) {
+        if (commentsData == null || !commentsData.has("content") || !commentsData.get("content").isArray()) return;
+        Map<String, JsonNode> cache = new HashMap<>();
+        for (JsonNode c : commentsData.get("content")) {
+            enrichCommentNodeWithAuthor(c, cache);
+        }
+    }
+
+    private void enrichCommentNodeWithAuthor(JsonNode commentNode, Map<String, JsonNode> cache) {
+        if (commentNode == null || !commentNode.isObject()) return;
+        ObjectNode obj = (ObjectNode) commentNode;
+        String userId = commentNode.hasNonNull("userId") ? commentNode.get("userId").asText() : null;
+        if (userId != null && !userId.trim().isEmpty()) {
+            JsonNode profile = cache.computeIfAbsent(userId, this::fetchPublicProfile);
+            if (profile != null && profile.hasNonNull("fullname") && !profile.get("fullname").asText().trim().isEmpty()) {
+                obj.put("authorName", profile.get("fullname").asText());
+                if (profile.hasNonNull("avatarUrl")) {
+                    obj.put("authorAvatar", profile.get("avatarUrl").asText());
+                }
+            }
+        }
+        if (!obj.hasNonNull("authorName")) {
+            obj.put("authorName", "Người dùng");
+        }
+
+        if (commentNode.has("replies") && commentNode.get("replies").isArray()) {
+            for (JsonNode reply : commentNode.get("replies")) {
+                enrichCommentNodeWithAuthor(reply, cache);
+            }
         }
     }
 
