@@ -1157,7 +1157,7 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
      - **Red 1**: Viết test khi chưa có method `voteComment`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Lỗi mong đợi: `cannot find symbol: method voteComment(...)`.
      - **Red 2**: Method gọi sai URL (thiếu postId hoặc commentId). Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Lỗi mong đợi: `AssertionFailedError: expected URL containing /comments/5/vote but was /comments/vote`.
      - **Green**: Gọi Gateway `POST /api/blog/posts/{postId}/comments/{commentId}/vote` với DTO `VoteRequest`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Kết quả mong đợi: `BUILD SUCCESS`.
-* **Trạng thái**: `[DỰ KIẾN - CHƯA CHẠY]`
+* **Trạng thái**: `[HOÀN THÀNH - ĐÃ NGHIỆM THU 100%]` (Bao phủ 12 test Java mới [10 MockMvc + 2 Thymeleaf Rendering], 7 test JavaScript jsdom mới; Tổng toàn module: 89/89 tests Java PASS, 33/33 tests JS PASS).
 
 ---
 

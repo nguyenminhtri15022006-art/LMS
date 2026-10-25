@@ -54,10 +54,20 @@ class SecurityConfigTest {
         courseObj.put("title", "Khóa học thử nghiệm");
         courseData.set("data", courseObj);
 
+        ObjectNode blogData = objectMapper.createObjectNode();
+        ObjectNode blogObj = objectMapper.createObjectNode();
+        blogObj.put("id", 456L);
+        blogObj.put("title", "Bài viết hay 2026");
+        blogObj.put("slug", "bai-viet-hay-2026");
+        blogObj.put("content", "Nội dung bài viết thử nghiệm.");
+        blogData.set("data", blogObj);
+
         when(gatewayClient.get(eq("/course/courses/123"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(courseData);
+        when(gatewayClient.get(eq("/blog/posts/public/bai-viet-hay-2026"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(blogData);
 
-        when(gatewayClient.get(org.mockito.ArgumentMatchers.argThat(s -> s == null || !s.equals("/course/courses/123")), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+        when(gatewayClient.get(org.mockito.ArgumentMatchers.argThat(s -> s == null || (!s.equals("/course/courses/123") && !s.equals("/blog/posts/public/bai-viet-hay-2026"))), eq(com.fasterxml.jackson.databind.JsonNode.class)))
                 .thenReturn(emptyData);
     }
 
@@ -105,17 +115,17 @@ class SecurityConfigTest {
         mockMvc.perform(get("/courses/123"))
                 .andExpect(status().isOk());
 
-        // Blog công khai không bị redirect login
+        // Blog công khai không bị redirect login (đã có controller Phase 5)
         mockMvc.perform(get("/blog"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
-        // Chi tiết blog theo slug không bị redirect login
+        // Chi tiết blog theo slug không bị redirect login (đã có controller Phase 5)
         mockMvc.perform(get("/blog/bai-viet-hay-2026"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
-        // Thẻ tags blog công khai không bị redirect login
+        // Thẻ tags blog công khai không bị redirect login (đã có controller Phase 5)
         mockMvc.perform(get("/blog/tags"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
