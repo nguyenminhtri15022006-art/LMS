@@ -43,6 +43,24 @@ public class GatewayClient {
                 .body(responseType);
     }
 
+    public <T> T postMultipart(String uri, org.springframework.util.MultiValueMap<String, Object> body, Class<T> responseType) {
+        return restClient.post()
+                .uri(uri)
+                .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
+                .body(body)
+                .retrieve()
+                .body(responseType);
+    }
+
+    public <T> T putMultipart(String uri, org.springframework.util.MultiValueMap<String, Object> body, Class<T> responseType) {
+        return restClient.put()
+                .uri(uri)
+                .contentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA)
+                .body(body)
+                .retrieve()
+                .body(responseType);
+    }
+
     public <T> T delete(String uri, Class<T> responseType) {
         return restClient.delete()
                 .uri(uri)

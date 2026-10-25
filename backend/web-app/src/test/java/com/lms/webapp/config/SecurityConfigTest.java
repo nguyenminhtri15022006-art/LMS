@@ -190,13 +190,13 @@ class SecurityConfigTest {
     @Test
     @WithMockUser(roles = "INSTRUCTOR")
     void instructorRoutesAccessibleForInstructorRole() throws Exception {
-        // Giảng viên với role thực tế INSTRUCTOR (ROLE_INSTRUCTOR trong token) được phép truy cập /courses/my
+        // Giảng viên với role thực tế INSTRUCTOR (ROLE_INSTRUCTOR trong token) được phép truy cập /courses/my (chuyển hướng 302 về /instructor/courses)
         mockMvc.perform(get("/courses/my"))
-                .andExpect(status().isNotFound()); // Security cho phép qua, đến MVC trả về 404 vì controller thuộc phase sau
+                .andExpect(status().is3xxRedirection());
 
-        // Giảng viên với role INSTRUCTOR được phép truy cập /instructor/courses
+        // Giảng viên với role INSTRUCTOR được phép truy cập /instructor/courses (200 OK)
         mockMvc.perform(get("/instructor/courses"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         // Giảng viên không có quyền truy cập /admin -> 403 Forbidden
         mockMvc.perform(get("/admin"))
@@ -208,10 +208,10 @@ class SecurityConfigTest {
     void instructorRoutesAccessibleForTeacherRoleAlias() throws Exception {
         // Hỗ trợ tương thích alias TEACHER (ROLE_TEACHER) được phép truy cập các route quản lý giảng viên
         mockMvc.perform(get("/courses/my"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().is3xxRedirection());
 
         mockMvc.perform(get("/instructor/courses"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -222,9 +222,9 @@ class SecurityConfigTest {
                 .andExpect(status().isNotFound());
 
         mockMvc.perform(get("/courses/my"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().is3xxRedirection());
 
         mockMvc.perform(get("/instructor/courses"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
     }
 }

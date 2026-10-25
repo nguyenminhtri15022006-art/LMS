@@ -33,10 +33,10 @@ class CourseStudentRenderingTest {
 
     private static final String TREE = """
         {"nodes":[
-          {"id":"late","type":"LESSON","title":"LATE_LESSON","order":2,"lessonId":"l-late"},
-          {"id":"deep","parentId":"sub","type":"LESSON","title":"DEEP_LESSON","order":1,"lessonId":"l-deep","lessonType":"VIDEO"},
-          {"id":"root","type":"FOLDER","title":"ROOT_FOLDER","order":1},
-          {"id":"sub","parentId":"root","type":"FOLDER","title":"SUB_FOLDER","order":1}
+          {"id":"late","type":"lesson","title":"LATE_LESSON","order":2,"lessonId":"l-late"},
+          {"id":"deep","parentId":"sub","type":"lesson","title":"DEEP_LESSON","order":1,"lessonId":"l-deep","lessonType":"video"},
+          {"id":"root","type":"folder","title":"ROOT_FOLDER","order":1},
+          {"id":"sub","parentId":"root","type":"folder","title":"SUB_FOLDER","order":1}
         ]}
         """;
 

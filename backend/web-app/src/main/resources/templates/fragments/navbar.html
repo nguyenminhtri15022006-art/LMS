@@ -41,7 +41,8 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="userDropdown">
                             <li><a class="dropdown-item" th:href="@{/profile}"><i class="bi bi-person me-2"></i>Hồ sơ cá nhân</a></li>
-                            <li sec:authorize="hasRole('TEACHER')"><a class="dropdown-item" th:href="@{/instructor/courses}"><i class="bi bi-easel me-2"></i>Quản lý giảng dạy</a></li>
+                            <li><a class="dropdown-item" th:href="@{/my-courses}"><i class="bi bi-collection-play me-2"></i>Khóa học của tôi</a></li>
+                            <li sec:authorize="hasAnyRole('INSTRUCTOR', 'TEACHER', 'ADMIN')"><a class="dropdown-item" th:href="@{/instructor/courses}"><i class="bi bi-easel me-2"></i>Studio Giảng viên</a></li>
                             <li sec:authorize="hasRole('ADMIN')"><a class="dropdown-item" th:href="@{/admin}"><i class="bi bi-shield-lock me-2"></i>Quản trị hệ thống</a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li>

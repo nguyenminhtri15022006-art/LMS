@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/main :: layout(~{::title}, ~{::#managementCenterContent}, ~{::#managementCenterScripts})}">
+<head>
+    <title th:text="'Quản Lý Khóa Học: ' + ${course.hasNonNull('title') ? course.get('title').asText() : ''} + ' - EduLearn LMS'">Quản Lý Khóa Học - EduLearn LMS</title>
+</head>
+<body>
+<div id="managementCenterContent" class="container py-4"
+     th:data-course-id="${course.get('id').asText()}"
+     th:data-csrf-token="${_csrf.token}"
+     th:data-csrf-header="${_csrf.headerName}">
+
+    <!-- Breadcrumb & Top Bar -->
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4">
+        <div>
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb mb-1">
+                    <li class="breadcrumb-item"><a th:href="@{/}">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a th:href="@{/instructor/courses}">Studio Giảng Viên</a></li>
+                    <li class="breadcrumb-item active" aria-current="page" th:text="${course.get('title').asText()}">Tên khóa học</li>
+                </ol>
+            </nav>
+            <div class="d-flex align-items-center gap-2">
+                <h2 class="fw-bold mb-0" th:text="${course.get('title').asText()}">Tiêu đề khóa học</h2>
+                <span th:if="${course.hasNonNull('status') and course.get('status').asText() == 'PUBLIC'}"
+                      class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1">
+                    <i class="bi bi-globe me-1"></i>Công khai
+                </span>
+                <span th:if="${course.hasNonNull('status') and course.get('status').asText() == 'PRIVATE'}"
+                      class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1">
+                    <i class="bi bi-lock me-1"></i>Riêng tư
+                </span>
+            </div>
+        </div>
+        <div class="d-flex gap-2">
+            <a th:href="@{'/courses/' + ${course.get('id').asText()}}" target="_blank" class="btn btn-outline-primary btn-sm">
+                <i class="bi bi-eye me-1"></i>Xem như học viên
+            </a>
+            <a th:href="@{'/instructor/courses/' + ${course.get('id').asText()} + '/edit'}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-gear me-1"></i>Cài đặt khóa học
+            </a>
+        </div>
+    </div>
+
+    <!-- Alert Container -->
+    <div id="alertMessageContainer"></div>
+
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs nav-fill mb-4 border-bottom bg-white rounded-4 shadow-sm p-2" id="courseManagementTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold active py-3"
+                    id="curriculum-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#curriculumTabPane"
+                    type="button"
+                    role="tab"
+                    aria-controls="curriculumTabPane"
+                    aria-selected="true">
+                <i class="bi bi-diagram-3 me-2 text-primary"></i>Cây Đề Cương Bài Giảng
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-3"
+                    id="students-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#studentsTabPane"
+                    type="button"
+                    role="tab"
+                    aria-controls="studentsTabPane"
+                    aria-selected="false">
+                <i class="bi bi-people me-2 text-success"></i>Học Viên & Lời Mời
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-3"
+                    id="schedules-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#schedulesTabPane"
+                    type="button"
+                    role="tab"
+                    aria-controls="schedulesTabPane"
+                    aria-selected="false">
+                <i class="bi bi-calendar-event me-2 text-warning"></i>Lịch Học Trực Tuyến
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold py-3"
+                    id="announcements-tab"
+                    data-bs-toggle="tab"
+                    data-bs-target="#announcementsTabPane"
+                    type="button"
+                    role="tab"
+                    aria-controls="announcementsTabPane"
+                    aria-selected="false">
+                <i class="bi bi-megaphone me-2 text-info"></i>Bảng Tin Thông Báo
+            </button>
+        </li>
+    </ul>
+
+    <!-- Tab Content Panes -->
+    <div class="tab-content" id="courseManagementTabsContent">
+        
+        <!-- ============================================== -->
+        <!-- TAB 1: CURRICULUM TREE BUILDER -->
+        <!-- ============================================== -->
+        <div class="tab-pane fade show active" id="curriculumTabPane" role="tabpanel" aria-labelledby="curriculum-tab">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+                    <div>
+                        <h4 class="fw-bold mb-1">Cấu Trúc Giáo Trình Khóa Học</h4>
+                        <p class="text-muted small mb-0">Tổ chức các chương mục và bài học theo thứ tự logic sư phạm.</p>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btnAddChapter">
+                            <i class="bi bi-folder-plus me-1"></i>Thêm Chương Mục
+                        </button>
+                        <button type="button" class="btn btn-primary btn-sm shadow-sm" id="btnAddLesson">
+                            <i class="bi bi-file-earmark-plus me-1"></i>Thêm Bài Học Mới
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Tree View Container -->
+                <div id="curriculumTreeContainer">
+                    <div class="text-center py-5" id="curriculumLoading">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Đang tải cấu trúc bài giảng...</span>
+                        </div>
+                    </div>
+                    <!-- Empty State -->
+                    <div id="curriculumEmptyState" class="text-center py-5 d-none">
+                        <i class="bi bi-folder2-open display-3 text-muted opacity-50 mb-3"></i>
+                        <h5>Khóa học chưa có cấu trúc giáo trình</h5>
+                        <p class="text-muted small">Hãy nhấn "Thêm Chương Mục" hoặc "Thêm Bài Học" để bắt đầu xây dựng khóa học.</p>
+                    </div>
+                    <!-- Error State -->
+                    <div id="curriculumErrorState" class="text-center py-5 d-none">
+                        <i class="bi bi-exclamation-triangle display-3 text-danger opacity-75 mb-3"></i>
+                        <h5>Không thể tải cấu trúc bài giảng</h5>
+                        <p class="text-muted small" id="curriculumErrorMessage">Đã có lỗi xảy ra khi kết nối máy chủ.</p>
+                        <button type="button" class="btn btn-outline-primary btn-sm mt-2" id="curriculumRetryBtn">
+                            <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                        </button>
+                    </div>
+                    <!-- Rendered Tree List -->
+                    <div id="curriculumTreeList" class="d-flex flex-column gap-2"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 2: STUDENTS MANAGEMENT -->
+        <!-- ============================================== -->
+        <div class="tab-pane fade" id="studentsTabPane" role="tabpanel" aria-labelledby="students-tab">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+                    <div>
+                        <h4 class="fw-bold mb-1">Danh Sách Học Viên</h4>
+                        <p class="text-muted small mb-0">Theo dõi những người đang theo học và mời học viên qua email.</p>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-success btn-sm shadow-sm" data-bs-toggle="modal" data-bs-target="#inviteStudentModal">
+                            <i class="bi bi-envelope-plus me-1"></i>Mời Học Viên
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Students Table Container -->
+                <div class="table-responsive" id="studentsTableContainer">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="ps-3">Học viên</th>
+                                <th>Email</th>
+                                <th>Ngày ghi danh</th>
+                                <th>Trạng thái</th>
+                                <th class="text-end pe-3">Thao tác</th>
+                            </tr>
+                        </thead>
+                        <tbody id="studentsTableBody">
+                            <tr>
+                                <td colspan="5" class="text-center py-4">
+                                    <div class="spinner-border spinner-border-sm text-primary me-2"></div> Đang tải danh sách học viên...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Students Pagination -->
+                <div id="studentsPagination" class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top d-none">
+                    <span class="text-muted small" id="studentsPageInfo">Trang 1 / 1 (Tổng số: 0)</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" id="studentsPrevBtn" disabled>
+                            <i class="bi bi-chevron-left me-1"></i>Trước
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="studentsNextBtn" disabled>
+                            Sau<i class="bi bi-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 3: SCHEDULES (MEET / LIVE CLASS) -->
+        <!-- ============================================== -->
+        <div class="tab-pane fade" id="schedulesTabPane" role="tabpanel" aria-labelledby="schedules-tab">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3 mb-4 pb-3 border-bottom">
+                    <div>
+                        <h4 class="fw-bold mb-1">Lịch Học Trực Tuyến & Google Meet</h4>
+                        <p class="text-muted small mb-0">Lên lịch các buổi livestream, giải đáp bài tập hoặc hội thảo trực tuyến.</p>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-warning btn-sm text-dark shadow-sm" id="btnCreateSchedule">
+                            <i class="bi bi-calendar-plus me-1"></i>Tạo Lịch Học Mới
+                        </button>
+                    </div>
+                </div>
+
+                <div id="schedulesListContainer" class="row g-3">
+                    <div class="col-12 text-center py-4">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div> Đang tải lịch học...
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ============================================== -->
+        <!-- TAB 4: ANNOUNCEMENTS -->
+        <!-- ============================================== -->
+        <div class="tab-pane fade" id="announcementsTabPane" role="tabpanel" aria-labelledby="announcements-tab">
+            <div class="card border-0 shadow-sm rounded-4 p-4 bg-white mb-4">
+                <div class="mb-4 pb-3 border-bottom">
+                    <h4 class="fw-bold mb-1">Bảng Tin Thông Báo Khóa Học</h4>
+                    <p class="text-muted small mb-0">Gửi thông báo quan trọng đến tất cả học viên đã ghi danh vào khóa học.</p>
+                </div>
+
+                <!-- Create announcement card form -->
+                <div class="card border rounded-3 p-3 bg-light mb-4 shadow-sm">
+                    <h6 class="fw-bold mb-3"><i class="bi bi-pencil-fill me-2 text-primary"></i>Đăng Thông Báo Mới</h6>
+                    <form id="announcementForm">
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Tiêu đề thông báo <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="announcementTitleInput" placeholder="Ví dụ: Thay đổi lịch thi hoặc cập nhật bài giảng mới" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Nội dung chi tiết <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="announcementContentInput" rows="3" placeholder="Nhập nội dung thông báo gửi đến học viên..." required></textarea>
+                        </div>
+                        <div class="text-end">
+                            <button type="submit" class="btn btn-primary btn-sm px-3 shadow-sm" id="btnPostAnnouncement">
+                                <i class="bi bi-send me-1"></i>Đăng Thông Báo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Announcements List -->
+                <div id="announcementsListContainer" class="d-flex flex-column gap-3">
+                    <div class="text-center py-4">
+                        <div class="spinner-border spinner-border-sm text-primary me-2"></div> Đang tải thông báo...
+                    </div>
+                </div>
+
+                <!-- Announcements Pagination -->
+                <div id="announcementsPagination" class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top d-none">
+                    <span class="text-muted small" id="announcementsPageInfo">Trang 1 / 1 (Tổng số: 0)</span>
+                    <div class="btn-group btn-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" id="announcementsPrevBtn" disabled>
+                            <i class="bi bi-chevron-left me-1"></i>Trước
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="announcementsNextBtn" disabled>
+                            Sau<i class="bi bi-chevron-right ms-1"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================== -->
+    <!-- MODALS SECTION -->
+    <!-- ============================================== -->
+
+    <!-- 1. Modal Thêm / Sửa Node Cây Giáo Trình -->
+    <div class="modal fade" id="nodeModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="nodeModalTitle">Thêm Mục Giáo Trình</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="nodeForm">
+                        <input type="hidden" id="nodeIdInput">
+                        <input type="hidden" id="nodeTypeInput" value="folder">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="nodeTitleInput" placeholder="Nhập tiêu đề chương hoặc bài học..." required>
+                        </div>
+
+                        <div class="mb-3" id="parentSelectContainer">
+                            <label class="form-label fw-bold">Thuộc chương (Tùy chọn)</label>
+                            <select class="form-select" id="nodeParentSelect">
+                                <option value="">-- Cấp ngoài cùng (Chương độc lập) --</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveNode">Lưu Mục</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 2. Modal Soạn Thảo Nội Dung Bài Học (Video / Document) -->
+    <div class="modal fade" id="lessonContentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="lessonModalTitle">Soạn Thảo Bài Học</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="lessonContentForm">
+                        <input type="hidden" id="lessonIdInput">
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Loại bài học <span class="text-danger">*</span></label>
+                            <div class="d-flex gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="lessonTypeRadio" id="typeVideo" value="VIDEO" checked>
+                                    <label class="form-check-label fw-medium" for="typeVideo"><i class="bi bi-play-btn me-1 text-danger"></i>Video bài giảng</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="lessonTypeRadio" id="typeDocument" value="DOCUMENT">
+                                    <label class="form-check-label fw-medium" for="typeDocument"><i class="bi bi-file-text me-1 text-primary"></i>Tài liệu lý thuyết</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Video URL field -->
+                        <div class="mb-3" id="videoUrlGroup">
+                            <label class="form-label fw-bold">Đường dẫn Video (YouTube / MP4 / Embed) <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="lessonVideoUrl" placeholder="https://www.youtube.com/watch?v=... hoặc URL file video">
+                            <div class="form-text small">Hỗ trợ link YouTube, Vimeo hoặc file MP4 trực tiếp.</div>
+                        </div>
+
+                        <!-- Document Markdown Text field -->
+                        <div class="mb-3" id="documentContentGroup" style="display: none;">
+                            <label class="form-label fw-bold">Nội dung bài viết (Hỗ trợ định dạng Markdown)</label>
+                            <textarea class="form-control font-monospace" id="lessonDocumentContent" rows="8" placeholder="# Tiêu đề lý thuyết..."></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Đóng</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveLessonContent">Lưu Nội Dung</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 3. Modal Mời Học Viên -->
+    <div class="modal fade" id="inviteStudentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold text-success"><i class="bi bi-envelope-plus me-2"></i>Mời Học Viên Vào Khóa Học</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="inviteStudentForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Email người học <span class="text-danger">*</span></label>
+                            <input type="email" class="form-control" id="inviteEmailInput" placeholder="nhap.email.hocvien@example.com" required>
+                            <div class="form-text small">Học viên sẽ tự động được thêm vào khóa học và nhận thông báo.</div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-success" id="btnSendInvite">Gửi Lời Mời</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. Modal Tạo / Sửa Lịch Học -->
+    <div class="modal fade" id="scheduleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header">
+                    <h5 class="modal-title fw-bold" id="scheduleModalTitle">Thêm Lịch Học Trực Tuyến</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="scheduleModalForm">
+                        <input type="hidden" id="scheduleIdInput">
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tiêu đề buổi học <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="scheduleTitleInput" placeholder="Ví dụ: Buổi giải đáp thắc mắc đồ án" required>
+                        </div>
+                        <div class="row g-2 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Bắt đầu <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="scheduleStartInput" required>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fw-bold">Kết thúc <span class="text-danger">*</span></label>
+                                <input type="datetime-local" class="form-control" id="scheduleEndInput" required>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Ghi chú hoặc Link Google Meet</label>
+                            <input type="text" class="form-control" id="scheduleNoteInput" placeholder="Ví dụ: meet.google.com/xyz-abcd-efg">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Hủy</button>
+                    <button type="button" class="btn btn-warning text-dark" id="btnSaveSchedule">Lưu Lịch Học</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<th:block id="managementCenterScripts">
+    <!-- Scripts for Curriculum Builder and Instructor Management -->
+    <script th:src="@{/js/curriculum-builder.js}"></script>
+    <script th:src="@{/js/instructor-management.js}"></script>
+</th:block>
+</body>
+</html>

@@ -2276,3 +2276,141 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 - Không đưa `.gitignore` ở gốc và các thay đổi `frontend/**` có sẵn vào commit; không sửa project mẫu, không merge, không tạo nhánh mới.
 - Bốn lỗi đã đạt kiểm thử cô lập. jsdom không chứng minh bố cục, phát video hay bảo mật đầy đủ trên trình duyệt thật. Docker, SMTP, Google OAuth và MinIO/luồng hệ thống thật vẫn chờ nghiệm thu Phase 7.
 - ChatGPT Web chưa có phiên liên kết với workspace này; lần sửa/kiểm chứng do Codex thực hiện trực tiếp, không tuyên bố có review chung qua ChatGPT Web.
+
+---
+
+### 2026-10-25 — Phase 4: Quản Lý Khóa Học & Xây Dựng Bài Giảng Dành Cho Giảng Viên (Instructor Studio)
+
+* **Trạng thái**: `[ĐANG KHẮC PHỤC - KHẢO SÁT & XỬ LÝ 8 NHÓM LỖI THỰC TẾ]`
+
+#### 1. Bảng Pre-flight Trước Khi Sửa Mã Nguồn (Mandatory Pre-flight)
+- **Mục tiêu**: Khắc phục triệt để 8 nhóm lỗi của Phase 4, hoàn thiện toàn diện luồng cây giáo trình MongoDB, tương thích NodeType/LessonType lowercase từ backend, kích hoạt validation server/client, bảo vệ chống XSS, sửa form cập nhật khóa học, bổ sung thao tác sửa lịch học, phân trang học viên/thông báo và viết kiểm thử tự động jsdom trên HTML Thymeleaf thật.
+- **File tạo mới**:
+  1. `backend/web-app/src/test/js/curriculum-builder.test.js`: Test runner Node/jsdom cho cây đề cương giáo trình.
+  2. `backend/web-app/src/test/js/instructor-management.test.js`: Test runner Node/jsdom cho quản lý học viên, lịch học, thông báo.
+- **File sửa đổi**:
+  1. `docs/KE_HOACH_CHUYEN_DOI_GIAO_DIEN.md`: Chuyển trạng thái Phase 4 về `[ĐANG KHẮC PHỤC]`.
+  2. `docs/progress/member-2.md`: Ghi nhận bảng Pre-flight và nhật ký khắc phục Red/Green chi tiết.
+  3. `backend/web-app/src/main/java/com/lms/webapp/controller/CourseInstructorController.java`:
+     - Bổ sung endpoint JSON `GET /instructor/courses/{courseId}/structure`.
+     - Kích hoạt `@Valid` trên `StructureNodeForm`, `LessonUpdateForm`, `InviteStudentForm`, `ScheduleForm`, `AnnouncementForm`.
+     - Giữ nguyên HTTP status code lỗi từ downstream (400, 401, 403, 404) qua `RestClientResponseException`, trả thông báo an toàn.
+     - Sửa `POST /instructor/courses/{id}/edit` khi validation fail hoặc Gateway fail: luôn giữ biến `course` (chứa `id`) trong Model.
+     - Nạp và gửi multipart `learningPoints` và `requirements`.
+  4. `backend/web-app/src/main/java/com/lms/webapp/dto/form/CourseForm.java`: Bổ sung getter/setter `learningPointsText` và `requirementsText`.
+  5. `backend/web-app/src/main/resources/templates/fragments/course-tree.html`: Sửa so sánh `type` và `lessonType` không phân biệt hoa thường (`equalsIgnoreCase`), tương thích cả `folder`/`lesson`/`video`/`document`.
+  6. `backend/web-app/src/main/resources/templates/courses/instructor/course-form.html`: Fallback `course.hasNonNull('id')`, thêm textarea mục tiêu học tập và yêu cầu.
+  7. `backend/web-app/src/main/resources/templates/courses/instructor/management-center.html`: Bổ sung phân trang học viên, thông báo; thêm nút và trạng thái error/retry cho cây đề cương.
+  8. `backend/web-app/src/main/resources/static/js/curriculum-builder.js`:
+     - Tải cây trực tiếp qua `GET /instructor/courses/${courseId}/structure`, loại bỏ fetch HTML thừa.
+     - Quản lý 3 trạng thái: Loading, Empty, Error kèm nút Retry.
+     - Dựng cây đệ quy theo `parentId`, sắp xếp `order`.
+     - Hoàn thiện reorder Move Up / Move Down gửi PUT `ReorderNodesRequest` và rollback khi lỗi.
+     - Kiểm tra `res.ok`, không báo thành công khi lỗi; chống XSS bằng `textContent`.
+  9. `backend/web-app/src/main/resources/static/js/instructor-management.js`:
+     - Kiểm tra `res.ok` trước khi cập nhật UI; đọc `successEmails`, `alreadyEnrolledEmails`, `notFoundEmails` khi mời học viên.
+     - Thao tác sửa lịch học (nạp dữ liệu cũ vào modal, gửi PUT).
+     - Phân trang học viên và thông báo.
+     - Kiểm tra URL `meetingUrl` (chỉ cho phép `http:`/`https:`, chặn `javascript:`), chống XSS DOM.
+  10. `backend/web-app/package.json`: Cập nhật npm test chạy toàn bộ `src/test/js/*.test.js`.
+  11. `backend/web-app/src/test/java/com/lms/webapp/controller/CourseInstructorControllerTest.java`: Bổ sung 7 test regression & validation (edit validation fail giữ model, multipart chứa learningPoints/requirements, structure JSON, forward 403/400, reorder empty 400, title blank 400).
+  12. `backend/web-app/src/test/java/com/lms/webapp/controller/CourseInstructorRenderingTest.java`: Xuất fixture `target/ui-fixtures/management-center.html`.
+- **Input / Output chi tiết**:
+  - `GET /instructor/courses/{id}/structure`: Input: `id` (path). Output: `ApiResponse<CourseStructureResponse>` (JSON).
+  - `POST /instructor/courses/{id}/structure/nodes`: Input: `@Valid StructureNodeForm`. Output: 200 OK JSON nếu hợp lệ, 400 Bad Request nếu trống tiêu đề/loại.
+  - `PUT /instructor/courses/{id}/structure/reorder`: Input: `@Valid ReorderNodesForm`. Output: 200 OK JSON nếu hợp lệ, 400 nếu rỗng.
+  - `PATCH /instructor/courses/{id}/structure/nodes/{nodeId}`: Input: `@Valid NodeTitleForm`. Output: 200 OK JSON nếu hợp lệ, 400 nếu tiêu đề trống.
+  - `PUT /instructor/courses/{id}/schedules/{scheduleId}`: Input: `@Valid ScheduleForm`. Output: 200 OK JSON.
+  - `POST /instructor/courses/{id}/invite`: Input: `@Valid InviteStudentForm` (`email`). Output: 200 OK JSON (`successEmails`, `alreadyEnrolledEmails`, `notFoundEmails`).
+- **Số lượng test thực tế đạt được**:
+  - Java Tests: 75/75 tests PASS (`mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"`).
+  - JavaScript Tests: 21/21 tests PASS (`cmd.exe /c "npm --prefix backend/web-app test"`).
+
+#### 2. Kế hoạch kiểm thử TDD 3 nhịp & Nhật ký khắc phục chi tiết
+
+##### Nhóm lỗi 1: Khảo sát và đối chiếu mã nguồn
+- Đối chiếu `Learning-Management-System-main/` (READ-ONLY) với Gateway routes, controller và API contract:
+  - Structure nodes: MongoDB lưu trường `type` với giá trị lowercase `"folder"` và `"lesson"`, `lessonType` là `"video"` và `"document"`.
+  - Reorder endpoint: `PUT /courses/{courseId}/structure/reorder` với `ReorderNodesRequest` gồm danh sách `nodes: [{nodeId, parentId, order}]`.
+  - Invite response: `InviteResultResponse` gồm 3 danh sách `successEmails`, `alreadyEnrolledEmails`, `notFoundEmails`.
+- Trạng thái tài liệu đã được chuyển về `[ĐANG KHẮC PHỤC]` trước khi can thiệp mã nguồn.
+
+##### Nhóm lỗi 2: Luồng tải và quản lý cây bài giảng (`curriculum-builder.js`)
+- **Red Phase**: Script cũ gọi `/instructor/courses/{id}/manage` và `/courses/{id}` nhận HTML và lỗi JSON parse, sau đó gọi `/api/course/courses/{id}/structure` trả về 404 trên web-app origin, làm biến mất toàn bộ cây bài giảng.
+- **Green Phase**:
+  - Bổ sung và chuyển hướng trực tiếp sang endpoint JSON BFF: `GET /instructor/courses/{courseId}/structure`.
+  - Phân tách rõ ràng 3 trạng thái: Loading (`#curriculumLoading`), Empty (`#curriculumEmptyState`), Error (`#curriculumErrorState` hiển thị mã HTTP và nút Thử lại `#curriculumRetryBtn`).
+  - Dựng cây đệ quy theo `parentId`, sắp xếp `order` theo từng cấp.
+  - Hoàn thiện thao tác reorder Move Up / Move Down cho cả folder và bài học, gửi đúng `ReorderNodesRequest` qua `PUT /instructor/courses/{id}/structure/reorder`; rollback cây nếu Gateway trả lỗi.
+
+##### Nhóm lỗi 3: Tương thích `NodeType` & `LessonType`
+- **Red Phase**: `CourseStudentRenderingTest` fail 2 tests khi fixture `TREE` chứa giá trị serialization thật từ backend MongoDB (`"folder"`, `"lesson"`, `"video"`). Nguyên nhân do `course-tree.html` so sánh equality dạng chuỗi hoa `"FOLDER"` / `"LESSON"`.
+- **Green Phase**: Chuẩn hóa điều kiện trong `course-tree.html` sang `equalsIgnoreCase('FOLDER')`, `equalsIgnoreCase('LESSON')`, `equalsIgnoreCase('VIDEO')`. Toàn bộ 5 tests của `CourseStudentRenderingTest` và 7 tests của `curriculum-builder.test.js` đã PASS (GREEN).
+
+##### Nhóm lỗi 4: Tránh báo thành công khi thao tác thất bại
+- **Red Phase**: Khi API thêm node hoặc cập nhật trả về 403 Forbidden, script cũ vẫn báo "Thành công", tự ý đóng modal và xóa form.
+- **Green Phase**:
+  - BFF `CourseInstructorController`: bắt `RestClientResponseException`, trích xuất đúng HTTP status (400, 401, 403, 404) thay vì gom về 500, trả thông báo an toàn.
+  - Client scripts: kiểm tra `res.ok`. Nếu thất bại: giữ nguyên form, không đóng modal, hiển thị alert lỗi nguy hiểm (`alert-danger`).
+  - Luồng mời học viên: đọc `successEmails`, `alreadyEnrolledEmails`, `notFoundEmails`. Nếu tài khoản chưa đăng ký (`notFoundEmails`), thông báo tài khoản không tồn tại; nếu đã tham gia (`alreadyEnrolledEmails`), cảnh báo học viên đã có trong lớp. Chỉ khi có `successEmails` mới báo đã ghi danh tài khoản thành công.
+
+##### Nhóm lỗi 5: Form cập nhật khóa học (`course-form.html`)
+- **Red Phase**: `CourseInstructorControllerTest.editCourseValidationFailPreservesCourseModel` fail với `SpelEvaluationException: EL1011E: Method call: Attempted to call method get(java.lang.String) on null context object` khi validation fail do thiếu model `course`.
+- **Green Phase**:
+  - Trong `CourseInstructorController.updateCourse`: khi validation fail hoặc Gateway fail, luôn tạo `dummyCourse` chứa `id` và nạp vào model.
+  - Trong `course-form.html`: bổ sung fallback an toàn `course != null and course.hasNonNull('id')`.
+  - Tải và submit `learningPoints` và `requirements`: bổ sung `learningPointsText` và `requirementsText` (textarea phân tách dòng) trên `CourseForm` và chuyển tiếp multipart `List<String>`.
+  - Multipart chỉ đính kèm file thumbnail khi người dùng thực sự chọn file mới (kích thước > 0).
+
+##### Nhóm lỗi 6: Kích hoạt validation thực sự
+- Tạo DTO `ReorderNodesForm` và `NodeTitleForm` với các constraint `@NotEmpty`, `@NotBlank`.
+- Đặt `@Valid` kèm `BindingResult` cho toàn bộ các endpoint mutation:
+  - `CourseForm`: `@NotBlank(message = "Tiêu đề không được để trống")`.
+  - `StructureNodeForm`: `@NotBlank` cho title và type.
+  - `ReorderNodesForm`: `@NotEmpty` cho danh sách node sắp xếp.
+  - `NodeTitleForm`: `@NotBlank` cho tiêu đề node.
+  - `LessonUpdateForm`: `@NotBlank` cho loại bài học.
+  - `InviteStudentForm`: `@NotBlank`, `@Email` cho email người học.
+  - `ScheduleForm`: `@NotBlank` cho title, start, end.
+  - `AnnouncementForm`: `@NotBlank` cho title, content.
+- Dữ liệu không hợp lệ bị chặn ngay tại controller và trả HTTP 400 Bad Request kèm message rõ ràng.
+
+##### Nhóm lỗi 7: Hoàn thiện lịch học và UI còn thiếu
+- Bổ sung nút "Sửa" lịch học (`.btn-edit-schedule`) trên từng card lịch trong `management-center.html`.
+- Mở modal nạp dữ liệu cũ (chuyển đổi ISO sang `datetime-local`) và submit qua `PUT /instructor/courses/{id}/schedules/{scheduleId}`.
+- Bổ sung thanh điều hướng phân trang (`#studentsPagination`, `#announcementsPagination`) với nút Trước/Sau và hiển thị trang `Trang X / Y (Tổng số: N)`.
+
+##### Nhóm lỗi 8: Bảo vệ an toàn HTML và URL (Chống XSS)
+- Kiểm tra an toàn `meetingUrl`: dùng hàm `isSafeUrl()` chỉ cho phép giao thức `^https?://`. Khi gặp vector `javascript:alert(1)` hoặc scheme độc hại, vô hiệu hóa việc tạo thẻ `<a>`, hiển thị dạng chuỗi văn bản an toàn.
+- Loại bỏ hoàn toàn việc ghép nối chuỗi HTML vào `innerHTML` với dữ liệu người dùng/API. Tất cả các thành phần trong `curriculum-builder.js` và `instructor-management.js` được tạo qua `document.createElement()` và gán giá trị bằng `textContent`.
+- Hàm `showAlert()` tạo DOM và gán nội dung bằng `textContent`.
+
+##### Nhóm lỗi 9: Bằng chứng kiểm thử tự động
+1. **Lệnh chạy Maven Verify (Java)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS`, `Tests run: 75, Failures: 0, Errors: 0, Skipped: 0`.
+   - **Thời gian chạy**: 29.132 s.
+2. **Lệnh chạy npm test (JavaScript jsdom trên HTML Thymeleaf thật)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**:
+     - `learning-hub.test.js`: 8/8 tests PASS.
+     - `curriculum-builder.test.js`: 7/7 tests PASS.
+     - `instructor-management.test.js`: 6/6 tests PASS.
+     - **Tổng cộng**: `tests: 21, pass: 21, fail: 0, skipped: 0`.
+3. **Lệnh kiểm tra cú pháp JS**:
+   ```bash
+   node --check backend/web-app/src/main/resources/static/js/curriculum-builder.js
+   node --check backend/web-app/src/main/resources/static/js/instructor-management.js
+   ```
+   - **Kết quả**: Exit code 0, không có lỗi cú pháp.
+
+##### Giới hạn kiểm chứng (Verification Limits)
+- Các kiểm thử tự động đã cô lập và kiểm chứng chặt chẽ các ranh giới HTTP, serialization JSON, rendering Thymeleaf và tương tác DOM jsdom với Bootstrap thật.
+- Các dịch vụ ngoài thực tế như SMTP gửi email thật, Google OAuth và MinIO bucket thật sẽ được kiểm thử tích hợp khi khởi chạy toàn bộ hệ thống bằng Docker Compose.
+- **Không triển khai Phase 5** trong đợt bàn giao này theo đúng yêu cầu nghiêm ngặt của người dùng.
+
+

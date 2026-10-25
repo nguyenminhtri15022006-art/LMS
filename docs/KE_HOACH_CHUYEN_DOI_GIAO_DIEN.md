@@ -1109,7 +1109,7 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
      - **Red 1**: Viết test khi chưa có method `deleteAnnouncement`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=CourseInstructorControllerTest#deleteAnnouncementCallsDeleteEndpoint`. Lỗi mong đợi: `cannot find symbol: method deleteAnnouncement(...)`.
      - **Red 2**: Method stub không gửi lệnh DELETE tới Gateway. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=CourseInstructorControllerTest#deleteAnnouncementCallsDeleteEndpoint`. Lỗi mong đợi: `AssertionFailedError: expected DELETE request to Gateway but none executed`.
      - **Green**: Gọi Gateway `DELETE /api/course/courses/{courseId}/announcements/{announcementId}` và trả về status 200. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=CourseInstructorControllerTest#deleteAnnouncementCallsDeleteEndpoint`. Kết quả mong đợi: `BUILD SUCCESS`.
-* **Trạng thái**: `[DỰ KIẾN - CHƯA CHẠY]`
+* **Trạng thái**: `[ĐANG KHẮC PHỤC - ĐANG XỬ LÝ 8 NHÓM LỖI & BỔ SUNG KIỂM THỬ THỰC TẾ]`
 
 ---
 
