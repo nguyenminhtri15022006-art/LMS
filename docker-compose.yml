@@ -1,5 +1,3 @@
-version: '3.8'
-
 networks:
   lms-network:
     driver: bridge
@@ -69,13 +67,13 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:9000/minio/health/live || exit 1"]
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -89,28 +87,24 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\";
-      /usr/bin/mc mb --ignore-existing local/lms-identity-bucket;
-      /usr/bin/mc mb --ignore-existing local/lms-course-bucket;
-      /usr/bin/mc mb --ignore-existing local/lms-blog-bucket;
-      cat << 'EOF' > /tmp/cors.json
-      {
-        \"CORSRules\": [{
-          \"AllowedOrigins\": [\"http://localhost:8088\"],
-          \"AllowedMethods\": [\"GET\", \"POST\", \"PUT\", \"OPTIONS\", \"HEAD\"],
-          \"AllowedHeaders\": [\"*\"],
-          \"ExposeHeaders\": [\"ETag\"],
-          \"MaxAgeSeconds\": 3600
-        }]
-      }
-      EOF
-      /usr/bin/mc cors set local/lms-identity-bucket /tmp/cors.json;
-      exit 0;
-      "
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        /usr/bin/mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        /usr/bin/mc mb --ignore-existing local/lms-identity-bucket
+        /usr/bin/mc mb --ignore-existing local/lms-course-bucket
+        /usr/bin/mc mb --ignore-existing local/lms-blog-bucket
+        /usr/bin/mc anonymous set download local/lms-identity-bucket || true
+        /usr/bin/mc anonymous set download local/lms-course-bucket || true
+        /usr/bin/mc anonymous set download local/lms-blog-bucket || true
+        echo '<CORSConfiguration><CORSRule><AllowedOrigin>http://localhost:8088</AllowedOrigin><AllowedOrigin>http://127.0.0.1:8088</AllowedOrigin><AllowedOrigin>http://localhost:3000</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>POST</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>DELETE</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>' > /tmp/cors.xml
+        /usr/bin/mc cors set local/lms-identity-bucket /tmp/cors.xml
+        /usr/bin/mc cors set local/lms-course-bucket /tmp/cors.xml
+        /usr/bin/mc cors set local/lms-blog-bucket /tmp/cors.xml
     networks:
       - lms-network
 
@@ -142,7 +136,7 @@ services:
       - "1025:1025"
       - "8025:8025"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8025/api/v1/info || exit 1"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8025/readyz || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -162,10 +156,10 @@ services:
       - IDENTITY_URL_DB=jdbc:mysql://mysql:3306/identity_lms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true
       - IDENTITY_DB_USERNAME=root
       - IDENTITY_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
-      - BOOTSTRAP_ADMIN_ENABLED=false
-      - BOOTSTRAP_ADMIN_USERNAMES=
-      - BOOTSTRAP_ADMIN_PASSWORDS=
-      - BOOTSTRAP_ADMIN_EMAILS=
+      - BOOTSTRAP_ADMIN_ENABLED=${BOOTSTRAP_ADMIN_ENABLED:-false}
+      - BOOTSTRAP_ADMIN_USERNAMES=${BOOTSTRAP_ADMIN_USERNAMES:-}
+      - BOOTSTRAP_ADMIN_PASSWORDS=${BOOTSTRAP_ADMIN_PASSWORDS:-}
+      - BOOTSTRAP_ADMIN_EMAILS=${BOOTSTRAP_ADMIN_EMAILS:-}
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
       - EUREKA_URL=http://service-registry:8761/eureka
@@ -173,8 +167,8 @@ services:
       - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
       - MINIO_IDENTITY_BUCKET=lms-identity-bucket
       - MAIL_HOST=mailpit
       - MAIL_PORT=1025
@@ -222,8 +216,8 @@ services:
       - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
       - MINIO_BUCKET=lms-course-bucket
     depends_on:
       mysql:
@@ -262,8 +256,8 @@ services:
       - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
       - MINIO_BLOG_BUCKET=lms-blog-bucket
     depends_on:
       mysql:

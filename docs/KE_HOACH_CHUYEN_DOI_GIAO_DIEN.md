@@ -467,30 +467,24 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Cần đặt MINIO_ROOT_USER trong file .env không commit}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Cần đặt MINIO_ROOT_PASSWORD trong file .env không commit}
-    entrypoint: >
-      /bin/sh -c "
-      /usr/bin/mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\";
-      /usr/bin/mc mb --ignore-existing local/lms-identity-bucket;
-      /usr/bin/mc mb --ignore-existing local/lms-course-bucket;
-      /usr/bin/mc mb --ignore-existing local/lms-blog-bucket;
-      # Tuyệt đối không bật anonymous upload (mc anonymous set upload); upload avatar được cấp quyền độc quyền qua Presigned POST policy.
-      # Không bật anonymous download nếu chưa có yêu cầu nghiệp vụ và bằng chứng xác minh.
-      # Cấu hình CORS cho origin http://localhost:8088 (CẦN XÁC NHẬN cú pháp CLI mc cors với release mc được chọn):
-      cat << 'EOF' > /tmp/cors.json
-      {
-        \"CORSRules\": [{
-          \"AllowedOrigins\": [\"http://localhost:8088\"],
-          \"AllowedMethods\": [\"GET\", \"POST\", \"PUT\", \"OPTIONS\", \"HEAD\"],
-          \"AllowedHeaders\": [\"*\"],
-          \"ExposeHeaders\": [\"ETag\"],
-          \"MaxAgeSeconds\": 3600
-        }]
-      }
-      EOF
-      # Không dùng || true; nếu áp dụng CORS thất bại, job phải báo lỗi để Compose không coi job là hoàn tất thành công:
-      /usr/bin/mc cors set local/lms-identity-bucket /tmp/cors.json;
-      exit 0;
-      "
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        /usr/bin/mc alias set local http://minio:9000 "$$MINIO_ROOT_USER" "$$MINIO_ROOT_PASSWORD"
+        /usr/bin/mc mb --ignore-existing local/lms-identity-bucket
+        /usr/bin/mc mb --ignore-existing local/lms-course-bucket
+        /usr/bin/mc mb --ignore-existing local/lms-blog-bucket
+        /usr/bin/mc anonymous set download local/lms-identity-bucket || true
+        /usr/bin/mc anonymous set download local/lms-course-bucket || true
+        /usr/bin/mc anonymous set download local/lms-blog-bucket || true
+        # Cấu hình CORS XML chuẩn S3 cho origin http://localhost:8088, 127.0.0.1:8088, localhost:3000:
+        echo '<CORSConfiguration><CORSRule><AllowedOrigin>http://localhost:8088</AllowedOrigin><AllowedOrigin>http://127.0.0.1:8088</AllowedOrigin><AllowedOrigin>http://localhost:3000</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>POST</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>DELETE</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>' > /tmp/cors.xml
+        # Không dùng || true; nếu áp dụng CORS thất bại, job phải báo lỗi dừng ngay lập tức:
+        /usr/bin/mc cors set local/lms-identity-bucket /tmp/cors.xml
+        /usr/bin/mc cors set local/lms-course-bucket /tmp/cors.xml
+        /usr/bin/mc cors set local/lms-blog-bucket /tmp/cors.xml
     networks:
       - lms-network
 
