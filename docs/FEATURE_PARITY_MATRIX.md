@@ -79,22 +79,22 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `assignment-service` | Ngân hàng câu hỏi trắc nghiệm (Question Bank) | `features/assignment/quiz/pages/teacher/EditQuizPage.jsx` | `QuestionController.java`, `QuestionServiceImpl.java` | `GET /questions`, `POST /questions`, `PUT /questions/{id}` | Bảng `questions`, `answers` | `QuestionServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Nhập câu hỏi từ file CSV / TXT | `features/assignment/quiz/components/ImportQuestionModal.jsx` | `QuestionController.java`, `CsvQuestionParser.java`, `TxtQuestionParser.java` | `POST /questions/import` | Bảng `questions`, `answers` | `CsvQuestionParserTest.java`, `TxtQuestionParserTest.java` | `NOT_STARTED` |
-| `assignment-service` | Tạo & Cấu hình bài kiểm tra Quiz | `features/assignment/quiz/pages/teacher/CreateQuizPage.jsx` | `QuizController.java`, `QuizServiceImpl.java` | `POST /quizzes`, `PUT /quizzes/{id}` | Bảng `quizzes`, `quiz_questions` | `QuizServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Danh sách Quiz theo khóa học | `features/assignment/quiz/pages/student/QuizListingPage.jsx` | `QuizController.java`, `QuizServiceImpl.java` | `GET /quizzes/course/{courseId}` | Bảng `quizzes` | `QuizServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Bắt đầu lượt thi trắc nghiệm (Attempt) | `features/assignment/quiz/pages/student/QuizOverviewPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `POST /quizzes/{quizId}/attempts` | Bảng `quiz_attempts`, `quiz_answer_records` | `QuizAttemptServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Lưu câu trả lời & Nộp bài thi trắc nghiệm | `features/assignment/quiz/pages/student/ExerciseQuizPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `PUT /quizzes/{qId}/attempts/{aId}/answers`, `POST /quizzes/{qId}/attempts/{aId}/submit` | Bảng `quiz_attempts`, `quiz_answer_records`, `grades` | `QuizAttemptServiceImplTest.java`, `quizScoring.test.js` | `NOT_STARTED` |
-| `assignment-service` | Xem kết quả bài thi & Lịch sử chi tiết | `features/assignment/quiz/pages/student/ExerciseQuizResultPage.jsx`, `QuizHistoryDetailPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `GET /quizzes/{qId}/attempts/{aId}`, `GET /quizzes/{qId}/attempts` | Bảng `quiz_attempts`, `quiz_answer_records` | `QuizAttemptServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Tạo bài toán lập trình (Coding Problem) | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `ProblemController.java`, `ProblemServiceImpl.java` | `POST /problems`, `PUT /problems/{id}` | Bảng `problems` | `ProblemServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Quản lý bộ Testcase (Ẩn / Hiện) | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `TestCaseController.java`, `TestCaseServiceImpl.java` | `GET /problems/{id}/testcases`, `POST /problems/{id}/testcases` | Bảng `test_cases` | `TestCaseServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Nhập xuất bộ Testcase theo định dạng nén/file | `features/assignment/code-judge/pages/teacher/PreviewImportPage.jsx` | `TestCaseController.java`, `TestCaseTemplateServiceImpl.java` | `POST /problems/{id}/testcases/import-zip`, `GET /problems/{id}/testcases/template` | Bảng `test_cases` | `TestCaseTemplateServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Trình soạn thảo Code & Thực thi chấm điểm | `features/assignment/code-judge/pages/student/ExerciseCodePage.jsx` | `CodeJudgeController.java`, `JudgeServiceImpl.java` | `POST /submissions`, `GET /submissions/{id}` | MongoDB `submissions`, Judge0 Engine | `SubmissionServiceImplTest.java`, `useJudge0.test.jsx` | `NOT_STARTED` |
-| `assignment-service` | Xem kết quả chấm bài lập trình chi tiết | `features/assignment/code-judge/pages/student/ExerciseCodeResultPage.jsx` | `CodeJudgeController.java`, `SubmissionServiceImpl.java` | `GET /submissions/{id}` | MongoDB `submissions` | `SubmissionServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Lịch sử nộp bài cá nhân & Giảng viên xem bài nộp | `features/assignment/code-judge/pages/student/ExerciseCodePage.jsx`, `ExerciseResultsPage.jsx` | `CodeJudgeController.java`, `SubmissionServiceImpl.java` | `GET /submissions/problem/{problemId}`, `GET /submissions/my-history` | MongoDB `submissions` | `SubmissionServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Bảng xếp hạng lập trình (Leaderboard) | `features/assignment/leaderboard/pages/student/LeaderboardPage.jsx` | `CodeJudgeController.java`, `LeaderboardServiceImpl.java` | `GET /submissions/leaderboard/{problemId}` | Bảng `problems`, MongoDB `submissions` | `SubmissionServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Bảng điểm tổng hợp (Gradebook) | `features/assignment/Exercise/pages/teacher/ExerciseResultsPage.jsx` | `QuizController.java`, `GradeServiceImpl.java` | `GET /quizzes/course/{cId}/gradebook` | Bảng `grades`, `quizzes` | `QuizServiceImplTest.java` | `NOT_STARTED` |
-| `assignment-service` | Scheduled job dọn dẹp bài thi kẹt & đồng bộ điểm | — | `QuizCleanupJob.java`, `SubmissionCleanupJob.java` | Cron background jobs | Bảng `quiz_attempts`, MongoDB `submissions` | `QuizAttemptServiceImplTest.java` | `NOT_STARTED` |
+| `assignment-service` | Ngân hàng câu hỏi trắc nghiệm (Question Bank) | `features/assignment/quiz/pages/teacher/EditQuizPage.jsx` | `QuestionController.java`, `QuestionServiceImpl.java` | `GET /questions`, `POST /questions`, `PUT /questions/{id}` | Bảng `questions`, `answers` | `QuestionServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Nhập câu hỏi từ file CSV / TXT | `features/assignment/quiz/components/ImportQuestionModal.jsx` | `QuestionController.java`, `CsvQuestionParser.java`, `TxtQuestionParser.java` | `POST /questions/import` | Bảng `questions`, `answers` | `CsvQuestionParserTest.java`, `TxtQuestionParserTest.java` | `TESTED` |
+| `assignment-service` | Tạo & Cấu hình bài kiểm tra Quiz | `features/assignment/quiz/pages/teacher/CreateQuizPage.jsx` | `QuizController.java`, `QuizServiceImpl.java` | `POST /quizzes`, `PUT /quizzes/{id}` | Bảng `quizzes`, `quiz_questions` | `QuizServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Danh sách Quiz theo khóa học | `features/assignment/quiz/pages/student/QuizListingPage.jsx` | `QuizController.java`, `QuizServiceImpl.java` | `GET /quizzes/course/{courseId}` | Bảng `quizzes` | `QuizServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Bắt đầu lượt thi trắc nghiệm (Attempt) | `features/assignment/quiz/pages/student/QuizOverviewPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `POST /quizzes/{quizId}/attempts` | Bảng `quiz_attempts`, `quiz_answer_records` | `QuizAttemptServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Lưu câu trả lời & Nộp bài thi trắc nghiệm | `features/assignment/quiz/pages/student/ExerciseQuizPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `PUT /quizzes/{qId}/attempts/{aId}/answers`, `POST /quizzes/{qId}/attempts/{aId}/submit` | Bảng `quiz_attempts`, `quiz_answer_records`, `grades` | `QuizAttemptServiceImplTest.java`, `quizScoring.test.js` | `TESTED` |
+| `assignment-service` | Xem kết quả bài thi & Lịch sử chi tiết | `features/assignment/quiz/pages/student/ExerciseQuizResultPage.jsx`, `QuizHistoryDetailPage.jsx` | `QuizAttemptController.java`, `QuizAttemptServiceImpl.java` | `GET /quizzes/{qId}/attempts/{aId}`, `GET /quizzes/{qId}/attempts` | Bảng `quiz_attempts`, `quiz_answer_records` | `QuizAttemptServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Tạo bài toán lập trình (Coding Problem) | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `ProblemController.java`, `ProblemServiceImpl.java` | `POST /problems`, `PUT /problems/{id}` | Bảng `problems` | `ProblemServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Quản lý bộ Testcase (Ẩn / Hiện) | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `TestCaseController.java`, `TestCaseServiceImpl.java` | `GET /problems/{id}/testcases`, `POST /problems/{id}/testcases` | Bảng `test_cases` | `TestCaseServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Nhập xuất bộ Testcase theo định dạng nén/file | `features/assignment/code-judge/pages/teacher/PreviewImportPage.jsx` | `TestCaseController.java`, `TestCaseTemplateServiceImpl.java` | `POST /problems/{id}/testcases/import-zip`, `GET /problems/{id}/testcases/template` | Bảng `test_cases` | `TestCaseTemplateServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Trình soạn thảo Code & Thực thi chấm điểm | `features/assignment/code-judge/pages/student/ExerciseCodePage.jsx` | `CodeJudgeController.java`, `JudgeServiceImpl.java` | `POST /submissions`, `GET /submissions/{id}` | MongoDB `submissions`, Judge0 Engine | `SubmissionServiceImplTest.java`, `useJudge0.test.jsx` | `TESTED` |
+| `assignment-service` | Xem kết quả chấm bài lập trình chi tiết | `features/assignment/code-judge/pages/student/ExerciseCodeResultPage.jsx` | `CodeJudgeController.java`, `SubmissionServiceImpl.java` | `GET /submissions/{id}` | MongoDB `submissions` | `SubmissionServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Lịch sử nộp bài cá nhân & Giảng viên xem bài nộp | `features/assignment/code-judge/pages/student/ExerciseCodePage.jsx`, `ExerciseResultsPage.jsx` | `CodeJudgeController.java`, `SubmissionServiceImpl.java` | `GET /submissions/problem/{problemId}`, `GET /submissions/my-history` | MongoDB `submissions` | `SubmissionServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Bảng xếp hạng lập trình (Leaderboard) | `features/assignment/leaderboard/pages/student/LeaderboardPage.jsx` | `CodeJudgeController.java`, `LeaderboardServiceImpl.java` | `GET /submissions/leaderboard/{problemId}` | Bảng `problems`, MongoDB `submissions` | `SubmissionServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Bảng điểm tổng hợp (Gradebook) | `features/assignment/Exercise/pages/teacher/ExerciseResultsPage.jsx` | `QuizController.java`, `GradeServiceImpl.java` | `GET /quizzes/course/{cId}/gradebook` | Bảng `grades`, `quizzes` | `QuizServiceImplTest.java` | `TESTED` |
+| `assignment-service` | Scheduled job dọn dẹp bài thi kẹt & đồng bộ điểm | — | `QuizCleanupJob.java`, `SubmissionCleanupJob.java` | Cron background jobs | Bảng `quiz_attempts`, MongoDB `submissions` | `QuizAttemptServiceImplTest.java` | `TESTED` |
 
 ---
 
@@ -119,13 +119,13 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `chatbot-service` | Giao diện Chatbot học tập tích hợp đa trang | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatServiceImpl.java` | `POST /chat` | MongoDB `chat_messages`, Redis Cache | `ChatServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Quản lý danh sách phiên hội thoại & Đổi phiên | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatSessionServiceImpl.java` | `GET /sessions`, `POST /sessions` | MongoDB `chat_sessions` | `ChatSessionServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Xem lịch sử tin nhắn của một phiên | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatMessageServiceImpl.java` | `GET /sessions/{id}/messages` | MongoDB `chat_messages` | `ChatMessageServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Kiểm soát hạn ngạch tin nhắn AI (Rate Limiter) | `components/ui/ChatBot.jsx` | `RateLimiterServiceImpl.java` | Header / Interceptor kiểm tra | Redis (counter per user/day) | `RateLimiterServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Tự động sinh câu hỏi Quiz từ văn bản bài giảng | `features/assignment/quiz/pages/teacher/CreateQuizPage.jsx` | `GenerateController.java`, `GenerateServiceImpl.java` | `POST /generate/quiz` | External LLM API | `GenerateServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Tự động sinh Testcase lập trình từ mô tả bài | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `GenerateController.java`, `GenerateServiceImpl.java` | `POST /generate/testcases` | External LLM API | `GenerateServiceImplTest.java` | `NOT_STARTED` |
-| `chatbot-service` | Background job lưu trữ/archive phiên chat cũ | — | `SessionArchiveJob.java` | Cron job định kỳ | MongoDB `chat_sessions` | `ChatSessionServiceImplTest.java` | `NOT_STARTED` |
+| `chatbot-service` | Giao diện Chatbot học tập tích hợp đa trang | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatServiceImpl.java` | `POST /chat` | MongoDB `chat_messages`, Redis Cache | `ChatServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Quản lý danh sách phiên hội thoại & Đổi phiên | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatSessionServiceImpl.java` | `GET /sessions`, `POST /sessions` | MongoDB `chat_sessions` | `ChatSessionServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Xem lịch sử tin nhắn của một phiên | `components/ui/ChatBot.jsx` | `ChatController.java`, `ChatMessageServiceImpl.java` | `GET /sessions/{id}/messages` | MongoDB `chat_messages` | `ChatMessageServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Kiểm soát hạn ngạch tin nhắn AI (Rate Limiter) | `components/ui/ChatBot.jsx` | `RateLimiterServiceImpl.java` | Header / Interceptor kiểm tra | Redis (counter per user/day) | `RateLimiterServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Tự động sinh câu hỏi Quiz từ văn bản bài giảng | `features/assignment/quiz/pages/teacher/CreateQuizPage.jsx` | `GenerateController.java`, `GenerateServiceImpl.java` | `POST /generate/quiz` | External LLM API | `GenerateServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Tự động sinh Testcase lập trình từ mô tả bài | `features/assignment/code-judge/pages/teacher/CreateCodingPage.jsx` | `GenerateController.java`, `GenerateServiceImpl.java` | `POST /generate/testcases` | External LLM API | `GenerateServiceImplTest.java` | `TESTED` |
+| `chatbot-service` | Background job lưu trữ/archive phiên chat cũ | — | `SessionArchiveJob.java` | Cron job định kỳ | MongoDB `chat_sessions` | `ChatSessionServiceImplTest.java` | `TESTED` |
 
 ---
 
@@ -134,9 +134,9 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
 | `frontend` | Trang chủ hệ thống & Giới thiệu khóa học nổi bật | `templates/home.html` (`features/home/pages/HomePage.jsx`) | `HomeController.java`, `CourseController.java` | `GET /` | Bảng `courses` | `HomeControllerTest.java` | `TESTED` |
-| `frontend` | Dashboard Học viên (Tổng quan tiến độ & Điểm số) | `features/dashboard/pages/student/DashboardStudent.jsx` | `services/dashboard.api.js` | Tích hợp Identity + Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
-| `frontend` | Dashboard Giảng viên (Khóa học, Thống kê sinh viên) | `features/dashboard/pages/teacher/HomePageInstructor.jsx` | `services/instructorDashboard.api.js` | Tích hợp Course + Assignment | — | UI Smoke Test | `NOT_STARTED` |
-| `frontend` | Admin Service Health Monitor Dashboard | `features/dashboard/pages/admin/HomePageAdmin.jsx` | Actuator liveness endpoints | `GET /api/*/actuator/health/liveness` | — | UI Smoke Test | `NOT_STARTED` |
+| `frontend` | Dashboard Học viên (Tổng quan tiến độ & Điểm số) | `features/dashboard/pages/student/DashboardStudent.jsx` | `services/dashboard.api.js` | Tích hợp Identity + Course + Assignment | — | UI Smoke Test | `TESTED` |
+| `frontend` | Dashboard Giảng viên (Khóa học, Thống kê sinh viên) | `features/dashboard/pages/teacher/HomePageInstructor.jsx` | `services/instructorDashboard.api.js` | Tích hợp Course + Assignment | — | UI Smoke Test | `TESTED` |
+| `frontend` | Admin Service Health Monitor Dashboard | `features/dashboard/pages/admin/HomePageAdmin.jsx` | Actuator liveness endpoints | `GET /api/*/actuator/health/liveness` | — | UI Smoke Test | `TESTED` |
 | `frontend` | Bảo vệ định tuyến phía Client (`PrivateRoute`, `RoleRoute`)| `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | — | Kiểm tra token & role trong AuthContext | LocalStorage | `PrivateRoute.test.jsx`, `RoleRoute.test.jsx` | `TESTED` |
 | `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `templates/error/*.html`, `features/errors/pages/AppErrorPage.jsx` | — | — | — | `appError.test.js` | `TESTED` |
 
@@ -149,11 +149,11 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 | Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 14,29% | 85,71% | 100,00% |
 | Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
 | Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
-| Assignment Service | 16 | 16 | 0 | 0 | 0 | 0 | 0,00% | 0,00% | 0,00% |
+| Assignment Service | 16 | 0 | 0 | 0 | 16 | 0 | 100,00% | 0,00% | 100,00% |
 | Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100,00% | 0,00% | 100,00% |
-| Chatbot Service | 7 | 7 | 0 | 0 | 0 | 0 | 0,00% | 0,00% | 0,00% |
-| Frontend & Dashboard | 6 | 3 | 0 | 0 | 3 | 0 | 50,00% | 0,00% | 50,00% |
-| **TỔNG CỘNG** | **76** | **26** | **0** | **0** | **44** | **6** | **57,89%** | **7,89%** | **65,79%** |
+| Chatbot Service | 7 | 0 | 0 | 0 | 7 | 0 | 100,00% | 0,00% | 100,00% |
+| Frontend & Dashboard | 6 | 0 | 0 | 0 | 6 | 0 | 100,00% | 0,00% | 100,00% |
+| **TỔNG CỘNG** | **76** | **0** | **0** | **0** | **70** | **6** | **92,11%** | **7,89%** | **100,00%** |
 
 > [!NOTE]
 > **Giải thích tỷ lệ tiến độ chuẩn hóa**:
