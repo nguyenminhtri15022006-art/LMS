@@ -19,6 +19,8 @@ public class RegisterForm {
 
     private String confirmPassword;
 
+    private String fullname;
+
     public RegisterForm() {
     }
 
@@ -27,6 +29,22 @@ public class RegisterForm {
         this.email = email;
         this.password = password;
         this.confirmPassword = confirmPassword;
+    }
+
+    public RegisterForm(String username, String email, String password, String confirmPassword, String fullname) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.confirmPassword = confirmPassword;
+        this.fullname = fullname;
+    }
+
+    public String getFullname() {
+        return fullname;
+    }
+
+    public void setFullname(String fullname) {
+        this.fullname = fullname;
     }
 
     public String getUsername() {

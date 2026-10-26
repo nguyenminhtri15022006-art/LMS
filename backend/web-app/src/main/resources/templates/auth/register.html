@@ -26,6 +26,16 @@
                         <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
                         <div class="mb-3">
+                            <label for="fullname" class="form-label fw-semibold">Họ và tên</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-card-text"></i></span>
+                                <input type="text" id="fullname" th:field="*{fullname}" class="form-control"
+                                       placeholder="Ví dụ: Nguyễn Văn A" />
+                            </div>
+                            <div th:if="${#fields.hasErrors('fullname')}" class="text-danger small mt-1" th:errors="*{fullname}"></div>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="username" class="form-label fw-semibold">Tên đăng nhập</label>
                             <div class="input-group">
                                 <span class="input-group-text"><i class="bi bi-person"></i></span>

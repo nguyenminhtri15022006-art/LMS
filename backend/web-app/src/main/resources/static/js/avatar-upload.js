@@ -44,13 +44,14 @@ document.addEventListener('DOMContentLoaded', function () {
             const policy = await presignedRes.json();
             const uploadUrl = policy.uploadUrl;
             const formFields = policy.formFields || {};
-            const fileUrl = policy.fileUrl;
+            const fileUrl = policy.publicUrl || policy.fileUrl;
 
             // 3. Prepare Multipart Form Data for MinIO Direct Upload
             const formData = new FormData();
             Object.keys(formFields).forEach(key => {
                 formData.append(key, formFields[key]);
             });
+            formData.append('Content-Type', file.type || 'image/png');
             formData.append('file', file);
 
             if (msgEl) msgEl.textContent = 'Đang tải ảnh trực tiếp lên MinIO S3...';

@@ -18,7 +18,7 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
     ports:
-      - "3306:3306"
+      - "${MYSQL_PORT:-3307}:3306"
     volumes:
       - mysql-data:/var/lib/mysql
       - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
@@ -61,7 +61,7 @@ services:
       - lms-network
 
   minio:
-    image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+    image: cgr.dev/chainguard/minio:latest
     container_name: lms-minio
     ports:
       - "9000:9000"
@@ -69,6 +69,7 @@ services:
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:8088,http://127.0.0.1:8088,http://localhost:3000"
     command: server /data --console-address ":9001"
     volumes:
       - minio-data:/data
@@ -81,7 +82,7 @@ services:
       - lms-network
 
   minio-create-buckets:
-    image: minio/mc:RELEASE.2024-09-16T17-43-42Z
+    image: cgr.dev/chainguard/minio:latest
     container_name: lms-minio-init
     depends_on:
       minio:
@@ -98,13 +99,9 @@ services:
         /usr/bin/mc mb --ignore-existing local/lms-identity-bucket
         /usr/bin/mc mb --ignore-existing local/lms-course-bucket
         /usr/bin/mc mb --ignore-existing local/lms-blog-bucket
-        /usr/bin/mc anonymous set download local/lms-identity-bucket || true
-        /usr/bin/mc anonymous set download local/lms-course-bucket || true
-        /usr/bin/mc anonymous set download local/lms-blog-bucket || true
-        echo '<CORSConfiguration><CORSRule><AllowedOrigin>http://localhost:8088</AllowedOrigin><AllowedOrigin>http://127.0.0.1:8088</AllowedOrigin><AllowedOrigin>http://localhost:3000</AllowedOrigin><AllowedMethod>GET</AllowedMethod><AllowedMethod>POST</AllowedMethod><AllowedMethod>PUT</AllowedMethod><AllowedMethod>DELETE</AllowedMethod><AllowedMethod>HEAD</AllowedMethod><AllowedHeader>*</AllowedHeader><ExposeHeader>ETag</ExposeHeader><MaxAgeSeconds>3600</MaxAgeSeconds></CORSRule></CORSConfiguration>' > /tmp/cors.xml
-        /usr/bin/mc cors set local/lms-identity-bucket /tmp/cors.xml
-        /usr/bin/mc cors set local/lms-course-bucket /tmp/cors.xml
-        /usr/bin/mc cors set local/lms-blog-bucket /tmp/cors.xml
+        /usr/bin/mc anonymous set download local/lms-identity-bucket
+        /usr/bin/mc anonymous set download local/lms-course-bucket
+        /usr/bin/mc anonymous set download local/lms-blog-bucket
     networks:
       - lms-network
 

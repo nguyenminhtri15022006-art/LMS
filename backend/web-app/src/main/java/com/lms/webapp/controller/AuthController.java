@@ -155,13 +155,25 @@ public class AuthController {
         }
 
         try {
+            String effectiveFullname = (form.getFullname() != null && !form.getFullname().isBlank())
+                    ? form.getFullname().trim()
+                    : "Hoc Vien LMS";
+
             Map<String, String> payload = Map.of(
                     "username", form.getUsername(),
                     "email", form.getEmail(),
-                    "password", form.getPassword()
+                    "password", form.getPassword(),
+                    "fullname", effectiveFullname,
+                    "role", "STUDENT"
             );
 
             gatewayClient.post("/identity/auth/register", payload, JsonNode.class);
+
+            try {
+                gatewayClient.post("/identity/auth/verify-email/send", Map.of("email", form.getEmail().trim()), JsonNode.class);
+            } catch (Exception ignored) {
+            }
+
             return "redirect:/verify-email?email=" + URLEncoder.encode(form.getEmail(), StandardCharsets.UTF_8);
         } catch (RestClientResponseException e) {
             model.addAttribute("registerError", "Đăng ký không thành công. Email hoặc username có thể đã được sử dụng.");

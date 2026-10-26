@@ -143,6 +143,71 @@ public class AuthSessionSmokeVerifier {
     }
 
     /**
+     * Xác thực redirect sau khi đăng nhập thành công:
+     * - Chấp nhận relative path duy nhất: "/"
+     * - Chấp nhận absolute URL tới root path của đúng origin BFF (so sánh scheme, host, port hiệu lực)
+     * - Tuyệt đối từ chối URL khác host, khác port, khác scheme, path không phải root, chứa query lỗi, hoặc malformed URL.
+     */
+    public static boolean isValidLoginRedirect(String location, String webAppBaseUrl) {
+        if (location == null || location.isBlank() || webAppBaseUrl == null || webAppBaseUrl.isBlank()) {
+            return false;
+        }
+
+        if (location.contains("error")) {
+            return false;
+        }
+
+        if ("/".equals(location.trim())) {
+            return true;
+        }
+
+        try {
+            URI baseUri = URI.create(webAppBaseUrl.trim());
+            URI locUri = URI.create(location.trim());
+
+            if (!locUri.isAbsolute()) {
+                return false;
+            }
+
+            // Kiểm tra Scheme
+            String baseScheme = baseUri.getScheme();
+            String locScheme = locUri.getScheme();
+            if (baseScheme == null || locScheme == null || !baseScheme.equalsIgnoreCase(locScheme)) {
+                return false;
+            }
+
+            // Kiểm tra Host
+            String baseHost = baseUri.getHost();
+            String locHost = locUri.getHost();
+            if (baseHost == null || locHost == null || !baseHost.equalsIgnoreCase(locHost)) {
+                return false;
+            }
+
+            // Kiểm tra Port hiệu lực (xử lý default port 80 cho http, 443 cho https nếu không chỉ định)
+            int basePort = baseUri.getPort() != -1 ? baseUri.getPort() : (baseScheme.equalsIgnoreCase("https") ? 443 : 80);
+            int locPort = locUri.getPort() != -1 ? locUri.getPort() : (locScheme.equalsIgnoreCase("https") ? 443 : 80);
+            if (basePort != locPort) {
+                return false;
+            }
+
+            // Kiểm tra Path: bắt buộc phải là root ("" hoặc "/")
+            String path = locUri.getPath();
+            if (path != null && !path.isEmpty() && !path.equals("/")) {
+                return false;
+            }
+
+            // Kiểm tra Query: không chấp nhận query param sau đăng nhập
+            if (locUri.getQuery() != null && !locUri.getQuery().isEmpty()) {
+                return false;
+            }
+
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Thực hiện đăng nhập chuẩn bằng CookieManager, kiểm tra chuyển hướng thành công
      * và truy cập profile của đúng người dùng (assert nội dung trả về có chứa username).
      */
@@ -181,8 +246,8 @@ public class AuthSessionSmokeVerifier {
             int loginStatus = loginRes.statusCode();
             String location = loginRes.headers().firstValue("Location").orElse("");
 
-            // Đăng nhập thành công trả về redirect 302 tới /
-            if (loginStatus != 302 || location.contains("error") || !location.equals("/") && !location.isEmpty()) {
+            // Đăng nhập thành công trả về redirect 302 tới / (tương đối hoặc tuyệt đối cùng origin)
+            if (loginStatus != 302 || !isValidLoginRedirect(location, cleanBaseUrl)) {
                 return new LoginProfileResult(false, null, loginStatus, username, false,
                         "Login failed: expected redirect to /, got status " + loginStatus + " location: " + location);
             }
@@ -267,6 +332,7 @@ public class AuthSessionSmokeVerifier {
 
             // 2. POST /register
             String formBody = "username=" + URLEncoder.encode(username, StandardCharsets.UTF_8)
+                    + "&fullname=" + URLEncoder.encode("Hoc Vien LMS", StandardCharsets.UTF_8)
                     + "&email=" + URLEncoder.encode(email, StandardCharsets.UTF_8)
                     + "&password=" + URLEncoder.encode(password, StandardCharsets.UTF_8)
                     + "&confirmPassword=" + URLEncoder.encode(password, StandardCharsets.UTF_8)
