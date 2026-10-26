@@ -103,6 +103,10 @@ public class GatewayRoutingSmokeVerifier {
      * Assert cả status 200 VÀ nội dung chứa định danh duy nhất; test thất bại nếu gặp trang lỗi hoặc rỗng.
      */
     public GatewayRoutingResult verifyGatewayDataViaBff(String webAppBaseUrl, String expectedIdentifier, Long categoryId) {
+        if (categoryId == null || categoryId <= 0 || expectedIdentifier == null || expectedIdentifier.isBlank()) {
+            return new GatewayRoutingResult(false, -1, false, categoryId,
+                    "A successfully created category fixture and its unique name are required");
+        }
         String cleanBffUrl = webAppBaseUrl.replaceAll("/+$", "");
         String url = cleanBffUrl + "/courses";
         try {

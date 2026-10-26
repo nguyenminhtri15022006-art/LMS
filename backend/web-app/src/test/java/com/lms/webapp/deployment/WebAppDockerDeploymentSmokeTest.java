@@ -6,6 +6,8 @@ import com.lms.webapp.smoke.ActuatorHealthSmokeVerifier;
 import com.lms.webapp.smoke.AuthSessionSmokeVerifier;
 import com.lms.webapp.smoke.GatewayRoutingSmokeVerifier;
 import com.lms.webapp.smoke.MinioDirectUploadSmokeVerifier;
+import com.lms.webapp.smoke.SmokeTestSettings;
+import io.minio.MinioClient;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
@@ -14,7 +16,6 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -34,7 +35,6 @@ class WebAppDockerDeploymentSmokeTest {
     private final String webAppBaseUrl = System.getProperty("smoke.webapp.url", "http://localhost:8088");
     private final String gatewayBaseUrl = System.getProperty("smoke.gateway.url", "http://localhost:8080");
     private final String minioBaseUrl = System.getProperty("smoke.minio.url", "http://localhost:9000");
-    private final String mailpitBaseUrl = System.getProperty("smoke.mailpit.url", "http://localhost:8025");
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -52,18 +52,15 @@ class WebAppDockerDeploymentSmokeTest {
         GatewayRoutingSmokeVerifier verifier = new GatewayRoutingSmokeVerifier();
 
         String uniqueCategoryName = "SmokeCategory-" + UUID.randomUUID().toString().substring(0, 8);
-        String adminToken = System.getProperty("smoke.admin.token", null);
+        String adminToken = SmokeTestSettings.required("smoke.admin.token");
 
-        // Chuẩn bị dữ liệu kiểm thử qua API Gateway nếu có token admin
-        Long categoryId = null;
-        if (adminToken != null && !adminToken.isBlank()) {
-            categoryId = verifier.createTestCategory(gatewayBaseUrl, adminToken, uniqueCategoryName);
-        }
+        Long categoryId = verifier.createTestCategory(gatewayBaseUrl, adminToken, uniqueCategoryName);
+        assertThat(categoryId).as("Cannot create category fixture through Gateway; check admin token and course-service")
+                .isNotNull().isPositive();
 
         try {
-            String expectedIdentifier = (categoryId != null) ? uniqueCategoryName : "courses";
             GatewayRoutingSmokeVerifier.GatewayRoutingResult result =
-                    verifier.verifyGatewayDataViaBff(webAppBaseUrl, expectedIdentifier, categoryId);
+                    verifier.verifyGatewayDataViaBff(webAppBaseUrl, uniqueCategoryName, categoryId);
 
             assertThat(result.getHttpStatus())
                     .withFailMessage("BFF /courses phải trả về HTTP 200, nhưng nhận được: " + result.getHttpStatus())
@@ -75,7 +72,8 @@ class WebAppDockerDeploymentSmokeTest {
 
         } finally {
             if (categoryId != null) {
-                verifier.cleanupTestCategory(gatewayBaseUrl, adminToken, categoryId);
+                assertThat(verifier.cleanupTestCategory(gatewayBaseUrl, adminToken, categoryId))
+                        .as("Failed to clean up category fixture %s", categoryId).isTrue();
             }
         }
     }
@@ -83,6 +81,8 @@ class WebAppDockerDeploymentSmokeTest {
     @Test
     @DisplayName("3. Auth & Session: kiểm tra từ chối anonymous, từ chối sai pass, đăng nhập chuẩn CookieStore và đọc profile của đúng user")
     void authSecurityAndSessionFlowE2E() {
+        String testUser = SmokeTestSettings.required("smoke.test.user");
+        String testPassword = SmokeTestSettings.required("smoke.test.password");
         AuthSessionSmokeVerifier verifier = new AuthSessionSmokeVerifier();
 
         // 3.1 Anonymous không được phép truy cập /profile (bắt buộc redirect 302 về /login)
@@ -92,15 +92,13 @@ class WebAppDockerDeploymentSmokeTest {
                 .isTrue();
 
         // 3.2 Đăng nhập với mật khẩu sai phải bị từ chối
-        String testUser = System.getProperty("smoke.test.user", "admin");
-        String badPassword = "WrongPassword_999!";
+        String badPassword = "Wrong-" + UUID.randomUUID();
         boolean invalidLoginRejected = verifier.verifyInvalidLoginRejected(webAppBaseUrl, testUser, badPassword);
         assertThat(invalidLoginRejected)
                 .withFailMessage("Đăng nhập sai mật khẩu phải bị từ chối, không được cấp session")
                 .isTrue();
 
         // 3.3 Đăng nhập với tài khoản hợp lệ (đọc từ env an toàn)
-        String testPassword = System.getProperty("smoke.test.password", "admin123");
 
         AuthSessionSmokeVerifier.LoginProfileResult result =
                 verifier.executeLoginAndFetchProfile(webAppBaseUrl, testUser, testPassword);
@@ -122,6 +120,14 @@ class WebAppDockerDeploymentSmokeTest {
     @Test
     @DisplayName("4. MinIO: kiểm tra riêng health live và thực hiện upload file multipart thật qua Presigned POST Policy")
     void minioHealthAndDirectUploadE2E() throws Exception {
+        String adminToken = SmokeTestSettings.required("smoke.admin.token");
+        String accessKey = SmokeTestSettings.required("smoke.minio.access.key");
+        String secretKey = SmokeTestSettings.required("smoke.minio.secret.key");
+        String bucket = SmokeTestSettings.required("smoke.minio.bucket");
+        String runFolder = "smoke/" + UUID.randomUUID();
+        MinioClient cleanupClient = MinioClient.builder().endpoint(minioBaseUrl)
+                .region(System.getProperty("smoke.minio.region", "us-east-1"))
+                .credentials(accessKey, secretKey).build();
         MinioDirectUploadSmokeVerifier verifier = new MinioDirectUploadSmokeVerifier();
 
         // 4.1 Health check MinIO độc lập (tuyệt đối không dùng để tuyên bố upload thành công)
@@ -141,23 +147,20 @@ class WebAppDockerDeploymentSmokeTest {
         String presignedReqBody = objectMapper.writeValueAsString(Map.of(
                 "fileName", testFileName,
                 "fileType", "image/png",
-                "folder", "avatars"
+                "folder", runFolder
         ));
 
-        String adminToken = System.getProperty("smoke.admin.token", null);
         HttpRequest.Builder policyReqBuilder = HttpRequest.newBuilder()
                 .uri(URI.create(gatewayBaseUrl.replaceAll("/+$", "") + "/api/identity/storage/presigned-url"))
                 .timeout(Duration.ofSeconds(10))
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(presignedReqBody));
 
-        if (adminToken != null && !adminToken.isBlank()) {
-            policyReqBuilder.header("Authorization", "Bearer " + adminToken);
-        }
+        policyReqBuilder.header("Authorization", "Bearer " + adminToken);
 
         HttpResponse<String> policyRes = httpClient.send(policyReqBuilder.build(), HttpResponse.BodyHandlers.ofString());
         assertThat(policyRes.statusCode())
-                .withFailMessage("Lấy Presigned URL từ Gateway thất bại với mã: %d, body: %s", policyRes.statusCode(), policyRes.body())
+                .withFailMessage("Lấy Presigned URL từ Gateway thất bại với mã: %d", policyRes.statusCode())
                 .isEqualTo(200);
 
         JsonNode root = objectMapper.readTree(policyRes.body());
@@ -174,11 +177,19 @@ class WebAppDockerDeploymentSmokeTest {
             formFields.put(entry.getKey(), entry.getValue().asText());
         }
 
-        // 4.3 Upload multipart thật lên MinIO
-        MinioDirectUploadSmokeVerifier.DirectUploadResult uploadResult =
-                verifier.uploadViaPresignedPostPolicy(uploadUrl, formFields, testFileName, "image/png", dummyPngBytes, publicUrl);
+        // The endpoint, bucket and key must identify this run before any upload/deletion.
+        String expectedUploadUrl = minioBaseUrl.replaceAll("/+$", "") + "/" + bucket;
+        String objectKey = formFields.get("key");
+        assertThat(uploadUrl).isEqualTo(expectedUploadUrl);
+        assertThat(objectKey).startsWith(runFolder + "/").doesNotContain("..");
+        assertThat(publicUrl).isEqualTo(expectedUploadUrl + "/" + objectKey);
+        // POST policy requires a form Content-Type field, in addition to the file-part header.
+        formFields.put("Content-Type", "image/png");
 
         try {
+            MinioDirectUploadSmokeVerifier.DirectUploadResult uploadResult =
+                    verifier.uploadViaPresignedPostPolicy(uploadUrl, formFields, testFileName,
+                            "image/png", dummyPngBytes, publicUrl);
             assertThat(uploadResult.isSuccess())
                     .withFailMessage("Upload multipart lên MinIO hoặc đọc lại object thất bại: %s", uploadResult.getErrorMessage())
                     .isTrue();
@@ -193,7 +204,7 @@ class WebAppDockerDeploymentSmokeTest {
 
         } finally {
             // 4.4 Dọn dẹp đúng object do test tạo ra
-            verifier.cleanupTestObject(publicUrl);
+            verifier.cleanupTestObject(cleanupClient, bucket, objectKey, runFolder + "/");
         }
     }
 }

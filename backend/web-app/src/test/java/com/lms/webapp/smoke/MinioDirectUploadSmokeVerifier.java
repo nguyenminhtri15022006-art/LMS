@@ -17,6 +17,20 @@ import java.util.UUID;
 
 public class MinioDirectUploadSmokeVerifier {
 
+    public void cleanupTestObject(io.minio.MinioClient client, String bucket, String objectKey, String runPrefix) {
+        if (runPrefix == null || !runPrefix.startsWith("smoke/") || !runPrefix.endsWith("/")
+                || runPrefix.length() <= "smoke/".length()
+                || objectKey == null || !objectKey.startsWith(runPrefix)
+                || objectKey.length() <= runPrefix.length() || objectKey.contains("..")) {
+            throw new IllegalArgumentException("Cleanup is restricted to the current smoke run prefix");
+        }
+        try {
+            client.removeObject(io.minio.RemoveObjectArgs.builder().bucket(bucket).object(objectKey).build());
+        } catch (Exception e) {
+            throw new IllegalStateException("MinIO cleanup failed for the current smoke object", e);
+        }
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MinioDirectUploadSmokeVerifier.class);
     private final HttpClient httpClient;
 
@@ -172,28 +186,6 @@ public class MinioDirectUploadSmokeVerifier {
             return actualBytes != null && actualBytes.length > 0;
         } catch (Exception e) {
             log.warn("Failed to read back object from {}: {}", objectUrl, e.getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Dọn dẹp đúng object do test tạo ra; tuyệt đối không xóa bucket hoặc dữ liệu khác.
-     */
-    public boolean cleanupTestObject(String objectUrl) {
-        if (objectUrl == null || objectUrl.isBlank()) {
-            return true;
-        }
-        try {
-            HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(objectUrl))
-                    .timeout(Duration.ofSeconds(10))
-                    .DELETE()
-                    .build();
-
-            HttpResponse<Void> response = httpClient.send(request, HttpResponse.BodyHandlers.discarding());
-            return response.statusCode() == 204 || response.statusCode() == 200 || response.statusCode() == 404;
-        } catch (Exception e) {
-            log.warn("Cleanup test object failed at {}: {}", objectUrl, e.getMessage());
             return false;
         }
     }

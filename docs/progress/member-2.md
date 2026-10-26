@@ -2969,11 +2969,13 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
      * Lệnh `docker info` trả về: `failed to connect to the docker API at npipe:////./pipe/dockerDesktopLinuxEngine... open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`.
      * Khi khởi động `Docker Desktop.exe`, ứng dụng thông báo: `Docker Desktop is unable to start`.
      * Kiểm tra subsystem Linux bằng `wsl.exe -l -v`: `Windows Subsystem for Linux has no installed distributions`.
-     * Do máy Host chưa cài đặt Linux distribution nào cho WSL 2 (hoặc chưa cấu hình Hyper-V backend), Docker Desktop daemon không thể khởi tạo Linux container engine.
+     * Đính chính ngày 2026-10-26: không có distro không chứng minh nguyên nhân Docker hỏng. `wsl --status` báo WSL2 không thể chạy vì virtualization chưa được bật; cần kiểm tra Virtual Machine Platform và virtualization trong firmware. Docker Desktop không bắt buộc cài Ubuntu riêng.
    - **Hành động người dùng cần làm để unblock**:
-     1. Mở PowerShell với quyền Administrator và cài đặt một bản phân phối WSL:
+     1. Kiểm tra `wsl --status`, trạng thái Virtual Machine Platform và virtualization trong BIOS/UEFI. Nếu Virtual Machine Platform chưa bật, dùng PowerShell Administrator để bật tính năng rồi lưu công việc và khởi động lại Windows. Không tự động cài Ubuntu hoặc reboot từ test.
         ```powershell
-        wsl --install -d Ubuntu
+        Get-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform
+        # Chỉ chạy nếu tính năng chưa Enabled:
+        Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart
         ```
      2. Khởi động Docker Desktop và chờ icon chuyển sang trạng thái "Engine running".
      3. Khởi chạy toàn bộ stack container:
@@ -2986,9 +2988,83 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
         ```
 
 #### 4. Trạng Thái Nghiệm Thu & Ranh Giới Kỹ Thuật (Parity Matrix Status)
-- **Mã nguồn và cấu hình**: Đã hoàn thiện toàn diện, tuân thủ 100% hợp đồng API, cơ chế bảo mật và ranh giới cô lập.
+- **Mã nguồn và cấu hình**: Báo cáo trước còn thiếu kiểm tra prerequisite và cleanup; xem phần đính chính bên dưới. Chưa chứng minh toàn bộ luồng runtime hoặc parity 100%.
 - **Biên dịch & Test nội bộ**: 126/126 Java tests và 45/45 JS tests đạt chuẩn Green 100%.
 - **Trạng thái E2E Parity Phase 7**: **`CHƯA NGHIỆM THU / BLOCKED BỞI DOCKER ENGINE`**. Tuyệt đối không tuyên bố nghiệm thu hoàn thành Phase 7 hoặc Feature Parity 100% khi Docker stack chưa thể khởi chạy thực tế trên host.
+
+### Đính chính và sửa smoke verifier — 2026-10-26
+
+Phần này thay thế các kết luận trước rằng chỉ bật Docker là đủ để nghiệm thu.
+
+**Pre-flight và đối chiếu:**
+- Mục tiêu: chặn false positive Gateway, bỏ tài khoản mặc định không được seed,
+  kiểm tra cleanup MinIO có xác thực; sửa chẩn đoán WSL.
+- Đã đọc StorageController của repo và project mẫu (chỉ đọc), PresignedUrlRequest,
+  StorageServiceImpl, CategoryController, AuthenticationController và ApplicationInitConfig.
+  API storage cấp POST policy, không có REST DELETE công khai để dọn object;
+  category POST/DELETE yêu cầu ADMIN. Vì vậy cleanup dùng SDK MinIO chỉ trong test.
+- File mới: `backend/web-app/src/test/java/com/lms/webapp/smoke/SmokeTestSettings.java`,
+  `SmokePreconditionsTest.java` cùng thư mục; `docs/DOCKER_SMOKE_TESTS.md`.
+- File sửa: `backend/web-app/pom.xml`, `WebAppDockerDeploymentSmokeTest.java` trong package
+  deployment, `GatewayRoutingSmokeVerifier.java`, `MinioDirectUploadSmokeVerifier.java`
+  trong package smoke và nhật ký này. Không sửa production code hoặc project mẫu.
+- Input: tài khoản test đã chuẩn bị, token ADMIN, endpoint/bucket/credentials cleanup MinIO.
+  Output: thiếu prerequisite phải FAIL rõ ràng; chỉ kiểm tra tên danh mục vừa tạo;
+  upload/read-back đúng bytes; cleanup DELETE có chữ ký, đúng key của lần chạy và thất bại
+  phải làm test fail. Không tự sinh tài khoản admin hoặc giả lập backend.
+- Thêm dependency `io.minio:minio:8.5.7` scope test, cùng version identity-service đang dùng.
+  Multipart có trường `Content-Type` để đáp ứng starts-with condition của POST policy.
+
+**TDD — 7 test mới, đã chạy bằng lệnh thật:**
+
+| Test | Assertion Green |
+| --- | --- |
+| missingCredentialsFailWithoutDefaultAccount | Thiếu password phát sinh lỗi prerequisite |
+| credentialsCanComeFromEnvironmentWithoutTrimmingPassword | Đọc đúng biến môi trường, giữ nguyên password |
+| blankExplicitPropertyFailsWithoutExposingSecretOrFallingBack | Property rỗng phải fail, không lộ giá trị env |
+| genericCoursesPageCannotPassWithoutCreatedFixture | HTML có chữ courses nhưng không có fixture không được pass |
+| cleanupSignsDeleteForExactObjectAndChecksStatus | Đúng đường dẫn object, DELETE có AWS4 signature |
+| cleanupDeniedFailsInsteadOfBeingIgnored | HTTP 403 phải phát sinh lỗi cleanup |
+| cleanupRejectsObjectsOutsideCurrentRunBeforeSendingRequest | Từ chối key ngoài prefix của lần chạy |
+
+- Red 1: `mvn test -pl web-app -f backend/pom.xml -Dtest=SmokePreconditionsTest`
+  lỗi compile do chưa có SmokeTestSettings và SDK/method cleanup mới.
+- Red 2: thêm dependency/stub; `mvn clean test -pl web-app -f backend/pom.xml -Dtest=SmokePreconditionsTest`
+  **7 tests, 7 failures, 0 errors, 0 skipped**, 13.405 s. Lần chạy incremental trước đó gặp
+  class file trong target bị thiếu; clean build đã loại bỏ artifact cũ trước khi xác nhận Red 2.
+- Green: `mvn test -pl web-app -f backend/pom.xml -Dtest=SmokePreconditionsTest,SmokeVerifiersUnitTest`
+  **18/18 PASS**, 0 failures/errors/skipped, 4.253 s.
+- Hồi quy và đóng gói: `mvn clean verify -pl web-app -f backend/pom.xml -Dspring.profiles.active=test`
+  **133/133 PASS**, 0 failures/errors/skipped, **28.209 s**, BUILD SUCCESS; Docker không chạy.
+- JavaScript: `npm --prefix backend/web-app test`: **45/45 PASS**, 0 failed/skipped, **4.444 s**.
+- Runtime: `mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke -Dtest=WebAppDockerDeploymentSmokeTest`
+  **4 tests, 1 failure, 3 errors, 0 skipped**, **7.229 s**, BUILD FAILURE: health không kết nối được;
+  auth thiếu SMOKE_TEST_USER; Gateway và MinIO thiếu SMOKE_ADMIN_TOKEN. Đây là BLOCKED thực tế,
+  không phải lỗi được bỏ qua hoặc bằng chứng E2E pass. Unit HttpServer chỉ kiểm chứng helper.
+
+**Hạ tầng và chẩn đoán phần cứng máy Host (Cập nhật 2026-10-26):**
+- **Chẩn đoán vi xử lý & BIOS**: Lệnh `powershell -Command "Get-CimInstance Win32_Processor | Select-Object -Property VirtualizationFirmwareEnabled, Name"` xác nhận CPU `12th Gen Intel(R) Core(TM) i5-12500H` có `VirtualizationFirmwareEnabled: False`.
+- **Chẩn đoán WSL**: `wsl.exe --status` báo `WSL 2 is unable to start since virtualization is not enabled on this machine`. WSL version: `3.0.3.0`, kernel: `6.18.54.1-1`.
+- **Chẩn đoán Docker**: `docker info` trả về HTTP 500 do engine Linux trong WSL2 không thể khởi động khi phần cứng chưa bật ảo hóa (VT-x).
+- **Các bước người dùng cần thực hiện trên máy host để unblock Docker**:
+  1. Khởi động lại máy, nhấn phím `F2` hoặc `Del` để vào **ASUS BIOS/UEFI**.
+  2. Chuyển sang `Advanced Mode (F7)` -> tab `Advanced` -> mục `CPU Configuration`.
+  3. Tìm `Intel (VMX) Virtualization Technology` và chuyển sang **`Enabled`**.
+  4. Nhấn `F10` (Save & Exit) để lưu và khởi động lại Windows.
+  5. Mở PowerShell với quyền **Administrator** và kiểm tra/bật tính năng Windows Virtual Machine Platform:
+     ```powershell
+     Enable-WindowsOptionalFeature -Online -FeatureName VirtualMachinePlatform -All -NoRestart
+     ```
+  6. Sau khi khởi động lại, bật Docker Desktop và chờ icon chuyển sang trạng thái "Engine running".
+  7. Khởi chạy toàn bộ container stack: `docker compose up -d` và chạy lệnh kiểm thử runtime:
+     ```bash
+     mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke "-Dtest=WebAppDockerDeploymentSmokeTest"
+     ```
+- **Bằng chứng kiểm thử cô lập (2026-10-26 21:28)**:
+  * `mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"`: **133/133 tests PASS 100%**, `BUILD SUCCESS` (54.813 s).
+  * `npm --prefix backend/web-app test`: **45/45 tests PASS 100%** (3.048 s).
+  * `mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke "-Dtest=WebAppDockerDeploymentSmokeTest"`: 4 tests (1 failure kết nối :8088, 3 errors thiếu prerequisite SMOKE_*).
+- **Trạng thái nghiệm thu Phase 7**: **`BLOCKED BỞI PHẦN CỨNG BIOS/VIRTUALIZATION CỦA MÁY HOST`**. Bộ verifier, precondition tests và cấu hình đã hoàn thiện chuẩn xác, sẵn sàng chạy ngay khi máy host bật ảo hóa và khởi động Docker container. Chưa đánh dấu VERIFIED hoặc parity 100%.
 
 
 
