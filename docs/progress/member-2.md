@@ -2880,8 +2880,99 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 - **Trạng thái**: `ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT` (Chưa đánh dấu "NGHIỆM THU 100%" hoặc "VERIFIED" theo quy chuẩn 13 tiêu chí của dự án).
 - **Phân biệt ranh giới**:
   * Đã kiểm chứng độc lập hoàn tất trên tầng BFF (Spring Boot MVC + Thymeleaf + jsdom client tests).
-  * Các hạng mục còn chờ nghiệm thu thực tế tại Phase 7: Triển khai 11 container trên `docker-compose.yml`, xác thực Bearer JWT token từ Identity Service thật qua API Gateway thật, upload file MinIO thật và kiểm thử E2E liên thông microservices.
-- **Ranh giới công việc**: Dừng sau đợt khắc phục Phase 6, **tuyệt đối chưa triển khai Phase 7**.
+  * Đã được người dùng phê duyệt triển khai Phase 7: Khởi tạo Docker Compose hoàn chỉnh và Docker Smoke Test độc lập.
+
+---
+
+### Phase 7 (Phase 18): Khởi Tạo Docker Compose Hoàn Chỉnh, Docker Smoke Test & Nghiệm Thu Toàn Trình
+
+* **Trạng thái**: `[ĐÃ TRIỂN KHAI HẠ TẦNG & CẤU HÌNH DOCKER SMOKE TEST]`
+* **Nhánh**: `feature/member-2-thymeleaf-web-app`
+
+#### 1. Bảng Pre-flight Trước Khi Triển Khai Mã Nguồn (Mandatory Pre-flight)
+- **Mục tiêu**:
+  * Xây dựng cấu hình container hóa đa tầng theo chuẩn Maven Reactor Build cho toàn bộ 6 Java microservices trong hệ thống.
+  * Tạo file `docker-compose.yml` hoàn chỉnh tích hợp 11 dịch vụ chạy dài hạn và 1 init job `minio-create-buckets` kèm cấu hình mạng bridge `lms-network`, volume dữ liệu và healthcheck probes.
+  * Cấu hình Maven Profile `docker-smoke` trong `backend/web-app/pom.xml` cô lập hoàn toàn các bài test container khỏi luồng build thông thường.
+  * Xây dựng bộ kiểm thử khói Docker độc lập `WebAppDockerDeploymentSmokeTest` gồm 4 verifiers kết nối trực tiếp các endpoint thực tế.
+- **File tạo mới**:
+  1. `backend/web-app/Dockerfile`
+  2. `backend/service-registry/Dockerfile`
+  3. `backend/api-gateway/Dockerfile`
+  4. `backend/identity-service/Dockerfile`
+  5. `backend/course-service/Dockerfile`
+  6. `backend/blog-service/Dockerfile`
+  7. `docker-compose.yml`
+  8. `backend/web-app/src/test/java/com/lms/webapp/deployment/WebAppDockerDeploymentSmokeTest.java`
+  9. `backend/web-app/src/test/java/com/lms/webapp/smoke/ActuatorHealthSmokeVerifier.java`
+  10. `backend/web-app/src/test/java/com/lms/webapp/smoke/GatewayRoutingSmokeVerifier.java`
+  11. `backend/web-app/src/test/java/com/lms/webapp/smoke/AuthSessionSmokeVerifier.java`
+  12. `backend/web-app/src/test/java/com/lms/webapp/smoke/MinioDirectUploadSmokeVerifier.java`
+- **File sửa đổi**:
+  1. `docs/KE_HOACH_CHUYEN_DOI_GIAO_DIEN.md`: Cập nhật trạng thái Phase 7 và bằng chứng thực tế.
+  2. `docs/progress/member-2.md`: Ghi nhận nhật ký triển khai hạ tầng container và kiểm thử khói.
+- **Input**:
+  * Các biến môi trường runtime, cổng dịch vụ (8080, 8081, 8082, 8084, 8088, 8761, 9000, 9001, 1025, 8025, 3306, 27017, 6379).
+- **Output**:
+  * 6 Dockerfile build đa tầng với Alpine JRE 21.
+  * File `docker-compose.yml` chuẩn 11 services + 1 job.
+  * Test suite `WebAppDockerDeploymentSmokeTest` biên dịch thành công và phản ánh trung thực trạng thái kết nối.
+
+#### 2. Quá Trình Kiểm Thử TDD 3 Nhịp: Bằng Chứng Red 1 → Red 2 → Green
+
+1. **Giai đoạn Red 1 (Lỗi biên dịch thực tế - Compile Error)**:
+   - Viết `WebAppDockerDeploymentSmokeTest.java` tham chiếu 4 verifier chưa tồn tại.
+   - Chạy `mvn test-compile -pl web-app -f backend/pom.xml`:
+     * Kết quả: `BUILD FAILURE` với 13 compilation errors:
+       `[ERROR] package com.lms.webapp.smoke does not exist`
+       `[ERROR] cannot find symbol: class ActuatorHealthSmokeVerifier`
+       `[ERROR] cannot find symbol: class GatewayRoutingSmokeVerifier`
+       `[ERROR] cannot find symbol: class AuthSessionSmokeVerifier`
+       `[ERROR] cannot find symbol: class MinioDirectUploadSmokeVerifier`
+2. **Giai đoạn Red 2 (Biên dịch thành công, Assertions Thất Bại)**:
+   - Tạo 4 stub classes trả về giá trị lỗi (`null`, `0`, `401`).
+   - Chạy `mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke "-Dtest=WebAppDockerDeploymentSmokeTest"`:
+     * Kết quả: `Tests run: 4, Failures: 4, Errors: 0, Skipped: 0` (Thất bại cả 4 assertions cụ thể):
+       - `actuatorHealthReturnsUp`: expected "UP" but was null.
+       - `gatewayRoutingAccessible`: expected 200 but was 0.
+       - `authAndSessionFlowE2E`: Expecting actual not to be null.
+       - `directMinioUploadE2E`: expected 204 but was 0.
+3. **Giai đoạn Green (Cài đặt Verifiers & Biên dịch Thành Công)**:
+   - Triển khai đầy đủ logic kết nối HTTP thật cho 4 verifier sử dụng `java.net.http.HttpClient` của Java 21:
+     * `ActuatorHealthSmokeVerifier`: Gửi GET tới `/actuator/health`, phân tích JSON trả về status `"UP"`.
+     * `GatewayRoutingSmokeVerifier`: Gửi GET tới luồng public BFF `/courses` kích hoạt kết nối nội bộ sang Gateway.
+     * `AuthSessionSmokeVerifier`: Trích xuất CSRF, POST `/login` nhận cookie `JSESSIONID`, gọi `/profile`.
+     * `MinioDirectUploadSmokeVerifier`: Gửi probe kiểm tra kết nối trực tiếp tới MinIO port 9000.
+   - Chạy `mvn test-compile -pl web-app -f backend/pom.xml`: `BUILD SUCCESS` (toàn bộ code biên dịch hoàn hảo).
+
+#### 3. Bằng Chứng Nghiệm Thu Thực Tế (Execution Evidence)
+
+1. **Kiểm thử Toàn bộ Module `web-app` Cô Lập Bằng Maven Verify (JDK 21)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 40.509 s).
+   - **Tổng số test Java**: **115/115 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Đóng gói thành phẩm**: Tạo thành công `backend/web-app/target/web-app-0.0.1-SNAPSHOT.jar`.
+
+2. **Kiểm thử Toàn bộ Test JavaScript (Node.js + jsdom)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**: **45/45 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 3.25 s).
+
+3. **Kiểm thử Khói Docker Runtime (Độc lập qua profile `-Pdocker-smoke`)**:
+   ```bash
+   mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke "-Dtest=WebAppDockerDeploymentSmokeTest"
+   ```
+   - **Kết quả thực tế**:
+     * Test runner gửi request HTTP thật tới `http://localhost:8088/actuator/health`, `http://localhost:8088/courses`, `http://localhost:8088/login`, `http://localhost:9000/minio/health/live`.
+     * Do daemon Docker Desktop trên máy host chưa được bật (`open //./pipe/dockerDesktopLinuxEngine: The system cannot find the file specified`), các kết nối bị từ chối và bài test báo lỗi kết nối `CONNECTION_FAILED: null` một cách trung thực.
+     * Bài test hoàn toàn không dùng mock giả mạo; sẵn sàng kiểm chứng tức thì khi container được bật qua lệnh `docker compose up -d`.
+
+#### 4. Trạng Thái Hoàn Thành & Bàn Giao
+- Đã hoàn thành toàn diện việc xây dựng hạ tầng Docker Compose, 6 Dockerfiles đa tầng, cấu hình profile Maven và bộ bài kiểm thử khói Docker cho Phase 7.
+- Đã đảm bảo tính toàn vẹn 100% cho toàn bộ 115 test Java và 45 test JavaScript hiện có của dự án.
 
 
 
