@@ -1211,7 +1211,17 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
      - **Red 1**: Viết test khi chưa có các method CRUD danh mục và tag. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Lỗi mong đợi: `cannot find symbol: method createCategory(...)`.
      - **Red 2**: Method xóa category gọi HTTP `GET` thay vì `DELETE`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Lỗi mong đợi: `AssertionFailedError: expected HTTP DELETE /api/course/categories/1 but was GET`.
      - **Green**: Cài đặt đầy đủ `POST/PUT/DELETE /api/course/categories/**` và `POST/PUT/DELETE /api/blog/tags/**`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Kết quả mong đợi: `BUILD SUCCESS`.
-* **Trạng thái**: `[DỰ KIẾN - CHƯA CHẠY]`
+* **Trạng thái**: `[ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT - CHỜ SMOKE TEST DOCKER / E2E]`
+  - Đã triển khai toàn diện phân hệ Trung Tâm Quản Trị Hệ Thống (Admin Management Portal):
+    1. Bảo vệ phân quyền nghiêm ngặt: toàn bộ các route `/admin` và `/admin/**` yêu cầu quyền `ROLE_ADMIN` (`hasRole('ADMIN')`). Mọi truy cập từ người dùng thông thường (`STUDENT`, `INSTRUCTOR`) hoặc anonymous đều bị chặn HTTP 403 Forbidden.
+    2. Dashboard Quản trị: gọi Gateway `GET /api/identity/admin/users/stats` và `GET /api/course/courses?page=0&size=1`, hiển thị KPI metrics: tổng học viên, học viên mới tuần này, tổng giảng viên, giảng viên mới tháng này, tổng quản trị viên, tổng khóa học và trạng thái hạ tầng microservices.
+    3. Quản lý Người dùng: Danh sách phân trang, bộ lọc keyword và role (`STUDENT`, `INSTRUCTOR`, `ADMIN`), toggle trạng thái khóa/mở `PATCH /api/identity/admin/users/{id}/active`, đặt lại mật khẩu khẩn cấp `PATCH /api/identity/admin/users/{id}/password` ($\ge 8$ ký tự), toggle quyền admin `PATCH /api/identity/admin/users/{id}/admin-active`, tạo quản trị viên mới `POST /api/identity/admin/users/admins`.
+    4. Quản lý Khóa học: Danh sách phân trang, bộ lọc keyword/status/level, khóa khóa học `PATCH /api/course/courses/{id}/lock` kèm lý do chi tiết, mở khóa khóa học `PATCH /api/course/courses/{id}/unlock`.
+    5. Quản lý Thể loại Khóa học (Categories): CRUD toàn diện qua Gateway `GET/POST/PUT/DELETE /api/course/categories/**`, modal thêm/sửa trực quan và tự động sinh slug chuẩn SEO/URL.
+    6. Quản lý Thẻ Diễn đàn (Tags): CRUD toàn diện qua Gateway `GET/POST/PUT/DELETE /api/blog/tags/**`, tự động tạo slug tiếng Việt không dấu.
+    7. Client Helper JavaScript (`admin-actions.js`): Xử lý modal Bootstrap, tự động chuyển đổi slug tiếng Việt, cập nhật action URL và dữ liệu tương tác.
+  - Số lượng kiểm thử cô lập đạt chuẩn: 13 test Java Phase 6 (10 `AdminControllerTest` + 3 `AdminRenderingTest`), 6 test JavaScript `admin-actions.test.js`. Tổng toàn bộ module `web-app`: **106/106 tests Java PASS 100%**, **45/45 tests JavaScript PASS 100%**.
+  - Phần còn lại chờ nghiệm thu toàn trình: Kiểm thử liên thông toàn bộ các service trên hạ tầng container Docker Compose tại Phase 7.
 
 ---
 

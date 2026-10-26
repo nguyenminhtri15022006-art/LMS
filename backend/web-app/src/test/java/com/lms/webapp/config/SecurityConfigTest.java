@@ -229,7 +229,7 @@ class SecurityConfigTest {
     void adminHasAccessToAllAdminAndInstructorRoutes() throws Exception {
         // Quản trị viên ADMIN có quyền truy cập cả trang admin lẫn các route giảng viên
         mockMvc.perform(get("/admin"))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
 
         mockMvc.perform(get("/courses/my"))
                 .andExpect(status().is3xxRedirection());

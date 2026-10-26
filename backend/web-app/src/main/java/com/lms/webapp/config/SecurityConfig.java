@@ -62,7 +62,7 @@ public class SecurityConfig {
                     "/actuator/**"
                 ).permitAll()
                 // Phân quyền cho trang quản trị viên
-                .requestMatchers("/admin/**").hasRole("ADMIN")
+                .requestMatchers("/admin", "/admin/**").hasRole("ADMIN")
                 // Mọi route khác (bao gồm /profile/**, /settings/** và các route CẦN XÁC NHẬN) mặc định yêu cầu đăng nhập
                 .anyRequest().authenticated()
             )

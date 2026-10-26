@@ -2,7 +2,7 @@
   "name": "lms-web-app-ui-tests",
   "private": true,
   "scripts": {
-    "test": "node --test src/test/js/learning-hub.test.js src/test/js/curriculum-builder.test.js src/test/js/instructor-management.test.js src/test/js/blog-interactions.test.js"
+    "test": "node --test src/test/js/learning-hub.test.js src/test/js/curriculum-builder.test.js src/test/js/instructor-management.test.js src/test/js/blog-interactions.test.js src/test/js/admin-actions.test.js"
   },
   "devDependencies": {
     "jsdom": "30.1.3"

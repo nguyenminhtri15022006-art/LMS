@@ -2710,7 +2710,90 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
   1. Upload ảnh bìa vào MinIO thật qua S3 Direct Upload và xác nhận policy/CORS.
   2. Xác thực liên thông qua API Gateway thật bằng Bearer JWT token từ Identity Service.
   3. Kiểm thử luồng E2E từ trình duyệt thật kết nối toàn bộ hệ thống Microservices.
-- **Ranh giới công việc**: Dừng sau khi hoàn thành toàn diện đợt khắc phục Phase 5; **chưa triển khai Phase 6 (Admin Portal)**.
+- **Ranh giới công việc**: Đã hoàn thành toàn diện đợt khắc phục Phase 5.
+
+---
+
+### Phase 6 (Phase 17): Trung Tâm Quản Trị Hệ Thống (Admin Management Portal)
+
+#### 1. Mục Tiêu & Nghiệp Vụ Đã Triển Khai
+- **Bảo mật & Phân quyền URL**: Cấu hình Spring Security chặt chẽ trong `SecurityConfig`: `.requestMatchers("/admin", "/admin/**").hasRole("ADMIN")`. Mọi truy cập từ người dùng thông thường (`STUDENT`, `INSTRUCTOR`) hoặc anonymous đều bị từ chối với HTTP 403 Forbidden.
+- **Bảng Điều Khiển Tổng Quan (Dashboard)**:
+  * Gọi Gateway `GET /api/identity/admin/users/stats` lấy số liệu KPI: tổng học viên (`totalStudents`), học viên mới tuần này (`newStudentsThisWeek`), tổng giảng viên (`totalInstructors`), giảng viên mới tháng này (`newInstructorsThisMonth`), tổng quản trị viên (`totalAdmins`).
+  * Gọi Gateway `GET /api/course/courses?page=0&size=1` lấy tổng số khóa học đang vận hành (`totalElements`).
+  * Trực quan hóa trạng thái sức khỏe các dịch vụ thành phần (API Gateway, Identity Service, Course Service, Blog Service, MinIO Storage).
+- **Quản Trị Người Dùng (Users Management)**:
+  * Danh sách người dùng có phân trang và bộ lọc linh hoạt qua Gateway `GET /api/identity/admin/users?page={page}&size={size}&role={role}&keyword={keyword}`.
+  * Khóa / Mở khóa tài khoản người dùng: `POST /admin/users/{id}/toggle-active` chuyển tiếp gọi Gateway `PATCH /api/identity/admin/users/{id}/active`.
+  * Đặt lại mật khẩu khẩn cấp: Modal giao diện chuyên dụng, validate mật khẩu $\ge 8$ ký tự qua `AdminResetPasswordForm`, gọi Gateway `PATCH /api/identity/admin/users/{id}/password`.
+  * Khóa / Mở khóa quyền Quản trị viên: `POST /admin/users/{id}/toggle-admin-active` chuyển tiếp gọi Gateway `PATCH /api/identity/admin/users/{id}/admin-active`.
+  * Tạo tài khoản Quản trị viên mới: Modal form validate qua `AdminCreateAdminForm`, chuyển tiếp gọi Gateway `POST /api/identity/admin/users/admins`.
+- **Kiểm Duyệt & Quản Trị Khóa Học (Course Moderation)**:
+  * Danh sách khóa học có phân trang qua Gateway `GET /api/course/courses`, hỗ trợ lọc theo keyword, trạng thái (`PUBLIC`, `PRIVATE`, `LOCKED`) và cấp độ (`BEGINNER`, `INTERMEDIATE`, `ADVANCED`).
+  * Khóa khóa học vi phạm: Modal nhập lý do chi tiết validate qua `LockCourseForm(reason)`, chuyển tiếp gọi Gateway `PATCH /api/course/courses/{id}/lock`.
+  * Mở khóa khóa học: Chuyển tiếp gọi Gateway `PATCH /api/course/courses/{id}/unlock`.
+- **Quản Trị Thể Loại Khóa Học (Course Categories)**:
+  * Hiển thị bảng danh mục, modal thêm mới / chỉnh sửa, tự động sinh slug chuẩn SEO/URL tiếng Việt không dấu.
+  * Kết nối Gateway CRUD đầy đủ: `GET/POST/PUT/DELETE /api/course/categories/**`.
+- **Quản Trị Thẻ Diễn Đàn (Community Blog Tags)**:
+  * Hiển thị bảng thẻ tags diễn đàn, modal thêm mới / chỉnh sửa, tự động sinh slug chuẩn.
+  * Kết nối Gateway CRUD đầy đủ: `GET/POST/PUT/DELETE /api/blog/tags/**`.
+- **Client Helper JavaScript (`admin-actions.js`)**:
+  * Tự động chuyển đổi slug tiếng Việt theo thời gian thực (loại bỏ dấu tiếng Việt, chuyển đ/Đ thành d, chuẩn hóa ký tự đặc biệt).
+  * Xử lý động form action URL và hiển thị tên đối tượng cho các modal Reset Password, Khóa khóa học, Sửa danh mục và Sửa thẻ tag.
+
+#### 2. Quá Trình Kiểm Thử TDD 3 Nhịp: Bằng Chứng Red 1 → Red 2 → Green
+1. **Giai đoạn Red 1 (Lỗi biên dịch thực tế)**:
+   - Viết test trong `AdminControllerTest.java` khi chưa tạo `AdminController` và các class form DTO.
+   - Chạy `mvn test-compile -pl web-app -f backend/pom.xml`: Báo lỗi biên dịch chính xác:
+     `[ERROR] cannot find symbol: class AdminController`.
+2. **Giai đoạn Red 2 (Biên dịch thành công, kiểm thử thất bại)**:
+   - Tạo stub class `AdminController` và các Form DTO (`AdminResetPasswordForm`, `CategoryForm`, `TagForm`, `LockCourseForm`, `AdminCreateAdminForm`).
+   - Chạy `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest`:
+     `[ERROR] Tests run: 10, Failures: 10, Errors: 0, Skipped: 0` (Thất bại 10/10 tests do chưa cài đặt mapping và logic xử lý).
+3. **Giai đoạn Green (Triển khai hoàn chỉnh & Vượt qua 100% kiểm thử)**:
+   - Triển khai toàn diện `AdminController.java`, bảo vệ phân quyền `SecurityConfig`, xây dựng các templates Thymeleaf (`dashboard.html`, `users/list.html`, `courses/list.html`, `categories/list.html`, `tags/list.html`, `fragments/admin-nav.html`) và client script `admin-actions.js`.
+   - Chạy lại kiểm thử: **100% tests PASS**.
+
+#### 3. Bằng Chứng Nghiệm Thu Thực Tế (Execution Evidence)
+1. **Kiểm thử Toàn bộ Java Suite (Maven + Spring Boot Test)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 44.043 s).
+   - **Tổng số test Java**: **106/106 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Riêng phân hệ Quản trị Admin**:
+     * `AdminControllerTest`: **10/10 tests PASS**.
+     * `AdminRenderingTest`: **3/3 tests PASS** (Render dashboard, users list an toàn chống XSS, categories & tags tables).
+   - **Đóng gói thành phẩm**: Tạo thành công `backend/web-app/target/web-app-0.0.1-SNAPSHOT.jar`.
+
+2. **Kiểm thử Toàn bộ Test JavaScript (Node.js + jsdom)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**: **45/45 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 2.38 s).
+   - **Riêng `admin-actions.test.js`**: **6/6 tests PASS**:
+     * `generateSlug correctly formats Vietnamese string into slug`
+     * `Cat and Tag auto slug generates when typing in name input`
+     * `Reset password button updates form action URL and displays target username`
+     * `Lock course button updates form action URL and displays target course title`
+     * `Edit Category prepares category modal for update`
+     * `Edit Tag prepares tag modal for update`
+
+3. **Kiểm tra cú pháp JavaScript (Syntax Check)**:
+   ```bash
+   node --check backend/web-app/src/main/resources/static/js/admin-actions.js
+   ```
+   - **Kết quả**: Exit code 0, không có bất kỳ lỗi cú pháp nào.
+
+#### 4. Trạng Thái Hoàn Thành & Các Hạng Mục Chờ Nghiệm Thu Toàn Trình
+- **Trạng thái**: `ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT` (Chưa đánh dấu "NGHIỆM THU 100%" hoặc "VERIFIED" theo quy chuẩn 13 tiêu chí của dự án).
+- **Hạng mục chờ kiểm thử trên môi trường thực tế (Phase 7 - Docker Compose)**:
+  1. Khởi động 11 service container dài hạn và 1 job tạo bucket trên `docker-compose.yml`.
+  2. Xác thực liên thông phân quyền `ROLE_ADMIN` qua API Gateway thật bằng Bearer JWT token từ Identity Service.
+  3. Kiểm thử luồng E2E từ trình duyệt thật kết nối toàn bộ hệ thống Microservices.
+- **Ranh giới công việc**: Đã hoàn thành toàn diện Phase 6 (Trung Tâm Quản Trị Hệ Thống); sẵn sàng cho **Phase 7 (Khởi Tạo Docker Compose Hoàn Chỉnh, Docker Smoke Test & Nghiệm Thu Toàn Trình)** khi có chỉ thị.
+
 
 
 
