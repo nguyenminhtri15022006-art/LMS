@@ -16,9 +16,28 @@ spring:
     properties:
       hibernate:
         dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
 
 eureka:
   client:
     enabled: false
     register-with-eureka: false
     fetch-registry: false
+
+services:
+  identity-service:
+    url: http://localhost:8081/identity
+
+minio:
+  url: http://localhost:9000
+  public-url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket-name: lms-blog-bucket
+  max-file-size-bytes: 5242880
+  public-read-enabled: true
+
+blog:
+  storage:
+    thumbnail-folder: thumbnails

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/main :: layout(~{::title}, ~{::#myCoursesContent}, ~{::#myCoursesScripts})}">
+<head>
+    <title>Khóa Học Của Tôi - EduLearn LMS</title>
+</head>
+<body>
+<div id="myCoursesContent" class="container py-5">
+    <div class="row mb-4 align-items-center">
+        <div class="col-md-8">
+            <h1 class="fw-bold mb-1">Khóa Học Đã Đăng Ký</h1>
+            <p class="text-muted">Tiếp tục hành trình học tập và hoàn thành các mục tiêu của bạn</p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <a th:href="@{/courses}" class="btn btn-primary shadow-sm">
+                <i class="bi bi-search me-1"></i>Tìm khóa học mới
+            </a>
+        </div>
+    </div>
+
+    <!-- Enrolled Courses Grid -->
+    <div th:if="${courses != null and !courses.isEmpty()}" class="row g-4">
+        <div th:each="item : ${courses}" class="col-md-6 col-lg-4"
+             th:with="course=${item instanceof T(java.util.Map) ? item.get('course') : item}, progressData=${item instanceof T(java.util.Map) ? item.get('progress') : null}">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden course-card transition-hover">
+                <img th:if="${course != null and course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
+                     th:src="${course.get('thumbnailUrl').asText()}"
+                     class="card-img-top object-fit-cover"
+                     style="height: 180px;"
+                     alt="Course Thumbnail"
+                     onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop'">
+                <div th:unless="${course != null and course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
+                     class="card-img-top bg-light d-flex align-items-center justify-content-center text-primary"
+                     style="height: 180px;">
+                    <i class="bi bi-mortarboard display-3"></i>
+                </div>
+
+                <div class="card-body d-flex flex-column p-4">
+                    <span th:if="${course != null and course.hasNonNull('level')}"
+                          class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 small align-self-start mb-2"
+                          th:text="${course.get('level').asText() == 'BEGINNER' ? 'Cơ bản' : (course.get('level').asText() == 'INTERMEDIATE' ? 'Trung cấp' : 'Nâng cao')}">
+                        Cơ bản
+                    </span>
+
+                    <h5 class="card-title fw-bold text-dark text-truncate-2 mb-3" th:text="${course != null and course.hasNonNull('title') ? course.get('title').asText() : 'Khóa học'}">
+                        Tiêu đề khóa học
+                    </h5>
+
+                    <!-- Progress Bar for Course -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between text-muted small mb-1">
+                            <span>Tiến độ</span>
+                            <span>
+                                <strong th:text="${progressData != null and progressData.hasNonNull('percentComplete') ? progressData.get('percentComplete').asInt() : 0}">0</strong>%
+                                <span th:if="${progressData != null and progressData.hasNonNull('totalLessons')}">
+                                    (<span th:text="${progressData.get('completedLessons').asText()}">0</span>/<span th:text="${progressData.get('totalLessons').asText()}">0</span> bài)
+                                </span>
+                            </span>
+                        </div>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" role="progressbar"
+                                 th:style="'width: ' + ${progressData != null and progressData.hasNonNull('percentComplete') ? progressData.get('percentComplete').asDouble() : 0} + '%;'"
+                                 th:aria-valuenow="${progressData != null and progressData.hasNonNull('percentComplete') ? progressData.get('percentComplete').asDouble() : 0}"
+                                 aria-valuemin="0" aria-valuemax="100">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-top mt-auto d-flex justify-content-between align-items-center">
+                        <a th:if="${course != null and course.hasNonNull('id')}"
+                           th:href="@{'/learn/' + ${course.get('id').asText()}}" class="btn btn-success w-100 py-2 fw-semibold shadow-sm">
+                            <i class="bi bi-play-circle-fill me-1"></i>Vào Phòng Học
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div th:if="${courses == null or courses.isEmpty()}" class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+        <div class="my-4">
+            <i class="bi bi-journal-x display-3 text-muted"></i>
+            <h4 class="fw-bold mt-3">Bạn chưa đăng ký khóa học nào</h4>
+            <p class="text-muted">Khám phá danh mục bài giảng đa dạng và bắt đầu học ngay hôm nay.</p>
+            <a th:href="@{/courses}" class="btn btn-primary mt-2 px-4 py-2 fw-semibold shadow-sm">
+                <i class="bi bi-compass me-1"></i>Khám phá khóa học
+            </a>
+        </div>
+    </div>
+</div>
+
+<th:block id="myCoursesScripts"></th:block>
+</body>
+</html>

@@ -56,9 +56,10 @@ class AuthFilterTest {
                 .verifyComplete();
 
         HttpHeaders headers = forwardedRequest.get().getHeaders();
-        // 4 headers X-* được inject
+        // Headers X-* được inject
         assertThat(headers.getFirst("X-User-Id")).isEqualTo("user-1");
         assertThat(headers.getFirst("X-User-Role")).isEqualTo("ROLE_STUDENT");
+        assertThat(headers.getFirst("X-User-Roles")).isEqualTo("ROLE_STUDENT");
         assertThat(headers.getFirst("X-User-Email")).isEqualTo("student@example.com");
         assertThat(headers.getFirst("X-Gateway-Authenticated")).isEqualTo("true");
         // Header Authorization thô bị xóa và không được inject lại
@@ -137,6 +138,7 @@ class AuthFilterTest {
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token)
                         .header("X-User-Id", "fake-admin")
                         .header("X-User-Role", "ROLE_ADMIN")
+                        .header("X-User-Roles", "ROLE_ADMIN")
                         .header("X-User-Email", "hacker@evil.com")
                         .header("X-Gateway-Authenticated", "true")
                         .build());
@@ -152,6 +154,7 @@ class AuthFilterTest {
         // Giá trị giả mạo đã bị ghi đè hoàn toàn bằng thông tin trích xuất từ JWT hợp lệ
         assertThat(headers.getFirst("X-User-Id")).isEqualTo("real-user");
         assertThat(headers.getFirst("X-User-Role")).isEqualTo("ROLE_STUDENT");
+        assertThat(headers.getFirst("X-User-Roles")).isEqualTo("ROLE_STUDENT");
         assertThat(headers.getFirst("X-User-Email")).isEqualTo("real@example.com");
         assertThat(headers.getFirst("X-Gateway-Authenticated")).isEqualTo("true");
         // Header Authorization bị xóa, không tồn tại ở downstream

@@ -15,8 +15,8 @@ EduLearn LMS là nền tảng quản lý học tập và thực hành lập trì
 
 | STT | Họ và tên | MSSV | Vai trò | Trách nhiệm chính |
 |:---:|---|:---:|---|---|
-| 1 | **Nguyễn Minh Trí** | 23110340 | Trưởng nhóm / Fullstack | Assignment Service (Quiz & Code Judge), Chatbot Service (AI LLM), Dashboard, Leaderboard, Code Runner Sandbox |
-| 2 | *(Thành viên 2)* | *(Cập nhật)* | Thành viên / Fullstack | Identity Service, Course Service, Blog Service, Frontend Auth/Course/Blog/Admin, MinIO & Security |
+| 1 | **Nguyễn Minh Trí** | 23110340 | Trưởng nhóm / Fullstack | Assignment Service (Quiz & Code Judge), Chatbot Service (AI LLM), Dashboard, Leaderboard, CI/CD |
+| 2 | **Thành viên 2 (`NVCuong3112`)** | *(Cập nhật)* | Thành viên / Fullstack | Identity Service, Course Service, Blog Service, Frontend Auth/Course/Blog/Admin |
 
 *(Chi tiết phân công xem tại [docs/TEAM_ROLES.md](docs/TEAM_ROLES.md))*.
 
@@ -40,7 +40,7 @@ EduLearn LMS là nền tảng quản lý học tập và thực hành lập trì
 Hệ thống được tổ chức theo mô hình **Monorepo**:
 
 ```text
-DoAnCK/
+LMS-main/
 ├── backend/                       # Backend Microservices (Spring Boot 3.3.5, Java 21)
 │   ├── service-registry/          # Eureka Server (Port 8761)
 │   ├── api-gateway/               # Spring Cloud Gateway (Port 8080)

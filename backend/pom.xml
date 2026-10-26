@@ -24,14 +24,15 @@
         <module>course-service</module>
         <module>assignment-service</module>
         <module>blog-service</module>
-        <module>chatbot-service</module>
+<module>chatbot-service</module>
         <module>web-portal</module>
+        <module>web-app</module>
     </modules>
 
     <properties>
         <java.version>21</java.version>
         <spring-cloud.version>2023.0.4</spring-cloud.version>
-        <projectlombok-lombok.version>1.18.36</projectlombok-lombok.version>
+        <projectlombok-lombok.version>1.18.38</projectlombok-lombok.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
         <jjwt.version>0.12.5</jjwt.version>
@@ -111,8 +112,16 @@
                         <testCompilerArgument>-proc:none</testCompilerArgument>
                     </configuration>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <configuration>
+                        <argLine>-Dnet.bytebuddy.experimental=true -XX:+EnableDynamicAgentLoading</argLine>
+                    </configuration>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
 
 </project>
+

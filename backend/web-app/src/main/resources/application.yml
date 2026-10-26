@@ -1,0 +1,27 @@
+server:
+  port: ${SERVER_PORT:8088}
+
+spring:
+  application:
+    name: web-app
+  thymeleaf:
+    cache: false
+    mode: HTML
+    encoding: UTF-8
+    prefix: classpath:/templates/
+    suffix: .html
+  session:
+    store-type: none
+
+lms:
+  gateway:
+    base-url: ${GATEWAY_URL:http://localhost:8080/api}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always

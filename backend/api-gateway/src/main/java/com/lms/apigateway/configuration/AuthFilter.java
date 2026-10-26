@@ -75,12 +75,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
             log.debug("Gateway xác thực thành công: userId={} role={} path={}", userId, role, request.getPath());
 
-            // 3. Mutate request: Xóa 5 headers cũ (4 X-* + Authorization) và inject 4 headers mới
+            // 3. Mutate request: Xóa các headers cũ và inject headers xác thực Gateway
             ServerHttpRequest mutatedRequest = request.mutate()
                     .headers(httpHeaders -> {
                         removeGatewayAuthHeaders(httpHeaders);
                         httpHeaders.set("X-User-Id", userId != null ? userId : "");
                         httpHeaders.set("X-User-Role", role != null ? role : "");
+                        httpHeaders.set("X-User-Roles", role != null ? role : "");
                         httpHeaders.set("X-User-Email", email != null ? email : "");
                         httpHeaders.set("X-Gateway-Authenticated", "true");
                     })
@@ -118,6 +119,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         httpHeaders.remove(HttpHeaders.AUTHORIZATION);
         httpHeaders.remove("X-User-Id");
         httpHeaders.remove("X-User-Role");
+        httpHeaders.remove("X-User-Roles");
         httpHeaders.remove("X-User-Email");
         httpHeaders.remove("X-Gateway-Authenticated");
     }
