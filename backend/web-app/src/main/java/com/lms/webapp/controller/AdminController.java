@@ -33,10 +33,12 @@ public class AdminController {
 
     @GetMapping({"", "/", "/dashboard"})
     public String dashboard(Model model) {
+        boolean usersStatsLoaded = false;
         try {
             JsonNode statsRes = gatewayClient.get("/identity/admin/users/stats", JsonNode.class);
             if (statsRes != null && statsRes.has("data")) {
                 model.addAttribute("stats", statsRes.get("data"));
+                usersStatsLoaded = true;
             } else {
                 model.addAttribute("stats", null);
             }
@@ -44,21 +46,25 @@ public class AdminController {
             log.warn("Không thể tải thống kê người dùng từ Gateway: {}", e.getMessage());
             model.addAttribute("stats", null);
         }
+        model.addAttribute("usersStatsLoaded", usersStatsLoaded);
 
+        boolean coursesStatsLoaded = false;
         try {
             JsonNode coursesRes = gatewayClient.get("/course/courses?page=0&size=1", JsonNode.class);
-            long totalCourses = 0;
             if (coursesRes != null && coursesRes.has("data")) {
                 JsonNode data = coursesRes.get("data");
                 if (data.has("totalElements")) {
-                    totalCourses = data.get("totalElements").asLong();
+                    model.addAttribute("totalCourses", data.get("totalElements").asLong());
+                    coursesStatsLoaded = true;
                 }
             }
-            model.addAttribute("totalCourses", totalCourses);
         } catch (Exception e) {
             log.warn("Không thể tải tổng số khóa học từ Gateway: {}", e.getMessage());
-            model.addAttribute("totalCourses", 0L);
         }
+        if (!coursesStatsLoaded) {
+            model.addAttribute("totalCourses", null);
+        }
+        model.addAttribute("coursesStatsLoaded", coursesStatsLoaded);
 
         model.addAttribute("activeNav", "dashboard");
         return "admin/dashboard";

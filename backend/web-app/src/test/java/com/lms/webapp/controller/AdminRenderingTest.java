@@ -12,10 +12,9 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.web.client.RestClientException;
 
-import java.io.File;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.contains;
@@ -38,7 +37,7 @@ class AdminRenderingTest {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    @DisplayName("Render Admin Dashboard displays KPI stats cards and infrastructure health")
+    @DisplayName("1. Render Admin Dashboard displays real KPI stats cards when successfully loaded")
     @WithMockUser(username = "admin_user", roles = {"ADMIN"})
     void renderAdminDashboardDisplaysStatsAndHealth() throws Exception {
         String statsJson = """
@@ -75,12 +74,72 @@ class AdminRenderingTest {
                 .contains("240")
                 .contains("22")
                 .contains("48")
-                .contains("API Gateway (Port 8080)")
-                .contains("Identity Service (8081)");
+                .contains("Chưa kiểm tra");
     }
 
     @Test
-    @DisplayName("Render Admin Users List renders users table, badges and escapes dangerous characters")
+    @DisplayName("2. Render Admin Dashboard displays 'Không tải được' and retry links when KPI fetching fails")
+    @WithMockUser(username = "admin_user", roles = {"ADMIN"})
+    void renderAdminDashboardFailureDisplaysErrorMessageAndRetryLink() throws Exception {
+        when(gatewayClient.get(eq("/identity/admin/users/stats"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new RestClientException("Connection refused to identity-service"));
+        when(gatewayClient.get(contains("/course/courses"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenThrow(new RestClientException("Connection refused to course-service"));
+
+        MvcResult result = mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String html = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(html)
+                .contains("Không tải được")
+                .contains("Thử lại")
+                .contains("Chưa kiểm tra")
+                // Không được hiển thị các trạng thái giả tạo "Đang kết nối", "Hoạt động", "Sẵn sàng"
+                .doesNotContain("Đang kết nối</span>")
+                .doesNotContain("Sẵn sàng</span>");
+    }
+
+    @Test
+    @DisplayName("3. Render Admin Dashboard accurately displays 0 when real count is 0")
+    @WithMockUser(username = "admin_user", roles = {"ADMIN"})
+    void renderAdminDashboardZeroCountDisplaysRealZero() throws Exception {
+        String statsJson = """
+            {
+                "code": 1000,
+                "data": {
+                    "totalStudents": 0,
+                    "newStudentsThisWeek": 0,
+                    "totalInstructors": 0,
+                    "newInstructorsThisMonth": 0,
+                    "totalAdmins": 1
+                }
+            }
+            """;
+        when(gatewayClient.get(eq("/identity/admin/users/stats"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(objectMapper.readTree(statsJson));
+
+        String coursesJson = """
+            {
+                "code": 1000,
+                "data": { "totalElements": 0 }
+            }
+            """;
+        when(gatewayClient.get(contains("/course/courses"), eq(com.fasterxml.jackson.databind.JsonNode.class)))
+                .thenReturn(objectMapper.readTree(coursesJson));
+
+        MvcResult result = mockMvc.perform(get("/admin"))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        String html = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
+        assertThat(html)
+                .contains("0")
+                .doesNotContain("Không tải được");
+    }
+
+    @Test
+    @DisplayName("4. Render Admin Users List renders users table, badges and escapes dangerous characters")
     @WithMockUser(username = "admin_user", roles = {"ADMIN"})
     void renderAdminUsersListRendersTableAndEscapesXSS() throws Exception {
         String usersPageJson = """
@@ -132,7 +191,7 @@ class AdminRenderingTest {
     }
 
     @Test
-    @DisplayName("Render Admin Categories and Tags lists display management tables")
+    @DisplayName("5. Render Admin Categories and Tags lists display management tables")
     @WithMockUser(username = "admin_user", roles = {"ADMIN"})
     void renderAdminCategoriesAndTagsTables() throws Exception {
         String categoriesJson = """

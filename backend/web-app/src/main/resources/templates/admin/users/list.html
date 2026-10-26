@@ -164,19 +164,19 @@
                     <div class="modal-body p-4">
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Tên đăng nhập (Username) <span class="text-danger">*</span></label>
-                            <input type="text" name="username" class="form-control" placeholder="Từ 4 - 50 ký tự" required minlength="4" maxlength="50">
+                            <input type="text" name="username" class="form-control" placeholder="Từ 5 - 50 ký tự (chữ, số, _)" required minlength="5" maxlength="50" pattern="^[a-zA-Z0-9_]+$">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Họ và tên <span class="text-danger">*</span></label>
-                            <input type="text" name="fullname" class="form-control" placeholder="Nguyễn Văn A" required>
+                            <input type="text" name="fullname" class="form-control" placeholder="Từ 3 - 50 ký tự" required minlength="3" maxlength="50" pattern="^[A-Za-zÀ-ỹ\s]+$">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
-                            <input type="email" name="email" class="form-control" placeholder="admin@example.com" required>
+                            <input type="email" name="email" class="form-control" placeholder="admin@example.com" required maxlength="100" pattern="^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$">
                         </div>
                         <div class="mb-3">
                             <label class="form-label fw-semibold">Mật khẩu khởi tạo <span class="text-danger">*</span></label>
-                            <input type="password" name="password" class="form-control" placeholder="Từ 8 ký tự trở lên" required minlength="8">
+                            <input type="password" name="password" class="form-control" placeholder="Từ 8 ký tự, không chứa khoảng trắng" required minlength="8" pattern="^\S{8,}$">
                         </div>
                     </div>
                     <div class="modal-footer bg-light">

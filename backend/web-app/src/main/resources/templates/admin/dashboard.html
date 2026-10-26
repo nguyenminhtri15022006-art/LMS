@@ -20,10 +20,20 @@
                     </div>
                     <div>
                         <div class="text-muted small text-uppercase fw-bold">Tổng Học Viên</div>
-                        <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalStudents')} ? ${stats.get('totalStudents').asLong()} : 0">0</h3>
-                        <span class="badge bg-success-subtle text-success small">
-                            <i class="bi bi-arrow-up-right me-1"></i>+<span th:text="${stats != null && stats.has('newStudentsThisWeek')} ? ${stats.get('newStudentsThisWeek').asLong()} : 0">0</span> tuần này
-                        </span>
+                        <div th:if="${usersStatsLoaded}">
+                            <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalStudents')} ? ${stats.get('totalStudents').asLong()} : 0">0</h3>
+                            <span class="badge bg-success-subtle text-success small">
+                                <i class="bi bi-arrow-up-right me-1"></i>+<span th:text="${stats != null && stats.has('newStudentsThisWeek')} ? ${stats.get('newStudentsThisWeek').asLong()} : 0">0</span> tuần này
+                            </span>
+                        </div>
+                        <div th:unless="${usersStatsLoaded}">
+                            <div class="badge bg-danger-subtle text-danger small mb-1">Không tải được</div>
+                            <div>
+                                <a th:href="@{/admin}" class="btn btn-outline-danger btn-sm py-0 px-2 mt-1">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -38,10 +48,20 @@
                     </div>
                     <div>
                         <div class="text-muted small text-uppercase fw-bold">Tổng Giảng Viên</div>
-                        <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalInstructors')} ? ${stats.get('totalInstructors').asLong()} : 0">0</h3>
-                        <span class="badge bg-info-subtle text-info small">
-                            <i class="bi bi-person-plus me-1"></i>+<span th:text="${stats != null && stats.has('newInstructorsThisMonth')} ? ${stats.get('newInstructorsThisMonth').asLong()} : 0">0</span> tháng này
-                        </span>
+                        <div th:if="${usersStatsLoaded}">
+                            <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalInstructors')} ? ${stats.get('totalInstructors').asLong()} : 0">0</h3>
+                            <span class="badge bg-info-subtle text-info small">
+                                <i class="bi bi-person-plus me-1"></i>+<span th:text="${stats != null && stats.has('newInstructorsThisMonth')} ? ${stats.get('newInstructorsThisMonth').asLong()} : 0">0</span> tháng này
+                            </span>
+                        </div>
+                        <div th:unless="${usersStatsLoaded}">
+                            <div class="badge bg-danger-subtle text-danger small mb-1">Không tải được</div>
+                            <div>
+                                <a th:href="@{/admin}" class="btn btn-outline-danger btn-sm py-0 px-2 mt-1">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -56,10 +76,20 @@
                     </div>
                     <div>
                         <div class="text-muted small text-uppercase fw-bold">Quản Trị Viên</div>
-                        <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalAdmins')} ? ${stats.get('totalAdmins').asLong()} : 0">0</h3>
-                        <span class="badge bg-warning-subtle text-warning small">
-                            <i class="bi bi-shield-check me-1"></i>Quyền tối cao
-                        </span>
+                        <div th:if="${usersStatsLoaded}">
+                            <h3 class="fw-bold mb-1" th:text="${stats != null && stats.has('totalAdmins')} ? ${stats.get('totalAdmins').asLong()} : 0">0</h3>
+                            <span class="badge bg-warning-subtle text-warning small">
+                                <i class="bi bi-shield-check me-1"></i>Quyền tối cao
+                            </span>
+                        </div>
+                        <div th:unless="${usersStatsLoaded}">
+                            <div class="badge bg-danger-subtle text-danger small mb-1">Không tải được</div>
+                            <div>
+                                <a th:href="@{/admin}" class="btn btn-outline-danger btn-sm py-0 px-2 mt-1">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -74,10 +104,20 @@
                     </div>
                     <div>
                         <div class="text-muted small text-uppercase fw-bold">Tổng Khóa Học</div>
-                        <h3 class="fw-bold mb-1" th:text="${totalCourses != null} ? ${totalCourses} : 0">0</h3>
-                        <span class="badge bg-success-subtle text-success small">
-                            <i class="bi bi-mortarboard me-1"></i>Đang vận hành
-                        </span>
+                        <div th:if="${coursesStatsLoaded}">
+                            <h3 class="fw-bold mb-1" th:text="${totalCourses != null} ? ${totalCourses} : 0">0</h3>
+                            <span class="badge bg-success-subtle text-success small">
+                                <i class="bi bi-mortarboard me-1"></i>Đang vận hành
+                            </span>
+                        </div>
+                        <div th:unless="${coursesStatsLoaded}">
+                            <div class="badge bg-danger-subtle text-danger small mb-1">Không tải được</div>
+                            <div>
+                                <a th:href="@{/admin}" class="btn btn-outline-danger btn-sm py-0 px-2 mt-1">
+                                    <i class="bi bi-arrow-clockwise me-1"></i>Thử lại
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -159,23 +199,23 @@
                     <ul class="list-group list-group-flush small">
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                             <span><i class="bi bi-hdd-network text-secondary me-2"></i>API Gateway (Port 8080)</span>
-                            <span class="badge bg-success-subtle text-success">Đang kết nối</span>
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                             <span><i class="bi bi-person-vcard text-secondary me-2"></i>Identity Service (8081)</span>
-                            <span class="badge bg-success-subtle text-success">Hoạt động</span>
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                             <span><i class="bi bi-book-half text-secondary me-2"></i>Course Service (8082)</span>
-                            <span class="badge bg-success-subtle text-success">Hoạt động</span>
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                             <span><i class="bi bi-chat-left-dots text-secondary me-2"></i>Blog Service (8084)</span>
-                            <span class="badge bg-success-subtle text-success">Hoạt động</span>
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>
                         </li>
                         <li class="list-group-item d-flex justify-content-between align-items-center px-0 py-2 border-0">
                             <span><i class="bi bi-cloud-arrow-up text-secondary me-2"></i>MinIO Storage (9000)</span>
-                            <span class="badge bg-success-subtle text-success">Sẵn sàng</span>
+                            <span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>
                         </li>
                     </ul>
                 </div>

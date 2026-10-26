@@ -1172,56 +1172,46 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
 ### Phase 6: Trung Tâm Quản Trị Hệ Thống (Admin Management Portal)
 *(Tương ứng Phase 17 trong lộ trình tổng thể Member 2)*
 * **Mục tiêu**: Giao diện Quản trị viên (`ROLE_ADMIN`):
-  - Quản trị Người dùng: Thống kê `/stats`, danh sách phân trang, khóa/mở user `PATCH /admin/users/{id}/active`, đổi mật khẩu khẩn cấp `PATCH /admin/users/{id}/password`, khóa/mở quyền admin `PATCH /admin/users/{id}/admin-active`.
+  - Phân quyền & Điều hướng Form Login:
+    * Người dùng chưa xác thực (Anonymous) truy cập `/admin` hoặc route con đại diện (`/admin/users`, `/admin/courses`, `/admin/categories`, `/admin/tags`): Chuyển hướng HTTP 302 về trang đăng nhập `/login`.
+    * Người dùng đã đăng nhập nhưng không có vai trò `ADMIN` (`ROLE_STUDENT`, `ROLE_INSTRUCTOR`): Bị từ chối HTTP 403 Forbidden.
+    * Quản trị viên có vai trò `ADMIN`: Được phép truy cập HTTP 200 OK.
+  - Bảng Điều Khiển Tổng Quan (Dashboard):
+    * Quản lý cờ trạng thái độc lập `usersStatsLoaded` và `coursesStatsLoaded` trong `AdminController`.
+    * Phân biệt rõ ràng giữa:
+      + Tải KPI thành công có giá trị thực bằng 0 (hiển thị số 0 thật).
+      + Tải KPI thất bại khi Gateway lỗi: hiển thị trạng thái "Không tải được" kèm nút "Thử lại" chuyển hướng `/admin`, tuyệt đối không chuyển lỗi thành số 0 gây hiểu lầm.
+      + Bảo toàn số liệu KPI tải thành công khi nguồn dữ liệu khác gặp sự cố.
+    * Hạ tầng hệ thống: Không báo hạ tầng khỏe bằng dữ liệu cố định ("Đang kết nối", "Hoạt động", "Sẵn sàng"). Hiển thị trạng thái trung thực "Chưa kiểm tra" cho các dịch vụ do chưa có endpoint/probe kiểm tra hạ tầng microservices nội bộ thực tế từ BFF, không tự tiện mở endpoint nhạy cảm hay xây thêm hệ thống giám sát.
+  - Quản trị Người dùng:
+    * Thống kê `/stats`, danh sách phân trang, khóa/mở user `PATCH /admin/users/{id}/active`, đổi mật khẩu khẩn cấp `PATCH /admin/users/{id}/password`, khóa/mở quyền admin `PATCH /admin/users/{id}/admin-active`.
+    * Đồng bộ validation tạo tài khoản Admin (`AdminCreateAdminForm` & HTML modal) khớp 100% với hợp đồng backend `AdminCreateAdminRequest`:
+      + Tên đăng nhập (username): Từ 5 - 50 ký tự, regex `^[a-zA-Z0-9_]+$`. Từ chối username 4 ký tự tại BFF, không chuyển tiếp tới Gateway.
+      + Mật khẩu: Tối thiểu 8 ký tự, regex `^\S{8,}$` (tuyệt đối không chứa khoảng trắng).
+      + Họ và tên: Từ 3 - 50 ký tự, regex `^[A-Za-zÀ-ỹ\s]+$`.
+      + Email: Tối đa 100 ký tự, regex chuẩn RFC `^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$`.
+      + Bảo mật: Dữ liệu không hợp lệ bị chặn ngay tại BFF, thông báo lỗi tiếng Việt rõ ràng. Tuyệt đối không đưa mật khẩu vào log, URL, flash attributes hoặc giá trị render lại của form.
   - Quản trị Khóa học: Khóa khóa học vi phạm `PATCH /courses/{id}/lock`, mở khóa `PATCH /courses/{id}/unlock`.
   - Quản trị Danh mục: CRUD đầy đủ `/categories` (`POST`, `PUT`, `DELETE`).
   - Quản trị Thẻ Tags: CRUD đầy đủ `/tags` (`POST`, `PUT`, `DELETE`).
-* **Các file dự kiến tạo mới**:
+* **Các file triển khai**:
   - `com.lms.webapp.controller.AdminController`.
-  - `com.lms.webapp.dto.form.AdminResetPasswordForm`, `CategoryForm`, `TagForm`.
-  - Templates: `templates/admin/dashboard.html`, `templates/admin/users/list.html`, `templates/admin/courses/list.html`, `templates/admin/categories/list.html`, `templates/admin/tags/list.html`.
-* **Kế hoạch kiểm thử TDD 3 nhịp chi tiết (Chỉ tiêu dự kiến: 6 tests)**:
-  1. *Test 1: `AdminControllerTest.adminEndpointsRejectNonAdminWith403()`*
-     - Assertion: User không có `ROLE_ADMIN` truy cập `/admin/**` bị chặn HTTP 403 Forbidden.
-     - **Red 1**: Viết test khi chưa tạo `AdminController`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminEndpointsRejectNonAdminWith403`. Lỗi mong đợi: `cannot find symbol: class AdminController`.
-     - **Red 2**: User có role `ROLE_USER` truy cập `/admin` nhận HTTP 200 (chưa chặn quyền). Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminEndpointsRejectNonAdminWith403`. Lỗi mong đợi: `AssertionFailedError: expected <403> but was <200>`.
-     - **Green**: Cấu hình `hasRole('ADMIN')` cho toàn bộ path `/admin/**` trong `SecurityConfig`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminEndpointsRejectNonAdminWith403`. Kết quả mong đợi: `BUILD SUCCESS`.
-  2. *Test 2: `AdminControllerTest.dashboardCallsStatsEndpoint()`*
-     - Assertion: `GET /admin` gọi đúng endpoint `/api/identity/admin/users/stats` hiển thị KPI dashboard.
-     - **Red 1**: Viết test khi chưa có method `adminDashboard`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#dashboardCallsStatsEndpoint`. Lỗi mong đợi: `cannot find symbol: method adminDashboard(...)`.
-     - **Red 2**: Controller gọi nhầm endpoint `/api/identity/admin/users/dashboard` không tồn tại. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#dashboardCallsStatsEndpoint`. Lỗi mong đợi: `AssertionFailedError: expected request to /api/identity/admin/users/stats but was /api/identity/admin/users/dashboard`.
-     - **Green**: Gọi đúng Gateway path `GET /api/identity/admin/users/stats` nạp `UserDashboardResponse` vào Model. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#dashboardCallsStatsEndpoint`. Kết quả mong đợi: `BUILD SUCCESS`.
-  3. *Test 3: `AdminControllerTest.toggleUserActiveCallsPatchEndpoint()`*
-     - Assertion: Khóa/mở user gọi đúng `PATCH /api/identity/admin/users/{id}/active`.
-     - **Red 1**: Viết test khi chưa có method `toggleUserActive`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#toggleUserActiveCallsPatchEndpoint`. Lỗi mong đợi: `cannot find symbol: method toggleUserActive(...)`.
-     - **Red 2**: Method gọi HTTP `PUT` hoặc `POST` thay vì `PATCH`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#toggleUserActiveCallsPatchEndpoint`. Lỗi mong đợi: `AssertionFailedError: expected HTTP PATCH but was PUT`.
-     - **Green**: Gọi Gateway `PATCH /api/identity/admin/users/{id}/active` và trả về thông báo trạng thái. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#toggleUserActiveCallsPatchEndpoint`. Kết quả mong đợi: `BUILD SUCCESS`.
-  4. *Test 4: `AdminControllerTest.adminResetPasswordCallsPatchEndpoint()`*
-     - Assertion: Reset mật khẩu user gọi đúng `PATCH /api/identity/admin/users/{id}/password`.
-     - **Red 1**: Viết test khi chưa tạo `AdminResetPasswordForm`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminResetPasswordCallsPatchEndpoint`. Lỗi mong đợi: `cannot find symbol: class AdminResetPasswordForm`.
-     - **Red 2**: Method gọi sai endpoint `PUT /admin/users/reset-password`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminResetPasswordCallsPatchEndpoint`. Lỗi mong đợi: `AssertionFailedError: expected PATCH /api/identity/admin/users/1/password but was PUT /admin/users/reset-password`.
-     - **Green**: Gọi Gateway `PATCH /api/identity/admin/users/{id}/password` với DTO `AdminResetPasswordRequest`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#adminResetPasswordCallsPatchEndpoint`. Kết quả mong đợi: `BUILD SUCCESS`.
-  5. *Test 5: `AdminControllerTest.lockAndUnlockCourseCallsPatchEndpoints()`*
-     - Assertion: Khóa khóa học gọi `PATCH /courses/{id}/lock`, mở khóa gọi `PATCH /courses/{id}/unlock`.
-     - **Red 1**: Viết test khi chưa có method `lockCourse` hoặc `unlockCourse`. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#lockAndUnlockCourseCallsPatchEndpoints`. Lỗi mong đợi: `cannot find symbol: method lockCourse(...)`.
-     - **Red 2**: Method gọi `POST` thay vì `PATCH`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#lockAndUnlockCourseCallsPatchEndpoints`. Lỗi mong đợi: `AssertionFailedError: expected HTTP PATCH but was POST`.
-     - **Green**: Gọi Gateway `PATCH /api/course/courses/{id}/lock` và `PATCH /api/course/courses/{id}/unlock`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#lockAndUnlockCourseCallsPatchEndpoints`. Kết quả mong đợi: `BUILD SUCCESS`.
-  6. *Test 6: `AdminControllerTest.categoryAndTagCrudCallsCorrectEndpoints()`*
-     - Assertion: Tạo/Sửa/Xóa category và tag gọi đúng các endpoint Admin tương ứng trong `course-service` và `blog-service`.
-     - **Red 1**: Viết test khi chưa có các method CRUD danh mục và tag. Lệnh: `mvn test-compile -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Lỗi mong đợi: `cannot find symbol: method createCategory(...)`.
-     - **Red 2**: Method xóa category gọi HTTP `GET` thay vì `DELETE`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Lỗi mong đợi: `AssertionFailedError: expected HTTP DELETE /api/course/categories/1 but was GET`.
-     - **Green**: Cài đặt đầy đủ `POST/PUT/DELETE /api/course/categories/**` và `POST/PUT/DELETE /api/blog/tags/**`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=AdminControllerTest#categoryAndTagCrudCallsCorrectEndpoints`. Kết quả mong đợi: `BUILD SUCCESS`.
+  - `com.lms.webapp.dto.form.AdminResetPasswordForm`, `CategoryForm`, `TagForm`, `LockCourseForm`, `AdminCreateAdminForm`.
+  - Templates: `templates/admin/dashboard.html`, `templates/admin/users/list.html`, `templates/admin/courses/list.html`, `templates/admin/categories/list.html`, `templates/admin/tags/list.html`, `templates/fragments/admin-nav.html`.
+  - Static JS: `static/js/admin-actions.js`.
+* **Kế hoạch & Bằng chứng kiểm thử TDD Red → Green**:
+  - **Red Phase**: Viết regression tests trước khi sửa, ghi nhận 9/22 tests thất bại:
+    * 6 tests fail trong `AdminControllerTest`: Anonymous redirect 302, non-admin 403, username 4 ký tự bị chặn tại BFF, password có space bị từ chối, KPI courses lỗi không gán 0.
+    * 3 tests fail trong `AdminRenderingTest`: Dashboard template cũ hiển thị badge xanh cố định thay vì "Chưa kiểm tra", hiển thị số 0 thay vì "Không tải được" + nút "Thử lại".
+  - **Green Phase**: Sửa `AdminCreateAdminForm`, `AdminController`, `dashboard.html` và modal `users/list.html`:
+    * Chạy lại `mvn test -pl web-app -f backend/pom.xml "-Dtest=AdminControllerTest,AdminRenderingTest"`: **22/22 tests PASS 100%** (17 `AdminControllerTest` + 5 `AdminRenderingTest`).
 * **Trạng thái**: `[ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT - CHỜ SMOKE TEST DOCKER / E2E]`
-  - Đã triển khai toàn diện phân hệ Trung Tâm Quản Trị Hệ Thống (Admin Management Portal):
-    1. Bảo vệ phân quyền nghiêm ngặt: toàn bộ các route `/admin` và `/admin/**` yêu cầu quyền `ROLE_ADMIN` (`hasRole('ADMIN')`). Mọi truy cập từ người dùng thông thường (`STUDENT`, `INSTRUCTOR`) hoặc anonymous đều bị chặn HTTP 403 Forbidden.
-    2. Dashboard Quản trị: gọi Gateway `GET /api/identity/admin/users/stats` và `GET /api/course/courses?page=0&size=1`, hiển thị KPI metrics: tổng học viên, học viên mới tuần này, tổng giảng viên, giảng viên mới tháng này, tổng quản trị viên, tổng khóa học và trạng thái hạ tầng microservices.
-    3. Quản lý Người dùng: Danh sách phân trang, bộ lọc keyword và role (`STUDENT`, `INSTRUCTOR`, `ADMIN`), toggle trạng thái khóa/mở `PATCH /api/identity/admin/users/{id}/active`, đặt lại mật khẩu khẩn cấp `PATCH /api/identity/admin/users/{id}/password` ($\ge 8$ ký tự), toggle quyền admin `PATCH /api/identity/admin/users/{id}/admin-active`, tạo quản trị viên mới `POST /api/identity/admin/users/admins`.
-    4. Quản lý Khóa học: Danh sách phân trang, bộ lọc keyword/status/level, khóa khóa học `PATCH /api/course/courses/{id}/lock` kèm lý do chi tiết, mở khóa khóa học `PATCH /api/course/courses/{id}/unlock`.
-    5. Quản lý Thể loại Khóa học (Categories): CRUD toàn diện qua Gateway `GET/POST/PUT/DELETE /api/course/categories/**`, modal thêm/sửa trực quan và tự động sinh slug chuẩn SEO/URL.
-    6. Quản lý Thẻ Diễn đàn (Tags): CRUD toàn diện qua Gateway `GET/POST/PUT/DELETE /api/blog/tags/**`, tự động tạo slug tiếng Việt không dấu.
-    7. Client Helper JavaScript (`admin-actions.js`): Xử lý modal Bootstrap, tự động chuyển đổi slug tiếng Việt, cập nhật action URL và dữ liệu tương tác.
-  - Số lượng kiểm thử cô lập đạt chuẩn: 13 test Java Phase 6 (10 `AdminControllerTest` + 3 `AdminRenderingTest`), 6 test JavaScript `admin-actions.test.js`. Tổng toàn bộ module `web-app`: **106/106 tests Java PASS 100%**, **45/45 tests JavaScript PASS 100%**.
-  - Phần còn lại chờ nghiệm thu toàn trình: Kiểm thử liên thông toàn bộ các service trên hạ tầng container Docker Compose tại Phase 7.
+  - Đã khắc phục triệt để và đồng bộ đúng nghiệp vụ Phase 6:
+    1. Đính chính hành vi phân quyền Spring Security form login: Anonymous nhận 302 về `/login`, Non-admin nhận 403, Admin nhận 200 (kiểm tra cả `/admin` và các route con).
+    2. Sửa trạng thái hạ tầng dashboard: Chuyển toàn bộ sang "Chưa kiểm tra", phân biệt KPI lỗi ("Không tải được" + "Thử lại") với KPI bằng 0 thực tế, bảo toàn KPI thành công khi nguồn khác lỗi.
+    3. Đồng bộ validation tạo Admin: Chặn username 4 ký tự, ký tự đặc biệt, mật khẩu chứa khoảng trắng ngay tại BFF; không rò rỉ mật khẩu vào log hay flash attributes.
+  - Số lượng kiểm thử cô lập đạt chuẩn: 22 test Java Phase 6 (17 `AdminControllerTest` + 5 `AdminRenderingTest`), 6 test JavaScript `admin-actions.test.js`. Tổng toàn bộ module `web-app`: **115/115 tests Java PASS 100%**, **45/45 tests JavaScript PASS 100%**.
+  - Ranh giới kiểm thử: Kiểm thử cô lập đã pass 100%; kiểm thử liên thông container Docker Compose, MinIO thật và E2E trình duyệt còn chờ triển khai tại Phase 7.
 
 ---
 

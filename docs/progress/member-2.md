@@ -2794,6 +2794,95 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
   3. Kiểm thử luồng E2E từ trình duyệt thật kết nối toàn bộ hệ thống Microservices.
 - **Ranh giới công việc**: Đã hoàn thành toàn diện Phase 6 (Trung Tâm Quản Trị Hệ Thống); sẵn sàng cho **Phase 7 (Khởi Tạo Docker Compose Hoàn Chỉnh, Docker Smoke Test & Nghiệm Thu Toàn Trình)** khi có chỉ thị.
 
+---
+
+### Đợt Khắc Phục 2 Điểm Rà Soát Của Phase 6 (Admin Portal) & Đính Chính Báo Cáo Phân Quyền
+
+#### 1. Chi Tiết Các Điểm Khắc Phục, Nguyên Nhân & Giải Pháp Triển Khai
+
+| STT | Vấn Đề Rà Soát | Hiện Trạng & Nguyên Nhân Kỹ Thuật | Giải Pháp Triển Khai (Mã Nguồn BFF & Template) |
+| :--- | :--- | :--- | :--- |
+| **1** | **Dashboard không được báo hạ tầng khỏe bằng dữ liệu cố định** | - `dashboard.html` ghi cứng: Gateway "Đang kết nối", Identity/Course/Blog "Hoạt động", MinIO "Sẵn sàng" dù GatewayClient ném lỗi kết nối.<br>- `AdminController.dashboard` bắt exception chuyển lỗi KPI thành số `0`, khiến người dùng hiểu nhầm là số liệu thực. | - **Đối chiếu probe**: Không có endpoint/probe kiểm tra hạ tầng microservices nội bộ thực tế từ BFF. Tuyệt đối không tự tiện mở endpoint nhạy cảm hay xây thêm hệ thống giám sát.<br>- Đổi toàn bộ 5 mục hạ tầng sang badge `<span class="badge bg-secondary-subtle text-secondary"><i class="bi bi-hourglass-split me-1"></i>Chưa kiểm tra</span>`.<br>- Thêm 2 cờ độc lập `usersStatsLoaded` và `coursesStatsLoaded` trong `AdminController`.<br>- Phân biệt rõ: Nếu tải thành công và số liệu bằng 0 thì hiển thị số `0` thật; nếu tải thất bại thì hiển thị badge `"Không tải được"` kèm nút `"Thử lại"` (`/admin`).<br>- Bảo toàn dữ liệu KPI đã tải thành công khi nguồn khác gặp sự cố. |
+| **2** | **Đồng bộ validation tạo tài khoản Admin** | - `AdminCreateAdminForm` và HTML modal cho username tối thiểu 4 ký tự, nhưng `AdminCreateAdminRequest` của `identity-service` yêu cầu tối thiểu 5 ký tự (`@Size(min = 5)`).<br>- Username `"abcd"` bị BFF chuyển tiếp sang Gateway thay vì chặn sớm. | - Đọc `AdminCreateAdminRequest` trong backend và project mẫu READ-ONLY: username $\ge 5$, regex `^[a-zA-Z0-9_]+$`; password $\ge 8$, regex `^\S{8,}$` (không chứa space); fullname $3 \le \text{length} \le 50$, regex `^[A-Za-zÀ-ỹ\s]+$`; email $\le 100$, regex RFC `^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$`.<br>- Đồng bộ `@Size`, `@Pattern` trong `AdminCreateAdminForm` và HTML modal (`minlength="5"`, `pattern`).<br>- Chặn vi phạm ngay tại BFF, thông báo tiếng Việt rõ ràng, tuyệt đối không gọi Gateway khi dữ liệu không hợp lệ.<br>- Tuyệt đối không đưa mật khẩu vào log, URL, flash attributes hay form render lại. |
+| **3** | **Đính chính báo cáo phân quyền theo Spring Security Form Login** | - Báo cáo cũ mô tả anonymous truy cập `/admin` trả về 403, không khớp với cơ chế form login của Spring Security. | - Đính chính hành vi thực tế:<br>  + **Anonymous `GET /admin` và route con**: `ExceptionTranslationFilter` phát sinh `AuthenticationException`, redirect HTTP 302 chuyển tới `/login`.<br>  + **Người đã đăng nhập nhưng không có ADMIN (`STUDENT`, `INSTRUCTOR`)**: `AccessDeniedException`, trả về HTTP 403 Forbidden.<br>  + **Quản trị viên (`ADMIN`)**: Được phép truy cập HTTP 200 OK.<br>- Kiểm tra phân quyền trên cả `/admin` và các route con đại diện (`/admin/users`, `/admin/courses`, `/admin/categories`, `/admin/tags`).<br>- Giữ nguyên cơ chế CSRF và kiểm tra quyền phía backend. |
+
+#### 2. Quá Trình Kiểm Thử TDD: Bằng Chứng Red → Green
+
+1. **Giai đoạn Red (Regression Tests thất bại trước khi sửa)**:
+   - Chạy `mvn test -pl web-app -f backend/pom.xml "-Dtest=AdminControllerTest,AdminRenderingTest"`:
+     * Kết quả: `Tests run: 22, Failures: 9, Errors: 0, Skipped: 0` (Thất bại 9 tests chứng minh rõ ràng lỗi hiện tại).
+     * 6 tests fail trong `AdminControllerTest`:
+       - `anonymousAccessAdminRedirectsToLogin`: kỳ vọng 302 (code cũ trả về do cấu hình slice test chưa load full security).
+       - `authenticatedStudentOrInstructorReceivesForbidden403`: kỳ vọng 403.
+       - `createAdminRejects4CharUsernameAtBffWithoutCallingGateway`: username 4 ký tự chưa bị chặn tại BFF.
+       - `createAdminRejectsPasswordWithWhitespaceAtBff`: mật khẩu chứa khoảng trắng chưa bị chặn tại BFF.
+       - `createAdminRejectsInvalidUsernameCharactersAtBff`: username chứa ký tự đặc biệt chưa bị chặn.
+       - `dashboardCoursesFailureDoesNotDefaultToZero`: controller cũ gán 0 khi lỗi course-service.
+     * 3 tests fail trong `AdminRenderingTest`:
+       - `renderAdminDashboardDisplaysStatsAndHealth`: template cũ thiếu "Chưa kiểm tra".
+       - `renderAdminDashboardFailureDisplaysErrorMessageAndRetryLink`: template cũ hiển thị badge xanh cố định và không hiển thị "Không tải được" + "Thử lại".
+       - `renderAdminDashboardZeroCountDisplaysRealZero`: không phân biệt được số 0 thật với lỗi.
+
+2. **Giai đoạn Green (Sửa mã nguồn và vượt qua 100% kiểm thử)**:
+   - Đã sửa `AdminCreateAdminForm.java`, `AdminController.java`, `templates/admin/dashboard.html` và modal `templates/admin/users/list.html`.
+   - Chạy lại lệnh:
+     ```bash
+     mvn test -pl web-app -f backend/pom.xml "-Dtest=AdminControllerTest,AdminRenderingTest"
+     ```
+   - Kết quả: `Tests run: 22, Failures: 0, Errors: 0, Skipped: 0` (**22/22 tests PASS 100%**).
+
+#### 3. Bằng Chứng Nghiệm Thu Thực Tế (Execution Evidence)
+
+1. **Kiểm thử Toàn bộ Module `web-app` bằng Maven Verify (JDK 21)**:
+   ```bash
+   mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
+   ```
+   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 47.446 s).
+   - **Tổng số test Java**: **115/115 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Bao gồm các test suite**:
+     * `AdminControllerTest`: **17/17 tests PASS**.
+     * `AdminRenderingTest`: **5/5 tests PASS**.
+     * `BlogControllerTest`: **13/13 tests PASS**.
+     * `BlogRenderingTest`: **3/3 tests PASS**.
+     * `CourseInstructorControllerTest`: **20/20 tests PASS**.
+     * `CourseStudentControllerTest`: **20/20 tests PASS**.
+     * `CourseInstructorRenderingTest`: **3/3 tests PASS**.
+     * `CourseStudentRenderingTest`: **7/7 tests PASS**.
+     * `AuthControllerTest`: **9/9 tests PASS**.
+     * `ProfileControllerTest`: **5/5 tests PASS**.
+     * `SecurityConfigTest`: **8/8 tests PASS**.
+     * `GatewayClientTest`: **2/2 tests PASS**.
+     * `MarkdownServiceTest`: **3/3 tests PASS**.
+     * `VideoSourceTest`: **8/8 tests PASS**.
+     * `HomeControllerTest`: **1/1 test PASS**.
+     * `WebAppApplicationTests`: **1/1 test PASS**.
+   - **Đóng gói thành phẩm**: Tạo thành công `backend/web-app/target/web-app-0.0.1-SNAPSHOT.jar`.
+
+2. **Kiểm thử Toàn bộ Test JavaScript (Node.js + jsdom)**:
+   ```bash
+   cmd.exe /c "npm --prefix backend/web-app test"
+   ```
+   - **Kết quả**: **45/45 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 3.07 s).
+   - **Bao gồm**:
+     * `admin-actions.test.js`: **6/6 tests PASS**.
+     * `blog-interactions.test.js`: **13/13 tests PASS**.
+     * `curriculum-builder.test.js`: **12/12 tests PASS**.
+     * `learning-hub.test.js`: **8/8 tests PASS**.
+     * `instructor-management.test.js`: **6/6 tests PASS**.
+
+3. **Kiểm tra cú pháp JavaScript (Syntax Check)**:
+   ```bash
+   cmd.exe /c "node --check backend/web-app/src/main/resources/static/js/admin-actions.js"
+   ```
+   - **Kết quả**: Exit code 0, không có bất kỳ lỗi cú pháp nào.
+
+#### 4. Trạng Thái Hoàn Thành & Ranh Giới Giai Đoạn (Verification Limits)
+- **Trạng thái**: `ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT` (Chưa đánh dấu "NGHIỆM THU 100%" hoặc "VERIFIED" theo quy chuẩn 13 tiêu chí của dự án).
+- **Phân biệt ranh giới**:
+  * Đã kiểm chứng độc lập hoàn tất trên tầng BFF (Spring Boot MVC + Thymeleaf + jsdom client tests).
+  * Các hạng mục còn chờ nghiệm thu thực tế tại Phase 7: Triển khai 11 container trên `docker-compose.yml`, xác thực Bearer JWT token từ Identity Service thật qua API Gateway thật, upload file MinIO thật và kiểm thử E2E liên thông microservices.
+- **Ranh giới công việc**: Dừng sau đợt khắc phục Phase 6, **tuyệt đối chưa triển khai Phase 7**.
+
 
 
 
