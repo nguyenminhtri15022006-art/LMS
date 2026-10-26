@@ -186,11 +186,13 @@ test('edit comment prompts new text and sends PUT', async () => {
     assert.equal(doc.querySelector('[data-comment-id="501"] .comment-text').textContent, 'Nội dung bình luận sau khi sửa');
 });
 
-test('delete comment confirms and sends DELETE, then removes element from DOM', async () => {
+test('delete comment failure preserves DOM and counter and displays alert', async () => {
+    let alertMsg = '';
+    win.alert = (msg) => { alertMsg = msg; };
     win.confirm = () => true;
     win.fetch = async (url, options = {}) => {
         calls.push({ url, options });
-        return response({ message: 'Xóa bình luận thành công' });
+        return response({ message: 'Bạn không có quyền xóa bình luận này' }, false, 403);
     };
 
     const deleteBtn = doc.querySelector('[data-comment-id="501"] .btn-delete-comment');
@@ -200,9 +202,64 @@ test('delete comment confirms and sends DELETE, then removes element from DOM', 
     assert.equal(calls[0].url, '/blog/posts/50/comments/501');
     assert.equal(calls[0].options.method, 'DELETE');
 
+    // DOM và bộ đếm giữ nguyên vẹn
+    assert.ok(doc.querySelector('[data-comment-id="501"]'));
+    assert.equal(el('totalCommentsCount').textContent, '3');
+    await until(() => alertMsg !== '');
+    assert.match(alertMsg, /Bạn không có quyền xóa bình luận này/);
+});
+
+test('delete root comment with replies deletes entire branch and updates counter by total removed', async () => {
+    win.confirm = () => true;
+    win.fetch = async (url, options = {}) => {
+        calls.push({ url, options });
+        return response({ message: 'Xóa bình luận thành công' });
+    };
+
+    // Fixture có cha 501 và 2 con 502, 503 (tổng 3 bình luận)
+    assert.ok(doc.querySelector('[data-comment-id="501"]'));
+    assert.ok(doc.querySelector('[data-comment-id="502"]'));
+    assert.ok(doc.querySelector('[data-comment-id="503"]'));
+    assert.equal(el('totalCommentsCount').textContent, '3');
+
+    const deleteBtn = doc.querySelector('[data-comment-id="501"] .btn-delete-comment');
+    deleteBtn.click();
+
+    await until(() => calls.length > 0);
+    assert.equal(calls[0].url, '/blog/posts/50/comments/501');
+    assert.equal(calls[0].options.method, 'DELETE');
+
+    // Toàn bộ nhánh cha và các con bị xóa khỏi DOM
     await until(() => doc.querySelector('[data-comment-id="501"]') === null);
     assert.equal(doc.querySelector('[data-comment-id="501"]'), null);
-    assert.equal(el('totalCommentsCount').textContent, '2'); // ban đầu là 3 -> giảm còn 2
+    assert.equal(doc.querySelector('[data-comment-id="502"]'), null);
+    assert.equal(doc.querySelector('[data-comment-id="503"]'), null);
+    // Bộ đếm giảm đúng số lượng 3 (từ 3 về 0)
+    assert.equal(el('totalCommentsCount').textContent, '0');
+});
+
+test('delete single child comment reduces counter by 1 and retains parent and sibling', async () => {
+    win.confirm = () => true;
+    win.fetch = async (url, options = {}) => {
+        calls.push({ url, options });
+        return response({ message: 'Xóa bình luận con thành công' });
+    };
+
+    const deleteChildBtn = doc.querySelector('[data-comment-id="503"] .btn-delete-comment');
+    assert.ok(deleteChildBtn);
+    deleteChildBtn.click();
+
+    await until(() => calls.length > 0);
+    assert.equal(calls[0].url, '/blog/posts/50/comments/503');
+    assert.equal(calls[0].options.method, 'DELETE');
+
+    await until(() => doc.querySelector('[data-comment-id="503"]') === null);
+    assert.equal(doc.querySelector('[data-comment-id="503"]'), null);
+    // Cha 501 và con 502 vẫn còn nguyên vẹn trong DOM
+    assert.ok(doc.querySelector('[data-comment-id="501"]'));
+    assert.ok(doc.querySelector('[data-comment-id="502"]'));
+    // Bộ đếm giảm đúng 1 (từ 3 xuống 2)
+    assert.equal(el('totalCommentsCount').textContent, '2');
 });
 
 test('vote comment sends POST to comment vote URL and updates count', async () => {
@@ -229,48 +286,52 @@ test('vote comment sends POST to comment vote URL and updates count', async () =
     assert.equal(doc.querySelector('[data-comment-id="501"] .comment-upvote-count').textContent, '6');
 });
 
-test('reply nested child comment 502 opens its reply box and sends parentId 502', async () => {
+test('two-level constraint: rendered child comments do not display reply button or reply box', () => {
+    // Bình luận gốc (501) có nút trả lời và reply box
+    assert.ok(doc.querySelector('[data-comment-id="501"] .btn-reply-comment'));
+    assert.ok(doc.querySelector('[data-comment-id="501"] .reply-box-container'));
+
+    // Bình luận con (502, 503) tuyệt đối KHÔNG có nút trả lời hay reply box
+    assert.equal(doc.querySelector('[data-comment-id="502"] .btn-reply-comment'), null, 'Child comment 502 must NOT have reply button');
+    assert.equal(doc.querySelector('[data-comment-id="502"] .reply-box-container'), null, 'Child comment 502 must NOT have reply box container');
+    assert.equal(doc.querySelector('[data-comment-id="503"] .btn-reply-comment'), null, 'Child comment 503 must NOT have reply button');
+    assert.equal(doc.querySelector('[data-comment-id="503"] .reply-box-container'), null, 'Child comment 503 must NOT have reply box container');
+});
+
+test('two-level constraint: new reply added via AJAX strictly omits reply button and reply box', async () => {
     win.fetch = async (url, options = {}) => {
         calls.push({ url, options });
         return response({
             data: {
-                id: 1002,
-                content: 'Câu trả lời cho bình luận con',
-                authorName: 'Nest-Tester',
+                id: 1005,
+                parentId: '501',
+                content: 'Câu trả lời con mới qua AJAX',
+                authorName: 'Ajax-Replier',
                 upvoteCount: 0,
                 downvoteCount: 0
             }
         });
     };
 
-    const childCard = doc.querySelector('[data-comment-id="502"]');
-    assert.ok(childCard, 'Child comment 502 should exist in nested tree');
-    assert.equal(childCard.getAttribute('data-parent-id'), '501');
+    const commentCard = doc.querySelector('[data-comment-id="501"]');
+    commentCard.querySelector('.btn-reply-comment').click();
 
-    childCard.querySelector('.btn-reply-comment').click();
-    const replyBox = childCard.querySelector('.reply-box-container');
-    assert.equal(replyBox.classList.contains('d-none'), false);
-
+    const replyBox = commentCard.querySelector('.reply-box-container');
     const replyInput = replyBox.querySelector('.reply-input');
-    replyInput.value = 'Câu trả lời cho bình luận con';
+    replyInput.value = 'Câu trả lời con mới qua AJAX';
     replyBox.querySelector('.btn-submit-reply').click();
 
-    await until(() => calls.length > 0);
-    assert.equal(calls[0].url, '/blog/posts/50/comments');
-    assert.equal(calls[0].options.method, 'POST');
-    assert.deepEqual(JSON.parse(calls[0].options.body), {
-        content: 'Câu trả lời cho bình luận con',
-        parentId: '502'
-    });
+    await until(() => doc.querySelector('[data-comment-id="1005"]'));
+    const newReplyCard = doc.querySelector('[data-comment-id="1005"]');
+    assert.ok(newReplyCard);
+    assert.equal(newReplyCard.getAttribute('data-parent-id'), '501');
 
-    await until(() => doc.querySelector('[data-comment-id="1002"]'));
-    const nestedReply = doc.querySelector('[data-comment-id="1002"]');
-    assert.ok(nestedReply);
-    assert.equal(nestedReply.querySelector('.comment-text').textContent, 'Câu trả lời cho bình luận con');
-    assert.equal(el('totalCommentsCount').textContent, '4');
+    // Thẻ reply mới tạo qua AJAX TUYỆT ĐỐI KHÔNG có nút reply hay reply box
+    assert.equal(newReplyCard.querySelector('.btn-reply-comment'), null, 'AJAX added reply must NOT have reply button');
+    assert.equal(newReplyCard.querySelector('.reply-box-container'), null, 'AJAX added reply must NOT have reply box');
 });
 
-test('edit nested child comment 502 updates text on 502 without modifying parent or grandchild', async () => {
+test('edit child comment 502 updates text without affecting parent 501 or sibling 503', async () => {
     win.prompt = () => 'Nội dung bình luận con đã cập nhật';
     win.fetch = async (url, options = {}) => {
         calls.push({ url, options });
@@ -293,35 +354,12 @@ test('edit nested child comment 502 updates text on 502 without modifying parent
 
     await until(() => doc.querySelector('[data-comment-id="502"] .comment-text').textContent === 'Nội dung bình luận con đã cập nhật');
     assert.equal(doc.querySelector('[data-comment-id="502"] .comment-text').textContent, 'Nội dung bình luận con đã cập nhật');
-    // Kiểm tra comment cha (501) và cháu (503) không bị ảnh hưởng
+    // Kiểm tra comment cha 501 và con 503 không bị ảnh hưởng
     assert.equal(doc.querySelector('[data-comment-id="501"] .comment-text').textContent, 'Bài viết rất hay và chi tiết!');
-    assert.equal(doc.querySelector('[data-comment-id="503"] .comment-text').textContent, 'Bình luận cháu đồng ý!');
+    assert.equal(doc.querySelector('[data-comment-id="503"] .comment-text').textContent, 'Bình luận con hữu ích 2!');
 });
 
-test('delete nested grandchild comment 503 removes 503 from DOM while keeping parent 501 and child 502 intact', async () => {
-    win.confirm = () => true;
-    win.fetch = async (url, options = {}) => {
-        calls.push({ url, options });
-        return response({ message: 'Xóa bình luận thành công' });
-    };
-
-    const deleteBtn = doc.querySelector('[data-comment-id="503"] .btn-delete-comment');
-    assert.ok(deleteBtn);
-    deleteBtn.click();
-
-    await until(() => calls.length > 0);
-    assert.equal(calls[0].url, '/blog/posts/50/comments/503');
-    assert.equal(calls[0].options.method, 'DELETE');
-
-    await until(() => doc.querySelector('[data-comment-id="503"]') === null);
-    assert.equal(doc.querySelector('[data-comment-id="503"]'), null);
-    // Cha và con vẫn còn nguyên vẹn trong DOM
-    assert.ok(doc.querySelector('[data-comment-id="501"]'));
-    assert.ok(doc.querySelector('[data-comment-id="502"]'));
-    assert.equal(el('totalCommentsCount').textContent, '2');
-});
-
-test('vote nested child comment 502 updates vote counts exclusively on 502', async () => {
+test('vote on child comment 502 updates vote counts exclusively on 502', async () => {
     win.fetch = async (url, options = {}) => {
         calls.push({ url, options });
         return response({

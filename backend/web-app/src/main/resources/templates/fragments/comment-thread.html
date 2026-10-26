@@ -30,7 +30,9 @@
 
             <!-- Action Buttons -->
             <div class="d-flex gap-1 align-items-center">
+                <!-- Chỉ bình luận gốc (depth == 0) mới được phép trả lời (nghiệp vụ tối đa 2 cấp) -->
                 <button type="button" class="btn btn-sm btn-link text-decoration-none btn-reply-comment text-secondary p-0 me-2"
+                        th:if="${depth == 0}"
                         th:attr="data-comment-id=${c.hasNonNull('id') ? c.get('id').asLong() : 0}">
                     <i class="bi bi-reply me-1"></i>Trả lời
                 </button>
@@ -66,8 +68,8 @@
             </button>
         </div>
 
-        <!-- Reply Box Container (Initially hidden) -->
-        <div class="reply-box-container mt-3 d-none">
+        <!-- Reply Box Container (Chỉ hiển thị cho bình luận gốc depth == 0) -->
+        <div class="reply-box-container mt-3 d-none" th:if="${depth == 0}">
             <div class="card border rounded-2 p-2 bg-light">
                 <textarea class="form-control form-control-sm mb-2 reply-input" rows="2" placeholder="Nhập câu trả lời..."></textarea>
                 <div class="d-flex justify-content-end gap-2">

@@ -2647,23 +2647,22 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 | STT | Lỗi Phát Hiện | Nguyên Nhân Kỹ Thuật | Giải Pháp Triển Khai (Mã Nguồn BFF & UI) |
 | :--- | :--- | :--- | :--- |
 | **1** | **Sai tên part multipart upload ảnh bìa** | `BlogController` gửi part `"file"`, trong khi `CreatePostRequest` và `UpdatePostRequest` của `blog-service` nhận part `"thumbnail"`. | - Sửa mapping multipart trong cả `createPost` và `updatePost` từ `"file"` sang `"thumbnail"`.<br>- Khi cập nhật không chọn file ảnh bìa mới, giữ nguyên ảnh cũ (không gửi part `"thumbnail"` rỗng).<br>- Giữ nguyên file name và `Content-Type` chuẩn của `MultipartFile`. |
-| **2** | **Bình luận lồng nhau biến mất khi reload trang** | `detail.html` chỉ duyệt danh sách phẳng `comments.content`, bỏ qua trường đệ quy `replies` do backend trả về. | - Tạo fragment đệ quy `fragments/comment-thread.html` (`commentThread(comments, depth)`).<br>- Duyệt đệ quy toàn bộ cây bình luận cha → con → cháu, giữ nguyên `parentId`, `commentId`, cấu trúc thụt lề Bootstrap (`ms-3 ms-md-4 border-start ps-3`).<br>- Escape XSS an toàn qua Thymeleaf `th:text`.<br>- Tích hợp đầy đủ nút tương tác Trả lời, Sửa, Xóa, Vote trên mọi cấp bình luận lồng nhau. |
+| **2** | **Đồng bộ giới hạn bình luận 2 cấp chuẩn backend & sửa bộ đếm khi xóa** | - Backend `blog-service` (`CommentServiceImpl`) chỉ cho phép tối đa 2 cấp (`bình luận gốc → trả lời`), nghiêm cấm reply cấp 3 (`parent.getParent() != null` trả `CANNOT_REPLY_TO_REPLY`). Trước đó giao diện vẫn render nút trả lời cho bình luận con.<br>- Khi xóa bình luận cha có replies, `blog-interactions.js` chỉ gọi trừ 1 khiến bộ đếm bị lệch khi toàn bộ nhánh con biến mất khỏi DOM. | - Trong `fragments/comment-thread.html`: thêm `th:if="${depth == 0}"` cho nút Trả lời và `reply-box-container`; bình luận con tuyệt đối không hiển thị nút/form trả lời.<br>- Trong `blog-interactions.js`: hàm `buildCommentElement` chỉ tạo nút Trả lời và reply box cho bình luận gốc (`!comment.parentId`); khi thêm reply qua AJAX, đảm bảo gắn `parentId` và không sinh nút reply.<br>- Khi xóa comment: tính chính xác số lượng thẻ bị gỡ khỏi DOM `1 + commentCard.querySelectorAll('.comment-card').length` và trừ đúng số lượng thực tế (`updateTotalCommentsCount(-removedCount)`); khi API xóa thất bại, giữ nguyên DOM và bộ đếm, hiển thị thông báo lỗi. |
 | **3** | **Không thể xóa toàn bộ tags khi sửa bài** | Khi bỏ chọn hết tags trên form sửa, BFF không gửi `tagIds` cũng không gửi `clearTags=true`, khiến `PostServiceImpl` backend giữ nguyên tags cũ. | - Đọc `UpdatePostRequest` và `PostServiceImpl.updatePost`: xác nhận quy ước `clearTags=true`.<br>- Trong `BlogController.updatePost`: nếu `form.getTagIds()` null hoặc rỗng, thêm form field `body.add("clearTags", "true")`.<br>- Nếu có tags được chọn, gửi danh sách `tagIds` và không gửi `clearTags`. |
 | **4** | **Thiếu bước đồng bộ thông tin tác giả** | `PostResponse` backend chỉ trả `authorId`, `CommentResponse` chỉ trả `userId`. BFF chưa gọi Identity Service để làm giàu tên/avatar. | - Khảo sát Gateway whitelist: route `identity-public-profile` mở public cho `GET /api/identity/users/{id}/profile`.<br>- Thêm phương thức `enrichPostWithAuthor` và `enrichCommentsWithAuthors` trong `BlogController` qua Gateway client.<br>- Lưu cache profile trong vòng đời request để tránh gọi lặp cho cùng một user.<br>- Xử lý fallback an toàn: hiển thị `"Người dùng LMS"` hoặc `"Người dùng"` khi user bị xóa (404) hoặc service lỗi, không làm vỡ trang. |
 
 #### 2. Quá Trình Kiểm Thử TDD: Bằng Chứng Red → Green
 
 1. **Giai đoạn Red (Regression Tests thất bại trước khi sửa)**:
-   - Đã viết regression test cô lập trong `BlogControllerTest` và `BlogRenderingTest`:
-     * `createPostMultipartCallsGateway`: FAIL do gửi part `"file"` thay vì `"thumbnail"`.
-     * `updatePostWithEmptyTagsSendsClearTagsTrue`: FAIL do không gửi `clearTags=true`.
-     * `updatePostWithNewThumbnailAndSelectedTagsSendsBothCorrectly`: FAIL do gửi sai tên part thumbnail.
-     * `publicDetailBySlugRendersMarkdownSafely`, `postByIdAuthenticatedReturnsDetailView`, `publicDetailAuthorLookupFailureFallsBackGracefully`: FAIL do thiếu bước gọi `GET /api/identity/users/{id}/profile`.
-     * `renderNestedCommentsTreePreservesHierarchyAndEscapesContent`: FAIL do thiếu bình luận con/cháu trong cây Thymeleaf.
-   - Kết quả chạy thực tế: **7 tests FAILED**.
+   - Trong `BlogRenderingTest`:
+     * `renderTwoLevelCommentsTreePreservesHierarchyAndRejectsThirdLevel` FAIL: `not to contain: "btn-submit-reply" data-parent-id="502"` do bình luận con vẫn sinh form reply.
+   - Trong `blog-interactions.test.js`:
+     * `delete root comment with replies deletes entire branch and updates counter by total removed` FAIL: `Expected values to be strictly equal: '2' !== '0'` (do code cũ chỉ trừ 1 thay vì trừ 3).
+     * `two-level constraint: rendered child comments do not display reply button or reply box` FAIL: thẻ con 502 vẫn có nút Trả lời.
+     * `two-level constraint: new reply added via AJAX strictly omits reply button and reply box` FAIL: thẻ mới tạo qua AJAX vẫn sinh nút Trả lời.
 
 2. **Giai đoạn Green (Mã nguồn đã sửa và toàn bộ test vượt qua)**:
-   - Sửa `BlogController.java`, tạo mới `comment-thread.html`, cập nhật `detail.html`, cập nhật fixture render `BlogRenderingTest.java` và bổ sung 4 test JS trong `blog-interactions.test.js`.
+   - Sửa `comment-thread.html`, cập nhật `blog-interactions.js` và đồng bộ fixture `BlogRenderingTest.java`.
    - Kết quả chạy lại: **100% tests PASS**.
 
 #### 3. Bằng Chứng Nghiệm Thu Thực Tế (Execution Evidence)
@@ -2672,30 +2671,32 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
    ```bash
    mvn clean verify -pl web-app -f backend/pom.xml "-Dspring.profiles.active=test"
    ```
-   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 57.652 s).
+   - **Kết quả**: `BUILD SUCCESS` (Thời gian: 46.686 s).
    - **Tổng số test Java**: **93/93 tests PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
    - **Riêng phân hệ Diễn đàn Blog**:
      * `BlogControllerTest`: **13/13 tests PASS**.
-     * `BlogRenderingTest`: **3/3 tests PASS** (Bao gồm test render cây bình luận lồng nhau 3 cấp cha → con → cháu và chống XSS).
+     * `BlogRenderingTest`: **3/3 tests PASS** (Render cây 2 cấp chuẩn, cấm cấp 3 và chống XSS).
    - **Đóng gói thành phẩm**: Tạo thành công `backend/web-app/target/web-app-0.0.1-SNAPSHOT.jar`.
 
 2. **Kiểm thử Toàn bộ Test JavaScript (Node.js + jsdom)**:
    ```bash
    cmd.exe /c "npm --prefix backend/web-app test"
    ```
-   - **Kết quả**: **37/37 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 3.51 s).
-   - **Riêng `blog-interactions.test.js`**: **11/11 tests PASS**, bao gồm các test tương tác bình luận lồng nhau:
+   - **Kết quả**: **39/39 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 3.59 s).
+   - **Riêng `blog-interactions.test.js`**: **13/13 tests PASS**:
      * `vote post sends POST /blog/posts/{id}/vote with UPVOTE and updates vote counts`
      * `vote post failure does not crash and re-enables button`
      * `submit root comment sends POST /blog/posts/{id}/comments and appends new card to tree`
      * `reply comment opens reply box and sends parentId`
      * `edit comment prompts new text and sends PUT`
-     * `delete comment confirms and sends DELETE, then removes element from DOM`
+     * `delete comment failure preserves DOM and counter and displays alert`
+     * `delete root comment with replies deletes entire branch and updates counter by total removed`
+     * `delete single child comment reduces counter by 1 and retains parent and sibling`
      * `vote comment sends POST to comment vote URL and updates count`
-     * `reply nested child comment 502 opens its reply box and sends parentId 502`
-     * `edit nested child comment 502 updates text on 502 without modifying parent or grandchild`
-     * `delete nested grandchild comment 503 removes 503 from DOM while keeping parent 501 and child 502 intact`
-     * `vote nested child comment 502 updates vote counts exclusively on 502`
+     * `two-level constraint: rendered child comments do not display reply button or reply box`
+     * `two-level constraint: new reply added via AJAX strictly omits reply button and reply box`
+     * `edit child comment 502 updates text without affecting parent 501 or sibling 503`
+     * `vote on child comment 502 updates vote counts exclusively on 502`
 
 3. **Kiểm tra cú pháp JavaScript (Syntax Check)**:
    ```bash

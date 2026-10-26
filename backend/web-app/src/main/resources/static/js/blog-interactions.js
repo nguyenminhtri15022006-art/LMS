@@ -278,8 +278,10 @@
                 .then(() => {
                     const commentCard = deleteBtn.closest('.comment-card');
                     if (commentCard) {
+                        // Tính đúng số lượng thẻ thực tế bị gỡ khỏi DOM (thẻ hiện tại + các replies con bên trong nó)
+                        const removedCount = 1 + commentCard.querySelectorAll('.comment-card').length;
                         commentCard.remove();
-                        updateTotalCommentsCount(-1);
+                        updateTotalCommentsCount(-removedCount);
                     }
                 })
                 .catch(err => {
@@ -351,10 +353,15 @@
         function appendReplyToCommentCard(parentCard, replyComment) {
             if (!parentCard) return;
 
+            // Đảm bảo replyComment có parentId để buildCommentElement nhận biết là bình luận con
+            if (!replyComment.parentId) {
+                replyComment.parentId = parentCard.getAttribute('data-comment-id');
+            }
+
             let replyList = parentCard.querySelector('.nested-replies-list');
             if (!replyList) {
                 replyList = doc.createElement('div');
-                replyList.className = 'nested-replies-list ms-4 mt-2 pt-2 border-start ps-3 d-flex flex-column gap-2';
+                replyList.className = 'nested-replies-list ms-3 ms-md-4 mt-2 pt-2 border-start border-3 border-primary-subtle ps-3 d-flex flex-column gap-2';
                 parentCard.appendChild(replyList);
             }
 
@@ -364,8 +371,13 @@
 
         function buildCommentElement(comment) {
             const card = doc.createElement('div');
+            const isChild = Boolean(comment.parentId);
             card.className = 'comment-card border rounded-3 p-3 bg-white mb-2 shadow-xs';
             card.setAttribute('data-comment-id', comment.id);
+            if (isChild) {
+                card.setAttribute('data-parent-id', comment.parentId);
+                card.classList.add('ms-3', 'ms-md-4', 'border-start', 'border-3', 'border-primary-subtle');
+            }
 
             const header = doc.createElement('div');
             header.className = 'd-flex justify-content-between align-items-center mb-2';
@@ -378,7 +390,7 @@
             userGroup.appendChild(icon);
 
             const author = doc.createElement('span');
-            author.className = 'fw-bold small';
+            author.className = 'fw-bold small comment-author-name';
             author.textContent = comment.authorName || 'Người dùng';
             userGroup.appendChild(author);
 
@@ -393,12 +405,15 @@
             const actions = doc.createElement('div');
             actions.className = 'd-flex gap-1 align-items-center';
 
-            const btnReply = doc.createElement('button');
-            btnReply.type = 'button';
-            btnReply.className = 'btn btn-sm btn-link text-decoration-none btn-reply-comment text-secondary p-0 me-2';
-            btnReply.setAttribute('data-comment-id', comment.id);
-            btnReply.innerHTML = '<i class="bi bi-reply me-1"></i>Trả lời';
-            actions.appendChild(btnReply);
+            // Chỉ bình luận gốc (!isChild) mới có nút Trả lời (nghiệp vụ tối đa 2 cấp)
+            if (!isChild) {
+                const btnReply = doc.createElement('button');
+                btnReply.type = 'button';
+                btnReply.className = 'btn btn-sm btn-link text-decoration-none btn-reply-comment text-secondary p-0 me-2';
+                btnReply.setAttribute('data-comment-id', comment.id);
+                btnReply.innerHTML = '<i class="bi bi-reply me-1"></i>Trả lời';
+                actions.appendChild(btnReply);
+            }
 
             const btnEdit = doc.createElement('button');
             btnEdit.type = 'button';
@@ -445,19 +460,21 @@
 
             card.appendChild(voteBar);
 
-            // Reply Box
-            const replyBox = doc.createElement('div');
-            replyBox.className = 'reply-box-container mt-3 d-none';
-            replyBox.innerHTML = `
-                <div class="card border rounded-2 p-2 bg-light">
-                    <textarea class="form-control form-control-sm mb-2 reply-input" rows="2" placeholder="Nhập câu trả lời..."></textarea>
-                    <div class="d-flex justify-content-end gap-2">
-                        <button type="button" class="btn btn-sm btn-light btn-cancel-reply">Hủy</button>
-                        <button type="button" class="btn btn-sm btn-primary btn-submit-reply" data-parent-id="${comment.id}">Gửi trả lời</button>
+            // Reply Box: Chỉ bình luận gốc (!isChild) mới có reply box
+            if (!isChild) {
+                const replyBox = doc.createElement('div');
+                replyBox.className = 'reply-box-container mt-3 d-none';
+                replyBox.innerHTML = `
+                    <div class="card border rounded-2 p-2 bg-light">
+                        <textarea class="form-control form-control-sm mb-2 reply-input" rows="2" placeholder="Nhập câu trả lời..."></textarea>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-light btn-cancel-reply">Hủy</button>
+                            <button type="button" class="btn btn-sm btn-primary btn-submit-reply" data-parent-id="${comment.id}">Gửi trả lời</button>
+                        </div>
                     </div>
-                </div>
-            `;
-            card.appendChild(replyBox);
+                `;
+                card.appendChild(replyBox);
+            }
 
             return card;
         }

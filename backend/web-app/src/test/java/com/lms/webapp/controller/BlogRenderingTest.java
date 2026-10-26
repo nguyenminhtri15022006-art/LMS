@@ -99,22 +99,21 @@ class BlogRenderingTest {
                 + "      \"id\": 502,"
                 + "      \"parentId\": 501,"
                 + "      \"userId\": \"user-student-2\","
-                + "      \"content\": \"Bình luận con hữu ích!\","
+                + "      \"content\": \"Bình luận con hữu ích 1!\","
                 + "      \"createdAt\": \"2026-10-25T16:05:00\","
                 + "      \"upvoteCount\": 2,"
                 + "      \"downvoteCount\": 0,"
-                + "      \"replies\": ["
-                + "        {"
-                + "          \"id\": 503,"
-                + "          \"parentId\": 502,"
-                + "          \"userId\": \"user-student-3\","
-                + "          \"content\": \"Bình luận cháu đồng ý!\","
-                + "          \"createdAt\": \"2026-10-25T16:10:00\","
-                + "          \"upvoteCount\": 1,"
-                + "          \"downvoteCount\": 0,"
-                + "          \"replies\": []"
-                + "        }"
-                + "      ]"
+                + "      \"replies\": []"
+                + "    },"
+                + "    {"
+                + "      \"id\": 503,"
+                + "      \"parentId\": 501,"
+                + "      \"userId\": \"user-student-3\","
+                + "      \"content\": \"Bình luận con hữu ích 2!\","
+                + "      \"createdAt\": \"2026-10-25T16:10:00\","
+                + "      \"upvoteCount\": 1,"
+                + "      \"downvoteCount\": 0,"
+                + "      \"replies\": []"
                 + "    }"
                 + "  ]"
                 + "}"
@@ -151,22 +150,28 @@ class BlogRenderingTest {
         assertThat(html).doesNotContain("<img src=x onerror=");
         assertThat(html).contains("&lt;img src=x");
 
-        // Assert dữ liệu bài viết & bình luận
+        // Assert dữ liệu bài viết & bình luận 2 cấp
         assertThat(html).contains("data-post-id=\"50\"");
         assertThat(html).contains("data-comment-id=\"501\"");
         assertThat(html).contains("data-comment-id=\"502\"");
         assertThat(html).contains("data-comment-id=\"503\"");
         assertThat(html).contains("Bài viết rất hay và chi tiết!");
-        assertThat(html).contains("Bình luận con hữu ích!");
-        assertThat(html).contains("Bình luận cháu đồng ý!");
+        assertThat(html).contains("Bình luận con hữu ích 1!");
+        assertThat(html).contains("Bình luận con hữu ích 2!");
         assertThat(html).contains("Học viên A");
         assertThat(html).contains("Học viên B");
         assertThat(html).contains("Học viên C");
+
+        // Giới hạn 2 cấp: Bình luận gốc (501) có form gửi reply
+        assertThat(html).contains("btn-submit-reply\" data-parent-id=\"501\"");
+        // Bình luận con (502, 503) tuyệt đối KHÔNG có nút trả lời hay form gửi reply
+        assertThat(html).doesNotContain("btn-submit-reply\" data-parent-id=\"502\"");
+        assertThat(html).doesNotContain("btn-submit-reply\" data-parent-id=\"503\"");
     }
 
     @Test
-    @DisplayName("renderNestedCommentsTreePreservesHierarchyAndEscapesContent — Render cây bình luận 3 cấp cha-con-cháu, kiểm tra đầy đủ parentId, ID và chống XSS")
-    void renderNestedCommentsTreePreservesHierarchyAndEscapesContent() throws Exception {
+    @DisplayName("renderTwoLevelCommentsTreePreservesHierarchyAndRejectsThirdLevel — Render cây bình luận 2 cấp chuẩn, cấm cấp 3 và chống XSS")
+    void renderTwoLevelCommentsTreePreservesHierarchyAndRejectsThirdLevel() throws Exception {
         mockServer.expect(requestTo("http://localhost:8080/api/blog/posts/public/nested-comments-post"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess(
@@ -182,7 +187,7 @@ class BlogRenderingTest {
                         MediaType.APPLICATION_JSON
                 ));
 
-        // Response bình luận lồng nhau: Cha (501) -> Con (502) -> Cháu (503)
+        // Response bình luận 2 cấp chuẩn backend: Cha (501) -> Con 1 (502) & Con 2 (503)
         String nestedCommentsJson = "{\"code\":1000,\"data\":{\"content\":["
                 + "{"
                 + "  \"id\": 501,"
@@ -194,21 +199,20 @@ class BlogRenderingTest {
                 + "    {"
                 + "      \"id\": 502,"
                 + "      \"parentId\": 501,"
-                + "      \"userId\": \"user-child\","
-                + "      \"content\": \"Bình luận con cấp 1 <script>alert('xss-child')</script>\","
+                + "      \"userId\": \"user-child-1\","
+                + "      \"content\": \"Bình luận con 1 <script>alert('xss-child-1')</script>\","
                 + "      \"upvoteCount\": 4,"
                 + "      \"downvoteCount\": 0,"
-                + "      \"replies\": ["
-                + "        {"
-                + "          \"id\": 503,"
-                + "          \"parentId\": 502,"
-                + "          \"userId\": \"user-grandchild\","
-                + "          \"content\": \"Bình luận cháu cấp 2 <script>alert('xss-grandchild')</script>\","
-                + "          \"upvoteCount\": 2,"
-                + "          \"downvoteCount\": 0,"
-                + "          \"replies\": []"
-                + "        }"
-                + "      ]"
+                + "      \"replies\": []"
+                + "    },"
+                + "    {"
+                + "      \"id\": 503,"
+                + "      \"parentId\": 501,"
+                + "      \"userId\": \"user-child-2\","
+                + "      \"content\": \"Bình luận con 2 <script>alert('xss-child-2')</script>\","
+                + "      \"upvoteCount\": 2,"
+                + "      \"downvoteCount\": 0,"
+                + "      \"replies\": []"
                 + "    }"
                 + "  ]"
                 + "}"
@@ -222,39 +226,43 @@ class BlogRenderingTest {
         mockServer.expect(requestTo("http://localhost:8080/api/identity/users/user-parent/profile"))
                 .andExpect(method(HttpMethod.GET))
                 .andRespond(withSuccess("{\"code\":1000,\"data\":{\"userId\":\"user-parent\",\"fullname\":\"Nguyen Van Cha\"}}", MediaType.APPLICATION_JSON));
-        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/user-child/profile"))
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/user-child-1/profile"))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"userId\":\"user-child\",\"fullname\":\"Nguyen Thi Con\"}}", MediaType.APPLICATION_JSON));
-        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/user-grandchild/profile"))
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"userId\":\"user-child-1\",\"fullname\":\"Nguyen Thi Con 1\"}}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/users/user-child-2/profile"))
                 .andExpect(method(HttpMethod.GET))
-                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"userId\":\"user-grandchild\",\"fullname\":\"Le Van Chau\"}}", MediaType.APPLICATION_JSON));
+                .andRespond(withSuccess("{\"code\":1000,\"data\":{\"userId\":\"user-child-2\",\"fullname\":\"Nguyen Thi Con 2\"}}", MediaType.APPLICATION_JSON));
 
         String html = mockMvc.perform(get("/blog/nested-comments-post"))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        // 1. Kiểm tra hiển thị đủ cả 3 cấp bình luận: Cha (501), Con (502), Cháu (503)
+        // 1. Kiểm tra hiển thị đủ bình luận 2 cấp: Cha (501), Con 1 (502), Con 2 (503)
         assertThat(html).contains("data-comment-id=\"501\"");
         assertThat(html).contains("data-comment-id=\"502\"");
         assertThat(html).contains("data-comment-id=\"503\"");
 
-        // 2. Kiểm tra parentId chính xác cho con và cháu
+        // 2. Cả 2 con đều có parentId trỏ về cha 501
         assertThat(html).contains("data-parent-id=\"501\"");
-        assertThat(html).contains("data-parent-id=\"502\"");
 
-        // 3. Kiểm tra nội dung text của từng cấp
+        // 3. Kiểm tra nội dung text
         assertThat(html).contains("Bình luận gốc cấp 0");
-        assertThat(html).contains("Bình luận con cấp 1");
-        assertThat(html).contains("Bình luận cháu cấp 2");
+        assertThat(html).contains("Bình luận con 1");
+        assertThat(html).contains("Bình luận con 2");
 
         // 4. Kiểm tra an toàn XSS: không thẻ script nào được render thực thi
-        assertThat(html).doesNotContain("<script>alert('xss-child')</script>");
-        assertThat(html).doesNotContain("<script>alert('xss-grandchild')</script>");
+        assertThat(html).doesNotContain("<script>alert('xss-child-1')</script>");
+        assertThat(html).doesNotContain("<script>alert('xss-child-2')</script>");
         assertThat(html).contains("&lt;script&gt;alert(");
 
         // 5. Kiểm tra thông tin tác giả bình luận đã được enrich
         assertThat(html).contains("Nguyen Van Cha");
-        assertThat(html).contains("Nguyen Thi Con");
-        assertThat(html).contains("Le Van Chau");
+        assertThat(html).contains("Nguyen Thi Con 1");
+        assertThat(html).contains("Nguyen Thi Con 2");
+
+        // 6. Ràng buộc 2 cấp: bình luận con không có nút trả lời hay form gửi reply
+        assertThat(html).contains("btn-submit-reply\" data-parent-id=\"501\"");
+        assertThat(html).doesNotContain("btn-submit-reply\" data-parent-id=\"502\"");
+        assertThat(html).doesNotContain("btn-submit-reply\" data-parent-id=\"503\"");
     }
 }

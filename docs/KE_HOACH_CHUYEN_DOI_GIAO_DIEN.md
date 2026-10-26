@@ -1158,12 +1158,13 @@ Cấu hình Surefire Plugin trong `pom.xml` loại trừ `@Tag("docker-smoke")` 
      - **Red 2**: Method gọi sai URL (thiếu postId hoặc commentId). Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Lỗi mong đợi: `AssertionFailedError: expected URL containing /comments/5/vote but was /comments/vote`.
      - **Green**: Gọi Gateway `POST /api/blog/posts/{postId}/comments/{commentId}/vote` với DTO `VoteRequest`. Lệnh: `mvn test -pl web-app -f backend/pom.xml -Dtest=BlogControllerTest#voteCommentCallsCommentVoteApi`. Kết quả mong đợi: `BUILD SUCCESS`.
 * **Trạng thái**: `[ĐÃ KIỂM THỬ CÔ LẬP HOÀN TẤT - CHỜ SMOKE TEST DOCKER / MINIO THẬT / E2E]`
-  - Đã khắc phục triệt để 4 lỗi rà soát Phase 5:
+  - Đã khắc phục triệt để và đồng bộ đúng nghiệp vụ Phase 5:
     1. Đổi part multipart ảnh bìa từ `"file"` thành `"thumbnail"` cho cả tạo và sửa bài viết (`CreatePostRequest`/`UpdatePostRequest`), bảo toàn ảnh cũ khi không chọn file mới.
-    2. Render bình luận lồng nhau sau khi tải lại trang qua fragment Thymeleaf đệ quy `commentThread`, giữ nguyên cấu trúc cha → con → cháu, bảo vệ chống XSS, kiểm thử thành công tương tác trả lời, sửa, xóa và vote trên bình luận lồng nhau.
-    3. Hỗ trợ xóa toàn bộ thẻ bài viết (`clearTags=true`) khi người dùng bỏ chọn toàn bộ tags trên form cập nhật, giữ nguyên danh sách khi còn chọn tag.
-    4. Đồng bộ thông tin tác giả bài viết (`authorId`) và người bình luận (`userId`) qua Gateway endpoint `GET /api/identity/users/{id}/profile`, có fallback an toàn `Người dùng LMS` / `Người dùng` khi gặp lỗi hoặc user không tồn tại.
-  - Số lượng kiểm thử cô lập đạt chuẩn: 16 test Java Phase 5 (13 `BlogControllerTest` + 3 `BlogRenderingTest`), 11 test JavaScript `blog-interactions.test.js`. Tổng toàn bộ module `web-app`: **93/93 tests Java PASS 100%**, **37/37 tests JavaScript PASS 100%**.
+    2. Đồng bộ giới hạn bình luận 2 cấp chuẩn backend (`bình luận gốc → trả lời`): bình luận gốc có nút/form trả lời; bình luận con (cả render sẵn qua Thymeleaf lẫn thêm mới qua AJAX) tuyệt đối không có nút/form trả lời và không phát sinh request tạo cấp 3; duy trì đầy đủ tính năng sửa, xóa, vote trên bình luận con; tải lại trang vẫn hiển thị đầy đủ bình luận con.
+    3. Sửa bộ đếm khi xóa bình luận có replies: khi xóa bình luận cha, gỡ toàn bộ nhánh và trừ đúng tổng số bình luận thực tế bị xóa ($1 + \text{số replies con}$); khi xóa bình luận con, giảm 1 và giữ nguyên bình luận cha; khi xóa thất bại, giữ nguyên DOM và bộ đếm, hiển thị thông báo lỗi.
+    4. Hỗ trợ xóa toàn bộ thẻ bài viết (`clearTags=true`) khi người dùng bỏ chọn toàn bộ tags trên form cập nhật, giữ nguyên danh sách khi còn chọn tag.
+    5. Đồng bộ thông tin tác giả bài viết (`authorId`) và người bình luận (`userId`) qua Gateway endpoint `GET /api/identity/users/{id}/profile`, có fallback an toàn `Người dùng LMS` / `Người dùng` khi gặp lỗi hoặc user không tồn tại.
+  - Số lượng kiểm thử cô lập đạt chuẩn: 16 test Java Phase 5 (13 `BlogControllerTest` + 3 `BlogRenderingTest`), 13 test JavaScript `blog-interactions.test.js`. Tổng toàn bộ module `web-app`: **93/93 tests Java PASS 100%**, **39/39 tests JavaScript PASS 100%**.
   - Phần còn lại chờ nghiệm thu toàn trình: Upload ảnh bìa vào MinIO thật, xác thực liên thông JWT qua Gateway thật và kiểm thử E2E trên Docker Compose tại Phase 7.
 
 ---
