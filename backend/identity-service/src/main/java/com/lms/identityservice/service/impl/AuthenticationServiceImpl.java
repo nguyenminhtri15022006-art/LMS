@@ -20,6 +20,7 @@ import com.lms.identityservice.repository.RefreshTokenRepository;
 import com.lms.identityservice.repository.UserRepository;
 import com.lms.identityservice.service.AuthenticationService;
 import com.lms.identityservice.service.GoogleOAuthService;
+import com.lms.identityservice.service.EmailVerificationService;
 import com.nimbusds.jose.*;
 import com.nimbusds.jose.crypto.MACSigner;
 import com.nimbusds.jose.crypto.MACVerifier;
@@ -59,6 +60,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     PasswordEncoder passwordEncoder;
     UserMapper userMapper;
     GoogleOAuthService googleOAuthService;
+    EmailVerificationService emailVerificationService;
 
     @NonFinal
     @Value("${jwt.signer-key}")
@@ -87,7 +89,15 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         user.setPassword(passwordEncoder.encode(request.getPassword()));
         user.setAuthProvider(AuthProvider.LOCAL);
         user.setRoleSelected(true);
+        user.setActive(true);
+        user.setVerified(false);
         userRepository.save(user);
+
+        emailVerificationService.sendVerifyEmail(
+                SendEmailVerificationRequest.builder()
+                        .email(user.getEmail())
+                        .build()
+        );
 
         return userMapper.toUserCreationResponse(user);
     }
@@ -102,6 +112,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
 
         if (!user.getActive()) {
             throw new IdentityException(ErrorCode.USER_INACTIVE);
+        }
+
+        if (Boolean.FALSE.equals(user.getVerified())) {
+            throw new IdentityException(ErrorCode.USER_NOT_VERIFIED);
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

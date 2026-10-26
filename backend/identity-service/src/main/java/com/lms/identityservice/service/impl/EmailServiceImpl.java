@@ -58,6 +58,7 @@ public class EmailServiceImpl implements EmailService {
                 </div>
                 """.formatted(fullName, otp, otpExpiryMinutes, otpMaxAttempts);
 
+        log.info("[EMAIL VERIFICATION] Gui ma xac thuc toi email: {} (Ho ten: {}): OTP={}", to, fullName, otp);
         sendHtmlEmail(to, subject, content);
     }
 
@@ -100,8 +101,9 @@ public class EmailServiceImpl implements EmailService {
             helper.setSubject(subject);
             helper.setText(content, true);
             mailSender.send(message);
-        } catch (MessagingException e) {
-            log.error("Failed to send email to {}: {}", to, e.getMessage());
+            log.info("Da gui email thanh cong toi {}", to);
+        } catch (Exception e) {
+            log.error("Khong the gui email toi {}: {}", to, e.getMessage());
         }
     }
 }

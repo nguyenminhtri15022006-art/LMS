@@ -81,6 +81,9 @@ public class AuthService {
                             .build();
                 }
             } catch (Exception e) {
+                if (e.getMessage() != null && (e.getMessage().contains("chưa được kích hoạt") || e.getMessage().contains("1009"))) {
+                    throw new IllegalArgumentException("Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra mã OTP gửi về email!");
+                }
                 log.warn("Không thể kết nối API Gateway auth-client, chuyển sang chế độ tài khoản kiểm thử: {}", e.getMessage());
             }
         }

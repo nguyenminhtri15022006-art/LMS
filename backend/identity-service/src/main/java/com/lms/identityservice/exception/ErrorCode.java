@@ -19,6 +19,7 @@ public enum ErrorCode {
     PASSWORD_INCORRECT(1007, "Mật khẩu đăng nhập không đúng", HttpStatus.UNAUTHORIZED),
     INVALID_CREDENTIALS(1008, "Tên đăng nhập hoặc mật khẩu không chính xác", HttpStatus.UNAUTHORIZED),
     CANNOT_DEACTIVATE_ADMIN(1066, "Không thể khóa tài khoản Admin", HttpStatus.BAD_REQUEST),
+    USER_NOT_VERIFIED(1009, "Tài khoản chưa được kích hoạt qua email. Vui lòng kiểm tra hộp thư để xác thực OTP trước khi đăng nhập", HttpStatus.FORBIDDEN),
 
     // TOKEN
     TOKEN_EXPIRED(1011, "Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại", HttpStatus.UNAUTHORIZED),

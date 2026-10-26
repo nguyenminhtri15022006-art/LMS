@@ -11,6 +11,7 @@ import com.lms.identityservice.enums.VerificationType;
 import com.lms.identityservice.exception.ErrorCode;
 import com.lms.identityservice.exception.IdentityException;
 import com.lms.identityservice.repository.EmailVerificationRepository;
+import com.lms.identityservice.repository.RefreshTokenRepository;
 import com.lms.identityservice.repository.UserRepository;
 import com.lms.identityservice.service.EmailService;
 import com.lms.identityservice.service.OtpAttemptHandler;
@@ -42,6 +43,9 @@ class EmailVerificationServiceImplTest {
     EmailVerificationRepository emailVerificationRepository;
 
     @Mock
+    RefreshTokenRepository refreshTokenRepository;
+
+    @Mock
     UserRepository userRepository;
 
     @Mock
@@ -59,6 +63,7 @@ class EmailVerificationServiceImplTest {
     void setUp() {
         emailVerificationService = new EmailVerificationServiceImpl(
                 emailVerificationRepository,
+                refreshTokenRepository,
                 userRepository,
                 emailService,
                 otpAttemptHandler,
@@ -83,8 +88,8 @@ class EmailVerificationServiceImplTest {
                 .verified(false)
                 .build();
         when(userRepository.findByEmail("student@example.com")).thenReturn(Optional.of(user));
-        when(emailVerificationRepository.existsByValidOtp(eq(user), eq(VerificationType.VERIFY_EMAIL), any(), eq(5)))
-                .thenReturn(false);
+        when(emailVerificationRepository.findValidOtp(eq(user), eq(VerificationType.VERIFY_EMAIL), any(), eq(5)))
+                .thenReturn(Optional.empty());
 
         emailVerificationService.sendVerifyEmail(SendEmailVerificationRequest.builder()
                 .email("student@example.com")

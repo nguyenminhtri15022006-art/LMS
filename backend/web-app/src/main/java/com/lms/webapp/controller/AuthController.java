@@ -125,7 +125,18 @@ public class AuthController {
                 return "auth/login";
             }
         } catch (RestClientResponseException e) {
-            model.addAttribute("loginError", "Tên đăng nhập hoặc mật khẩu không chính xác.");
+            String errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+            try {
+                JsonNode errNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(e.getResponseBodyAsString());
+                if (errNode != null && errNode.hasNonNull("message")) {
+                    int code = errNode.hasNonNull("code") ? errNode.get("code").asInt() : 0;
+                    if (code == 1009 || errNode.get("message").asText().toLowerCase().contains("kích hoạt")) {
+                        errorMsg = errNode.get("message").asText();
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+            model.addAttribute("loginError", errorMsg);
             return "auth/login";
         } catch (Exception e) {
             model.addAttribute("loginError", "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại sau.");
