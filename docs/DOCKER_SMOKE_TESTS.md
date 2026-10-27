@@ -45,12 +45,16 @@ MinIO public URL do identity trả về phải khớp endpoint host dùng trong 
 
 ```powershell
 # 1. Test cô lập, Docker có thể tắt:
-mvn clean test -pl web-app -f backend/pom.xml '-Dspring.profiles.active=test'
+mvn clean verify -f backend/pom.xml '-Dspring.profiles.active=test'
 
 # 2. Test triển khai Docker HTTP Smoke (yêu cầu Docker stack và prerequisites):
 mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke '-Dtest=WebAppDockerDeploymentSmokeTest'
 
-# 3. Test trình duyệt E2E giao diện Thymeleaf (yêu cầu Docker stack + Mailpit + MinIO):
+# 3. Cài dependencies độc lập của web-app từ lockfile và Chromium:
+npm.cmd --prefix backend/web-app ci
+npm.cmd --prefix backend/web-app run test:e2e:install
+
+# 4. Browser E2E (cần Docker stack và cấu hình bên dưới):
 npm.cmd --prefix backend/web-app run test:e2e
 ```
 
@@ -69,9 +73,48 @@ npm.cmd --prefix backend/web-app run test:e2e
   - Cleanup dùng MinIO SDK ký request DELETE, chỉ chấp nhận key dưới `smoke/<UUID-lần-chạy>/`.
 - **Trình Duyệt E2E (Playwright - `test:e2e`)**:
   - *Kịch bản 1*: Đăng nhập UI Thymeleaf -> Chọn file ảnh avatar -> Direct Upload MinIO -> Cập nhật CSDL MySQL -> Tải lại trang và xác thực URL ảnh đại diện hiển thị đúng.
-  - *Kịch bản 2*: Trình duyệt gọi trực tiếp tới MinIO từ origin trái phép (`http://127.0.0.1:9876`), kiểm tra trình duyệt tự động chặn kết nối qua cơ chế CORS (`Failed to fetch`).
+  - *Kịch bản 2*: Dùng cùng object thật để đối chứng fetch có custom header từ origin cho phép và origin trái phép trên port tạm. Browser thực hiện preflight; yêu cầu origin cho phép đọc đúng bytes trước và sau lần bị chặn, đồng thời HTTP OPTIONS của origin bị cấm không có Access-Control-Allow-Origin. NetworkError riêng lẻ không đủ để pass.
   - *Kịch bản 3*: Đăng ký tài khoản mới kèm `fullname` -> Lấy mã OTP 6 số từ Mailpit API (`http://localhost:8025/api/v1/messages`) -> Gửi form xác thực tài khoản -> Đăng nhập bằng tài khoản mới vừa tạo.
 - **Google OAuth 2.0**:
   - Cần credentials thật từ Google Cloud Console (`lms.google.client-id`, `lms.google.client-secret`) và màn hình tương tác người dùng (Consent Screen).
   - Không thể tự động hóa headless mà không có credentials; được ghi nhận minh bạch là chưa nghiệm thu E2E do thiếu khóa thật từ nhà cung cấp bên thứ ba (tuân thủ quy định không dùng mock giả mạo).
 
+
+## Fixture và cleanup của Browser E2E (đính chính 2026-10-27)
+
+Browser runner không dùng tài khoản admin chia sẻ hoặc mật khẩu mặc định. Mỗi luồng
+đăng ký tài khoản `e2e_<UUID>` riêng, mật khẩu ngẫu nhiên chỉ nằm trong bộ nhớ;
+email có domain `test.lms.invalid` và thư được lấy từ Mailpit của môi trường test.
+Playwright, MySQL client và MinIO client được khai báo trong devDependencies của
+web-app và khóa version trong package-lock.json; không phụ thuộc frontend/node_modules.
+
+Biến môi trường bắt buộc cho browser runner:
+
+| Biến | Mục đích |
+| --- | --- |
+| SMOKE_DB_USER, SMOKE_DB_PASSWORD | Kết nối database test identity_lms để xác minh và cleanup fixture |
+| SMOKE_MINIO_ACCESS_KEY, SMOKE_MINIO_SECRET_KEY | Lưu object đối chứng, đọc/list/xóa object của test |
+| SMOKE_MINIO_BUCKET | Bucket identity thực tế |
+
+Tùy chọn: SMOKE_DB_HOST (127.0.0.1), SMOKE_DB_PORT (3307), SMOKE_WEBAPP_URL
+(http://localhost:8088), SMOKE_MAILPIT_URL (http://localhost:8025), SMOKE_MINIO_URL
+(http://localhost:9000). Chỉ dùng database/MinIO/Mailpit test. Runner không tự đọc
+.env và không dùng credentials mặc định; nạp biến môi trường vào cùng process chạy npm.
+Không lưu giá trị secret vào file tracked hoặc báo cáo.
+
+Assertion đăng nhập yêu cầu URL root đúng origin, session cookie và email trên profile
+đúng tài khoản. Assertion avatar đối chiếu publicUrl vừa được cấp với src sau reload,
+avatar_url trong MySQL, bytes object và khả năng decode ảnh của trình duyệt.
+
+Cleanup cuối suite chạy cả khi test thất bại: xóa object dưới prefix user ID vừa tạo,
+refresh_tokens, email_verifications và đúng user có cặp username/email của lần chạy;
+xóa đúng IDs email gửi tới fixture. Không gửi Mailpit DELETE với danh sách IDs rỗng
+(vì API có thể xóa toàn bộ thư). Kiểm tra lại user/object/email không còn; cleanup lỗi
+làm suite fail. Không xóa tài khoản hoặc dữ liệu do các lần chạy cũ/người dùng tạo.
+Nếu process bị kill thì hook không chạy: tra định danh e2e của lần bị ngắt và dọn
+đúng fixture bằng quyền hợp lệ; không chạy lệnh xóa rộng theo prefix chung.
+
+Khi đăng ký thành công nhưng gửi OTP lỗi, UI thông báo tài khoản đã tạo, chưa gửi
+được mã và cho gửi lại ngay. Không yêu cầu đăng ký lại hoặc hiển thị thư đã gửi.
+Hướng dẫn API cleanup: https://mailpit.axllent.org/docs/api-v1/ và
+https://github.com/minio/minio-js/blob/master/docs/API.md.
