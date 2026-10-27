@@ -246,18 +246,58 @@ gantt
 
 ### Phase 2: Cơ Chế Chịu Lỗi Gateway & Tính Toàn Vẹn Dữ Liệu Phân Tán (Gateway Resiliency & Distributed Consistency TDD)
 
-- **Mục tiêu**: Bổ sung `GatewayFallbackController` còn thiếu trong `api-gateway` theo đúng TDD; kiểm chứng hành vi Circuit Breaker và Timeout theo cấu hình thực tế; kiểm chứng quy tắc phân tán khi tài khoản hoặc khóa học bị khóa.
-- **Khảo sát cấu hình thực tế**:
-  * Circuit Breaker: `sliding-window-size: 10`, `minimum-number-of-calls: 5`, `failure-rate-threshold: 50%`, `wait-duration-in-open-state: 10s`.
+- **Mục tiêu**: Bổ sung `GatewayFallbackController` còn thiếu trong `api-gateway` theo đúng TDD; kiểm chứng hành vi Circuit Breaker và Timeout theo cấu hình thực tế bằng server HTTP cục bộ cổng động; hoàn thiện xử lý lỗi tại BFF (`web-app`); và kiểm chứng tính nhất quán phân tán khi user hoặc khóa học bị khóa.
+- **Khảo sát cấu hình & Điều chỉnh mã lỗi**:
+  * Circuit Breaker cấu hình thực tế: `sliding-window-size: 10`, `minimum-number-of-calls: 5`, `failure-rate-threshold: 50%`, `wait-duration-in-open-state: 10s`.
   * Timelimiter: default 10s, `courseServiceCircuitBreaker` 15s, `assignmentServiceCircuitBreaker` 15s, `assignmentAiServiceCircuitBreaker` 130s, `chatbotServiceCircuitBreaker` 130s.
-  * **Hợp đồng lỗi Fallback**: Trả về **HTTP 503 Service Unavailable**, JSON body: `status: 503`, `code: 1010`, `message: "Dịch vụ tạm thời không khả dụng"`, `service: "{serviceName}"`.
-  * **Cách BFF (`web-app`) xử lý**: `GatewayClient` nhận HTTP 503 / code 1010, chuyển thành thông báo lỗi thân thiện trên giao diện hoặc view `error/503.html`.
-  * **Cơ chế khóa User**: Mã nguồn hiện có enum `ErrorCode.USER_INACTIVE` (code 1006, HTTP 403 Forbidden). Khi Admin khóa user (`isActive = false`), hệ thống chặn đăng nhập mới và chặn cấp refresh token. Access token cũ còn hạn (tối đa 15 phút) là stateless JWT; ghi nhận đề xuất thu hồi token qua Redis.
-  * **Cơ chế khóa Khóa học**: Khóa học có `CourseStatus.LOCKED`, biến mất khỏi trang tìm kiếm public.
+  * **Chuẩn hóa mã lỗi Fallback**: Sử dụng mã lỗi chính thức **1405** (`ErrorCode.EXTERNAL_SERVICE_UNAVAILABLE` trong `api-gateway` và project mẫu `Learning-Management-System-main`), thay vì mã tạm 1010 trong dự thảo ban đầu để tránh xung đột mã với `identity-service`.
+  * **Hợp đồng lỗi Fallback**: Trả về **HTTP 503 Service Unavailable**, JSON body:
+    ```json
+    {
+      "status": 503,
+      "error": "Service Unavailable",
+      "message": "Dịch vụ đích hiện không khả dụng hoặc không thể kết nối. Vui lòng thử lại sau.",
+      "code": 1405,
+      "service": "{serviceName}",
+      "path": "{requestPath}",
+      "timestamp": "2026-10-28T01:17:42.930Z"
+    }
+    ```
+    *Tuyệt đối không làm lộ stack trace, IP nội bộ hoặc thông tin nhạy cảm.*
+  * **Cách BFF (`web-app`) xử lý lỗi qua `GatewayExceptionHandler`**:
+    - Request HTML: bắt lỗi 503 từ Gateway/downstream, thiết lập HTTP status 503 và render view `error/503.html`.
+    - Request AJAX (`X-Requested-With: XMLHttpRequest` hoặc `Accept: application/json`): giữ HTTP status 503 và trả JSON có `code: 1405`, không trả HTML làm vỡ xử lý JavaScript.
+    - Lỗi nghiệp vụ 4xx (400, 401, 403, 404): giữ nguyên mã trạng thái nghiệp vụ, tuyệt đối không biến thành lỗi dịch vụ 503.
+  * **Cơ chế khóa User & Tính Nhất Quán**:
+    - Khi Admin khóa user (`active = false`), `authenticate()` từ chối đăng nhập mới với `USER_INACTIVE` (code 1006, HTTP 403).
+    - `refreshToken()` từ chối cấp token mới cho user bị khóa với `USER_INACTIVE` (code 1006, HTTP 403).
+    - **CẦN XÁC NHẬN — Xử lý Access Token đã phát hành còn hiệu lực**: Access token hiện là JWT phi trạng thái (stateless) có hạn tối đa 15 phút. Gateway kiểm tra chữ ký độc lập nên access token đã cấp vẫn hợp lệ trong vòng đời còn lại (tối đa 15 phút) cho đến khi hết hạn. Nếu cần thu hồi tức thì ngay khi toggle active, hệ thống cần bổ sung blacklist tập trung (ví dụ Redis) tại Gateway.
+  * **Cơ chế khóa Khóa học**: Khóa học có `CourseStatus.LOCKED` bị loại bỏ khỏi danh sách tìm kiếm/catalog public theo điều kiện `CourseSpecifications.hasStatus(CourseStatus.PUBLIC)`.
+
+#### Bảng Kiểm Thử Thực Tế Phase 2 (Đã Kiểm Chứng 100%):
+
+| STT | Kịch Bản Kiểm Thử | Module / Test Class | Mục Tiêu & Assertions | Phân Loại TDD | Kết Quả Thực Tế | Thời Gian |
+|:---:|---|---|---|:---:|:---:|:---:|
+| 1 | Fallback Controller trả 503 + JSON sanitized | `api-gateway`: `GatewayFallbackControllerTest#fallbackReturns503AndSanitizedErrorResponse` | HTTP 503, JSON sanitized có `code: 1405`, `service: "test-service"`, không lộ stack trace | TDD Red 1 -> Red 2 -> Green | **PASS** | 0.209s |
+| 2 | Downstream 200 OK chuyển tiếp đúng | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstreamSuccessResponseForwardedCorrectly` | HTTP 200, body forwarded nguyên vẹn, downstream counter = 1 | TDD Verification | **PASS** | 5.113s (suite) |
+| 3 | Downstream 500 kích hoạt Fallback | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstream500TriggersCircuitBreakerFallback` | Downstream trả 500 -> Gateway kích hoạt fallback trả HTTP 503, code 1405 | TDD Verification | **PASS** | 5.113s (suite) |
+| 4 | Downstream Timeout kích hoạt Fallback | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstreamTimeoutTriggersCircuitBreakerFallback` | Downstream trễ 1s -> Gateway ngắt timeout 300ms, trả fallback 503 trong <900ms | TDD Verification | **PASS** | 5.113s (suite) |
+| 5 | Ngắt mạch (Open Circuit) chặn request | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerOpensAfterFailureThreshold` | Đạt ngưỡng lỗi -> Mạch OPEN; request tiếp theo bị chặn tại Gateway trước khi tới downstream (counter không tăng) | TDD Verification | **PASS** | 5.113s (suite) |
+| 6 | Phục hồi mạch (Half-Open -> Closed) | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerRecoversFromOpenToHalfOpenToClosed` | Sau wait-duration mạch sang HALF_OPEN; request thành công giúp phục hồi mạch về CLOSED | TDD Verification | **PASS** | 5.113s (suite) |
+| 7 | BFF xử lý 503 cho request HTML | `web-app`: `GatewayExceptionHandlerTest#htmlRequestRenders503Page` | Client nhận HTTP 503 và render view `error/503` | TDD Red 1 -> Red 2 -> Green | **PASS** | 0.615s (suite) |
+| 8 | BFF xử lý 503 cho request AJAX | `web-app`: `GatewayExceptionHandlerTest#ajaxRequestReturns503Json` | AJAX nhận HTTP 503 JSON có `code: 1405`, không nhận HTML làm vỡ JS | TDD Red 1 -> Red 2 -> Green | **PASS** | 0.615s (suite) |
+| 9 | BFF không biến lỗi 4xx thành 503 | `web-app`: `GatewayExceptionHandlerTest#business4xxNotConvertedTo503` | Lỗi 400 Bad Request và 404 Not Found giữ nguyên mã 4xx, không thành 503 | TDD Verification | **PASS** | 0.615s (suite) |
+| 10 | User bị khóa không thể đăng nhập | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotLogin` | Đăng nhập ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | Baseline Verification | **PASS** | 0.025s (suite) |
+| 11 | User bị khóa không thể refresh token | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotRefreshToken` | Refresh token ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | TDD Red -> Green | **PASS** | 0.025s (suite) |
+| 12 | Catalog public loại bỏ khóa học LOCKED | `course-service`: `CourseLockedConsistencyTest#publicCatalogExcludesLockedCourses` | Query status=PUBLIC áp dụng Specification chỉ lấy PUBLIC, loại bỏ LOCKED | TDD Verification | **PASS** | 1.788s (suite) |
+| 13 | Admin khóa khóa học chuyển sang LOCKED | `course-service`: `CourseLockedConsistencyTest#lockCourseTransitionsStatusToLockedAndCreatesAnnouncement` | Khóa học chuyển status sang LOCKED, tạo announcement thông báo học viên | TDD Verification | **PASS** | 1.788s (suite) |
+| 14 | Không thể khóa khóa học đã bị LOCKED | `course-service`: `CourseLockedConsistencyTest#cannotLockAlreadyLockedCourse` | Khóa học đã LOCKED ném `CourseException(COURSE_ALREADY_LOCKED)` | TDD Verification | **PASS** | 1.788s (suite) |
+
 - **Tiêu chuẩn hoàn thành Phase 2**:
-  * `GatewayFallbackControllerTest` và các test cascading state PASS 100%.
+  * 14/14 test cases Phase 2 đã chạy thực tế PASS 100%.
+  * Toàn bộ test suites liên quan (21 tests `api-gateway`, 48 tests `identity-service`, 67 tests `course-service`, 29 tests `web-app`) đều PASS 100%.
   * Báo cáo kết quả thực tế, **dừng lại chờ người dùng nghiệm thu** trước khi chuyển Phase 3.
-  * Commit dự kiến: `feat(gateway): bổ sung fallback controller cho circuit breaker và kiểm chứng tính nhất quán phân tán`.
+  * Commit: `feat(gateway): bổ sung fallback controller cho circuit breaker và kiểm chứng tính nhất quán phân tán`.
 
 ---
 

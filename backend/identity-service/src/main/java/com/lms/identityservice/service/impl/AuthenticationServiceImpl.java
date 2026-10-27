@@ -226,6 +226,10 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             User user = userRepository.findById(userId)
                     .orElseThrow(() -> new IdentityException(ErrorCode.USER_NOT_EXISTED));
 
+            if (!user.getActive()) {
+                throw new IdentityException(ErrorCode.USER_INACTIVE);
+            }
+
             oldToken.setRevoked(true);
             refreshTokenRepository.save(oldToken);
 

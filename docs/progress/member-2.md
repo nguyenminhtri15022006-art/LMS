@@ -3297,6 +3297,85 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
   * Toàn bộ test chạy cô lập 100% bằng MockMvc và HttpServer JDK cục bộ, độc lập với Docker stack và CSDL ngoài.
 - **Giới hạn còn lại & Phạm vi bàn giao**:
   * Các test HTTP server cục bộ chứng minh cơ chế client proxy và hợp đồng DTO, **chưa chứng minh tích hợp thật với `assignment-service` của Trí** vì container Trí chưa được bàn giao và khởi chạy.
-  * Hoàn thành Phase 1; **DỪNG LẠI CHỜ NGHIỆM THU**, chưa triển khai Phase 2.
+  * Hoàn thành Phase 1 (Commit SHA `4cc3e31`).
+
+---
+
+### Đợt 4 — Phase 2: Cơ Chế Chịu Lỗi Gateway & Tính Nhất Quán Phân Tán (Gateway Resiliency & Distributed Consistency TDD)
+
+- **Thời gian hoàn thành**: 2026-10-28
+- **Nhánh thực hiện**: `feature/member-2-dot-4-integration`
+- **Mục tiêu**:
+  1. Cài đặt `GatewayFallbackController` trong `api-gateway` theo chuẩn TDD: trả về HTTP 503 Service Unavailable, mã lỗi 1405 (`EXTERNAL_SERVICE_UNAVAILABLE`), định dạng JSON sanitized, không lộ stack trace hay địa chỉ nội bộ.
+  2. Kiểm chứng Circuit Breaker thật qua mạng kết nối cục bộ cổng động (`HttpServer` JDK), bao phủ 5 kịch bản: Forward 200, Fallback khi downstream 500, Fallback khi downstream timeout, Ngắt mạch chặn request kế tiếp (short-circuit), và Phục hồi mạch từ Half-Open sang Closed.
+  3. Cài đặt và kiểm chứng xử lý lỗi tại BFF (`web-app`) qua `GatewayExceptionHandler`:
+     - Request HTML: bắt 503 và render trang `error/503.html` với HTTP status 503.
+     - Request AJAX: trả JSON HTTP 503 có mã 1405, không trả HTML làm hỏng frontend/JavaScript.
+     - Lỗi nghiệp vụ 4xx (400, 404): giữ nguyên mã 4xx, không biến thành 503.
+  4. Kiểm chứng tính nhất quán phân tán khi User hoặc Khóa học bị khóa:
+     - User bị khóa (`active = false`): không đăng nhập được (`authenticate` ném `USER_INACTIVE`, code 1006, HTTP 403), không refresh token được (`refreshToken` ném `USER_INACTIVE`, code 1006, HTTP 403).
+     - Khóa học bị khóa (`status = LOCKED`): bị loại khỏi danh sách tìm kiếm public theo `CourseSpecifications.hasStatus(CourseStatus.PUBLIC)`.
+     - Phân tích và ghi nhận trạng thái access token đã phát hành (stateless JWT còn hạn <= 15 phút) vào mục CẦN XÁC NHẬN.
+
+---
+
+#### 1. Bảng 14 Test Cases Phase 2 Thực Tế & Kết Quả
+
+| STT | Kịch Bản Kiểm Thử | Module / Test Class & Method | Phân Loại TDD | Kết Quả Thực Tế | Thời Gian Thực Tế |
+|:---:|---|---|:---:|:---:|:---:|
+| 1 | Fallback Controller trả HTTP 503 + Sanitized JSON | `api-gateway`: `GatewayFallbackControllerTest#fallbackReturns503AndSanitizedErrorResponse` | Red 1 (thiếu class) -> Red 2 (stub 200) -> Green (503) | **PASS** | 0.209s |
+| 2 | Downstream thành công (200 OK) Gateway chuyển tiếp đúng | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstreamSuccessResponseForwardedCorrectly` | TDD Verification (Counter = 1, Body forwarded) | **PASS** | 5.113s (suite) |
+| 3 | Downstream trả 500 kích hoạt Fallback 503 | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstream500TriggersCircuitBreakerFallback` | TDD Verification (Status 503, Code 1405) | **PASS** | 5.113s (suite) |
+| 4 | Downstream Timeout (1s > 300ms) kích hoạt Fallback | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstreamTimeoutTriggersCircuitBreakerFallback` | TDD Verification (Ngắt sau 300ms, < 900ms) | **PASS** | 5.113s (suite) |
+| 5 | Mạch OPEN sau khi đạt ngưỡng lỗi (chặn request) | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerOpensAfterFailureThreshold` | TDD Verification (Counter không tăng, short-circuit) | **PASS** | 5.113s (suite) |
+| 6 | Mạch phục hồi từ Half-Open sang Closed khi downstream 200 | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerRecoversFromOpenToHalfOpenToClosed` | TDD Verification (Sleep 700ms > 600ms, closed) | **PASS** | 5.113s (suite) |
+| 7 | BFF HTML request nhận lỗi 503 render view `error/503` | `web-app`: `GatewayExceptionHandlerTest#htmlRequestRenders503Page` | Red 1 (thiếu class) -> Red 2 (stub 404) -> Green (503 view) | **PASS** | 0.615s (suite) |
+| 8 | BFF AJAX request nhận lỗi 503 trả JSON code 1405 | `web-app`: `GatewayExceptionHandlerTest#ajaxRequestReturns503Json` | Red 1 -> Red 2 -> Green (JSON 503) | **PASS** | 0.615s (suite) |
+| 9 | BFF không biến lỗi 4xx thành lỗi 503 | `web-app`: `GatewayExceptionHandlerTest#business4xxNotConvertedTo503` | TDD Verification (400 và 404 giữ nguyên) | **PASS** | 0.615s (suite) |
+| 10 | User bị khóa không thể đăng nhập | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotLogin` | Baseline Verification (USER_INACTIVE, 1006) | **PASS** | 0.025s (suite) |
+| 11 | User bị khóa không thể refresh token | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotRefreshToken` | Red (không kiểm tra active) -> Green (chặn active=false) | **PASS** | 0.025s (suite) |
+| 12 | Catalog public loại bỏ khóa học LOCKED | `course-service`: `CourseLockedConsistencyTest#publicCatalogExcludesLockedCourses` | TDD Verification (Specification hasStatus PUBLIC) | **PASS** | 1.788s (suite) |
+| 13 | Admin khóa khóa học chuyển status sang LOCKED | `course-service`: `CourseLockedConsistencyTest#lockCourseTransitionsStatusToLockedAndCreatesAnnouncement` | TDD Verification (Status LOCKED + Announcement) | **PASS** | 1.788s (suite) |
+| 14 | Không thể khóa lại khóa học đã LOCKED | `course-service`: `CourseLockedConsistencyTest#cannotLockAlreadyLockedCourse` | TDD Verification (COURSE_ALREADY_LOCKED) | **PASS** | 1.788s (suite) |
+
+---
+
+#### 2. Thống Kê Test Suites Liên Quan (Maven Reactor)
+
+- **`api-gateway`**: **21/21 tests PASS 100%** (15 baseline + 1 fallback controller + 5 circuit breaker integration). Thời gian: 16.383s.
+- **`web-app`**: **29/29 tests PASS 100%** (11 auth + 13 blog + 2 gateway client + 3 gateway exception handler). Thời gian: 12.748s.
+- **`identity-service`**: **48/48 tests PASS 100%** (46 baseline + 2 user locked consistency). Thời gian: 18.415s.
+- **`course-service`**: **67/67 tests PASS 100%** (64 baseline + 3 course locked consistency). Thời gian: 31.872s.
+- **Tổng cộng**: **165 test cases PASS 100%** trên toàn bộ 4 module backend liên quan.
+
+---
+
+#### 3. Bằng Chứng TDD Red / Green Cụ Thể
+
+1. **`GatewayFallbackController`**:
+   - Red 1: Biên dịch fail `cannot find symbol: class GatewayFallbackController`.
+   - Red 2: Tạo stub trả HTTP 200 -> Test fail `Status expected:<503> but was:<200>`.
+   - Green: Cài đặt hoàn thiện trả 503 + sanitized JSON -> Test PASS.
+2. **`GatewayExceptionHandler` (BFF)**:
+   - Red 1: Biên dịch fail `cannot find symbol: class GatewayExceptionHandler`.
+   - Red 2: Tạo stub rỗng -> Test fail với ngoại lệ chưa được xử lý (`ServletException: Request processing failed: 503`).
+   - Green: Cài đặt phân luồng HTML (ModelAndView 503) và AJAX (ResponseEntity JSON 503, code 1405), giữ nguyên 4xx -> Test PASS.
+3. **`UserLockedConsistencyTest`**:
+   - Red 2: `lockedUserCannotRefreshToken` fail do phương thức `refreshToken` chưa kiểm tra `!user.getActive()`, không ném ngoại lệ như mong đợi (`AssertionError: Expecting code to raise a throwable`).
+   - Green: Bổ sung kiểm tra `if (!user.getActive()) throw new IdentityException(ErrorCode.USER_INACTIVE);` trong `AuthenticationServiceImpl.java` -> Test PASS.
+
+---
+
+#### 4. Phạm Vi Đã Kiểm Chứng, Giới Hạn & Điểm CẦN XÁC NHẬN
+
+- **Đã kiểm chứng**:
+  * Gateway tự động ngắt mạch (short-circuit), fallback 503 và phục hồi mạch hoàn toàn độc lập với các dịch vụ bên ngoài nhờ bộ mock HTTP server cục bộ.
+  * BFF xử lý linh hoạt: giữ trải nghiệm HTML thân thiện (trang 503) và không làm vỡ JavaScript với các request AJAX.
+  * Tính nhất quán phân tán ở tầng dịch vụ cho User và Khóa học khi bị Admin khóa.
+- **CẦN XÁC NHẬN**:
+  * **Thu hồi Access Token đã phát hành còn hiệu lực (<= 15 phút)**:
+    Do kiến trúc JWT hiện tại là phi trạng thái (stateless), Gateway chỉ xác thực chữ ký số bằng Public Key/Secret Key cục bộ mà không truy vấn CSDL. Khi Admin khóa tài khoản (`active = false`), access token đã cấp trước đó vẫn có thể gọi API trong thời gian hiệu lực còn lại (tối đa 15 phút). Để vô hiệu hóa ngay lập tức, kiến trúc cần xác nhận bổ sung cơ chế Token Revocation Blacklist lưu tại Redis hoặc Cache phân tán tại Gateway.
+- **Giới hạn**: Hoàn thành Phase 2; **DỪNG LẠI CHỜ NGHIỆM THU**, không tự ý triển khai Phase 3.
+
 
 
