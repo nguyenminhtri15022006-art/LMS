@@ -3202,54 +3202,101 @@ parity toàn hệ thống lên VERIFIED hoặc tuyên bố hoàn thành mọi ch
 
 ---
 
-### Đợt 4 — Phase 1: Kiểm Thử Hợp Đồng Feign Nội Bộ & Khả Năng Tương Thích Nhà Cung Cấp (Internal Feign Contracts & Provider Verification TDD)
+### Đợt 4 — Phase 1: Kiểm Thử Hợp Đồng Feign Nội Bộ & Cơ Chế Auto-Fallback Feign Proxy (Internal Feign Contracts & Proxy Resilience TDD)
 
 - **Thời gian hoàn thành**: 2026-10-28
 - **Nhánh thực hiện**: `feature/member-2-dot-4-integration`
-- **Mục tiêu**: Kiểm chứng 15 hợp đồng Provider API nội bộ (bao phủ toàn diện 14 endpoints nội bộ của Member 2) và 2 kiểm thử Fallback an toàn của `AssignmentClient` trong `course-service`.
+- **Mục tiêu**:
+  1. Kiểm chứng 15 hợp đồng Provider API nội bộ (bao phủ toàn diện 14 endpoints nội bộ của Member 2) theo đúng DTO, HTTP status, schema và serialization.
+  2. Kiểm chứng đầy đủ 3 cấp độ chịu lỗi của `course-service` khi giao tiếp với downstream `assignment-service`:
+     - **Cấp độ 1 (Fallback Bean Contract)**: Phương thức của lớp `AssignmentClient.Fallback` trả về dữ liệu an toàn mặc định (`0L` và `Map.of()`).
+     - **Cấp độ 2 (Service Layer Resilience)**: `CourseServiceImpl` bắt ngoại lệ qua khối `try/catch` để không làm sập nghiệp vụ lấy chi tiết khóa học.
+     - **Cấp độ 3 (Feign Proxy Auto-Fallback)**: OpenFeign proxy thật do Spring tạo, kết hợp CircuitBreaker Resilience4j, tự động kích hoạt Fallback khi downstream trả HTTP 500 hoặc ngắt kết nối mà không ném `FeignException`.
 
-#### 1. Bảng 17 Test Cases Thực Tế & Kết Quả Chạy
+---
+
+#### 1. Bảng 17 Test Cases Ban Đầu Theo Kế Hoạch (15 Provider + 2 Fallback Bean)
 
 | STT | Endpoint / Hành Vi Kiểm Thử | Service & Test Class / Method | Phân Loại TDD | Kết Quả Thực Tế | Thời Gian |
 |:---:|---|---|:---:|:---:|:---:|
-| 1 | `GET /internal/user/{id}` (200) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserHttpContractReturns200AndUserDetails` | Tái sử dụng (Baseline) — Bổ sung assertion trường `fullname` | **PASS** | 8.97s (Suite) |
-| 2 | `GET /internal/user/{id}` (404) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserNotFoundHttpContractReturns404` | Bổ sung mới (Red 1 compile/type -> Green) | **PASS** | 8.97s (Suite) |
-| 3 | `POST /internal/users/batch` | `identity-service`: `IdentityApiIntegrationTest#internalPostUsersBatchHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
-| 4 | `GET /internal/users/{userId}/exists` | `identity-service`: `IdentityApiIntegrationTest#internalUserExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
-| 5 | `GET /internal/users/search/by-email` | `identity-service`: `IdentityApiIntegrationTest#internalSearchUserByEmailHttpContractReturnsUser` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
-| 6 | `GET /internal/courses/{courseId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetCourseHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 7 | `GET /internal/courses/{cId}/lessons/{lId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetLessonHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 8 | `GET /internal/courses/{cId}/enrollments/{uId}` | `course-service`: `InternalCourseApiIntegrationTest#internalCheckEnrollmentHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 9 | `GET /internal/courses/{cId}/students/count` | `course-service`: `InternalCourseApiIntegrationTest#internalCountStudentsHttpContractReturnsLong` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 10 | `GET /internal/courses/{cId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalCourseExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 11 | `GET /internal/courses/{cId}/lessons/{lId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalLessonExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 12 | `GET /internal/courses` | `course-service`: `InternalCourseApiIntegrationTest#internalGetAllCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 13 | `GET /internal/courses/enrolled` | `course-service`: `InternalCourseApiIntegrationTest#internalGetEnrolledCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
-| 14 | `GET /internal/posts/{postId}` | `blog-service`: `BlogApiIntegrationTest#internalGetPostHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.74s (Suite) |
-| 15 | `GET /internal/posts/{postId}/exists` | `blog-service`: `BlogApiIntegrationTest#internalPostExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.74s (Suite) |
-| 16 | `AssignmentClient.Fallback` (Single Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsZeroExerciseCountWhenInvoked` | Bổ sung mới (Red -> Green) | **PASS** | 0.09s |
-| 17 | `AssignmentClient.Fallback` (Batch Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsEmptyMapForBatchWhenInvoked` | Bổ sung mới (Red -> Green) | **PASS** | 0.09s |
+| 1 | `GET /internal/user/{id}` (200) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserHttpContractReturns200AndUserDetails` | Tái sử dụng (Baseline) — Bổ sung assertion trường `fullname` | **PASS** | 6.455s (Suite 13 tests) |
+| 2 | `GET /internal/user/{id}` (404) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserNotFoundHttpContractReturns404` | **Baseline Verification** (Đính chính: bổ sung kiểm chứng hành vi 404 hiện hữu; lỗi `AppException` ban đầu là lỗi người viết test, không phải Red nghiệp vụ) | **PASS** | 6.455s (Suite 13 tests) |
+| 3 | `POST /internal/users/batch` | `identity-service`: `IdentityApiIntegrationTest#internalPostUsersBatchHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 6.455s (Suite 13 tests) |
+| 4 | `GET /internal/users/{userId}/exists` | `identity-service`: `IdentityApiIntegrationTest#internalUserExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 6.455s (Suite 13 tests) |
+| 5 | `GET /internal/users/search/by-email` | `identity-service`: `IdentityApiIntegrationTest#internalSearchUserByEmailHttpContractReturnsUser` | Tái sử dụng (Baseline) | **PASS** | 6.455s (Suite 13 tests) |
+| 6 | `GET /internal/courses/{courseId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetCourseHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 7 | `GET /internal/courses/{cId}/lessons/{lId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetLessonHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 8 | `GET /internal/courses/{cId}/enrollments/{uId}` | `course-service`: `InternalCourseApiIntegrationTest#internalCheckEnrollmentHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 9 | `GET /internal/courses/{cId}/students/count` | `course-service`: `InternalCourseApiIntegrationTest#internalCountStudentsHttpContractReturnsLong` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 10 | `GET /internal/courses/{cId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalCourseExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 11 | `GET /internal/courses/{cId}/lessons/{lId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalLessonExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 12 | `GET /internal/courses` | `course-service`: `InternalCourseApiIntegrationTest#internalGetAllCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 13 | `GET /internal/courses/enrolled` | `course-service`: `InternalCourseApiIntegrationTest#internalGetEnrolledCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 9.206s (Suite 8 tests) |
+| 14 | `GET /internal/posts/{postId}` | `blog-service`: `BlogApiIntegrationTest#internalGetPostHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 5.284s (Suite 6 tests) |
+| 15 | `GET /internal/posts/{postId}/exists` | `blog-service`: `BlogApiIntegrationTest#internalPostExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 5.284s (Suite 6 tests) |
+| 16 | `AssignmentClient.Fallback` (Single Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsZeroExerciseCountWhenInvoked` | Bổ sung mới (Unit Contract Cấp độ 1) | **PASS** | 0.088s |
+| 17 | `AssignmentClient.Fallback` (Batch Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsEmptyMapForBatchWhenInvoked` | Bổ sung mới (Unit Contract Cấp độ 1) | **PASS** | 0.088s |
 
-- **Bổ sung kiểm thử hồi quy cấp Service**: `CourseServiceImplTest#getCourseByIdGracefullyHandlesAssignmentServiceFailure` (kiểm chứng `getCourseById` bắt ngoại lệ an toàn và duy trì hoạt động khi downstream `assignment-service` bị lỗi/ngắt kết nối).
+---
 
-#### 2. Lệnh Thực Thi & Số Liệu Kiểm Thử Thực Tế (JDK 21)
-- `mvn test -f backend/pom.xml -pl identity-service -Dtest=IdentityApiIntegrationTest`:
-  **BUILD SUCCESS**, Tests run: **13**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.970 s**.
-- `mvn test -f backend/pom.xml -pl course-service "-Dtest=InternalCourseApiIntegrationTest,AssignmentClientFallbackTest"`:
-  **BUILD SUCCESS**, Tests run: **10** (8 provider + 2 fallback), Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.760 s** (InternalCourseApi) / **0.092 s** (Fallback).
-- `mvn test -f backend/pom.xml -pl course-service -Dtest=CourseServiceImplTest`:
-  **BUILD SUCCESS**, Tests run: **9**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **2.012 s**.
-- `mvn test -f backend/pom.xml -pl blog-service -Dtest=BlogApiIntegrationTest`:
-  **BUILD SUCCESS**, Tests run: **6**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.744 s**.
+#### 2. Bảng 3 Test Cases Feign Proxy Thật & Bằng Chứng TDD Red/Green (Cấp Độ 3)
 
-#### 3. Phạm Vi Đã Kiểm Chứng & Giới Hạn Còn Lại
-- **Đã kiểm chứng**:
-  * 15/15 provider contract tests bao phủ 14 endpoints nội bộ của Member 2 tuân thủ đúng HTTP method, path, DTO request/response, validation và status code (200, 404).
-  * Khẳng định trường `fullname` (viết thường chữ n) trong `UserFullResponse`.
-  * Hợp đồng kiểu dữ liệu và giá trị trả về của `AssignmentClient.Fallback` (`ApiResponse<Long> = 0L` và `ApiResponse<Map<String, Long>> = Map.of()`).
-  * Khả năng chịu lỗi an toàn tại tầng nghiệp vụ `CourseServiceImpl` khi Feign client gặp sự cố.
-  * Mọi kiểm thử Phase 1 hoàn toàn cô lập (@WebMvcTest, @MockBean), độc lập 100% với Docker và CSDL ngoài.
-- **Giới hạn còn lại & Cần phối hợp với Trí**:
-  * Việc kích hoạt Feign fallback tự động ở tầng network proxy hiện chưa tích hợp thư viện `spring-cloud-starter-circuitbreaker-resilience4j` trong `course-service` (theo đúng nguyên bản project mẫu); hệ thống hiện tại dựa trên `AssignmentClient.Fallback` hợp đồng và cơ chế `try/catch` cô lập lỗi tại `CourseServiceImpl`.
-  * Chưa kết nối container thật của `assignment-service` và `chatbot-service` do Member 1 (Trí) chưa bàn giao.
+Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `com.sun.net.httpserver.HttpServer` cục bộ cổng động (port 0), khởi động và dừng theo lifecycle test (`@BeforeAll`/`@AfterAll`), inject URL qua `@DynamicPropertySource`. Không mock `AssignmentClient`, không gọi trực tiếp `Fallback`.
+
+| STT | Kịch Bản Kiểm Thử | Trạng Thái Downstream Test Server | Assertions Kiểm Chứng | Kết Quả RED Ban Đầu (Chưa Bật CB) | Kết Quả GREEN (Sau Khi Bổ Sung CB) |
+|:---:|---|---|---|---|:---:|
+| 18 | Feign Proxy Gọi Thành Công | Downstream trả HTTP 200, `{"code":1000,"data":42}` | `response.getData() == 42L` (khác fallback `0L`); xác nhận request tới server test | **PASS** (baseline proxy call thành công) | **PASS** (14.31s suite) |
+| 19 | Feign Proxy Auto-Fallback (Single Count) | Downstream trả HTTP 500 `Internal Server Error` | Proxy tự động kích hoạt fallback trả `ApiResponse<Long> = 0L`, không ném FeignException | **FAIL (RED THẬT)**: Ném `feign.FeignException$InternalServerError: [500 Internal Server Error]` do thiếu Resilience4j | **PASS (GREEN)** (14.31s suite) |
+| 20 | Feign Proxy Auto-Fallback (Batch Count) | Downstream trả HTTP 500 `Internal Server Error` | Proxy tự động kích hoạt fallback trả `ApiResponse<Map<String, Long>> = Map.of()`, không ném FeignException | **FAIL (RED THẬT)**: Ném `feign.FeignException$InternalServerError: [500 Internal Server Error]` | **PASS (GREEN)** (14.31s suite) |
+
+- **Bổ sung kiểm thử cấp Service (Cấp độ 2)**:
+  * `CourseServiceImplTest#getCourseByIdGracefullyHandlesAssignmentServiceFailure`: Kiểm chứng phương thức `getCourseById` bắt ngoại lệ an toàn qua khối `try/catch` khi `AssignmentClient` ném ngoại lệ, trả về đối tượng khóa học hoàn chỉnh với `exerciseCount = null` mà không làm sập luồng nghiệp vụ. Kết quả: **PASS** (2.145s).
+
+---
+
+#### 3. Bằng Chứng TDD & Các File Thay Đổi
+
+1. **Ghi nhận trạng thái RED thật (2026-10-28 00:30)**:
+   - Lệnh: `mvn test -f backend/pom.xml -pl course-service -Dtest=AssignmentClientProxyIntegrationTest`
+   - Bằng chứng lỗi:
+     ```text
+     [ERROR] exerciseCountProxyTriggersFallbackWhenDownstreamFails -- Time elapsed: 12.35 s <<< ERROR!
+     feign.FeignException$InternalServerError: [500 Internal Server Error] during [GET] to [http://127.0.0.1:.../courses/c-err-1/exercise-count]
+     [ERROR] exerciseCountBatchProxyTriggersFallbackWhenDownstreamFails -- Time elapsed: 0.05 s <<< ERROR!
+     feign.FeignException$InternalServerError: [500 Internal Server Error] during [POST] to [http://127.0.0.1:.../courses/exercise-counts]
+     [INFO] Tests run: 3, Failures: 0, Errors: 2, Skipped: 0
+     ```
+2. **Sửa đổi tối thiểu để đạt GREEN**:
+   - Thêm dependency `spring-cloud-starter-circuitbreaker-resilience4j` vào [backend/course-service/pom.xml](file:///D:/LMS-main/backend/course-service/pom.xml) (version được quản lý qua BOM `spring-cloud-dependencies` `2023.0.4`).
+   - Cấu hình `spring.cloud.openfeign.circuitbreaker.enabled: true` trong [backend/course-service/src/main/resources/application.yaml](file:///D:/LMS-main/backend/course-service/src/main/resources/application.yaml) và [backend/course-service/src/test/resources/application-test.yaml](file:///D:/LMS-main/backend/course-service/src/test/resources/application-test.yaml).
+3. **Ghi nhận trạng thái GREEN (2026-10-28 00:35)**:
+   - Lệnh: `mvn test -f backend/pom.xml -pl course-service -Dtest=AssignmentClientProxyIntegrationTest`
+   - Kết quả: `Tests run: 3, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 14.310 s, BUILD SUCCESS`.
+
+---
+
+#### 4. Thống Kê Số Liệu Kiểm Thử Thực Tế (Phân Biệt Rõ Ràng)
+
+- **Số test cases theo danh sách kế hoạch ban đầu**: **17 test cases** (15 Provider Contract Tests + 2 Fallback Bean Tests).
+- **Số test cases bổ sung ngoài danh sách ban đầu**:
+  * **1 test case cấp Service Resilience**: `CourseServiceImplTest#getCourseByIdGracefullyHandlesAssignmentServiceFailure`.
+  * **3 test cases cấp Feign Proxy Auto-Fallback**: `AssignmentClientProxyIntegrationTest` (1 success + 2 auto-fallback on 500).
+- **Tổng test cases thực chạy trong các test suite liên quan (Maven Reactor)**:
+  * `identity-service` (`IdentityApiIntegrationTest`): **13 tests PASS**, 0 failures, 0 errors, thời gian **6.455 s**.
+  * `course-service` (Toàn bộ test suite gồm 9 test classes: Proxy, InternalCourse, Fallback, Service, Concurrency, JPA, Mongo Mock): **64 tests PASS**, 0 failures, 0 errors, thời gian **36.216 s**.
+  * `blog-service` (`BlogApiIntegrationTest`): **6 tests PASS**, 0 failures, 0 errors, thời gian **5.284 s**.
+  * **Tổng cộng**: 13 + 64 + 6 = **83 test cases PASS 100%** (Số liệu kiểm chứng đối chiếu chính xác từ báo cáo Surefire thực tế, không nhầm lẫn với 17 test thuộc kế hoạch ban đầu).
+
+---
+
+#### 5. Phạm Vi Đã Kiểm Chứng & Giới Hạn Còn Lại
+
+- **Đã kiểm chứng đầy đủ**:
+  * Hợp đồng 14 Provider Endpoints của Member 2 sẵn sàng cho các dịch vụ khác tiêu thụ.
+  * Ba cấp độ xử lý lỗi của Feign client: Fallback bean contract, Service try/catch resilience, và Feign proxy auto-fallback với CircuitBreaker.
+  * Toàn bộ test chạy cô lập 100% bằng MockMvc và HttpServer JDK cục bộ, độc lập với Docker stack và CSDL ngoài.
+- **Giới hạn còn lại & Phạm vi bàn giao**:
+  * Các test HTTP server cục bộ chứng minh cơ chế client proxy và hợp đồng DTO, **chưa chứng minh tích hợp thật với `assignment-service` của Trí** vì container Trí chưa được bàn giao và khởi chạy.
+  * Hoàn thành Phase 1; **DỪNG LẠI CHỜ NGHIỆM THU**, chưa triển khai Phase 2.
+
 
