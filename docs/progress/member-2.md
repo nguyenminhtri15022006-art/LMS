@@ -2989,7 +2989,7 @@ Hướng dẫn lặp lại và cài test dependency: `backend/web-app/TESTING.md
 
 #### 4. Trạng Thái Nghiệm Thu Thực Tế & Kết Quả Docker Smoke Test (Parity Matrix Status)
 
-- **Trạng thái E2E Parity Phase 7**: **`HOÀN THÀNH VÀ NGHIỆM THU 100% (VERIFIED)`**. Toàn bộ stack Docker Compose đã khởi chạy thành công, tất cả container chuyển sang trạng thái `healthy` và bộ kiểm thử khói `WebAppDockerDeploymentSmokeTest` gọi HTTP thật qua Gateway/BFF/MinIO đạt **PASS 4/4 tests 100%**.
+- **Trạng thái E2E Parity Phase 7**: **`DOCKER STACK VÀ HTTP SMOKE ĐÃ PASS; GOOGLE OAUTH CHƯA NGHIỆM THU`**. Không dùng 4 HTTP smoke để nâng toàn bộ chức năng sang VERIFIED. Kết quả browser E2E và giới hạn được đính chính ở mục 2026-10-27 bên dưới.
 - **Biên dịch & Test nội bộ**: **133/133 Java tests PASS 100%** (38.760 s) và **45/45 JS tests PASS 100%** (31.455 s).
 
 ### Nhật ký giải tỏa hạ tầng và nghiệm thu Phase 7 — 2026-10-26
@@ -3103,7 +3103,7 @@ Bộ kiểm thử trình duyệt Playwright được thiết kế chuyên biệt
      * `course-service`: SUCCESS [30.545 s] (57 tests)
      * `blog-service`: SUCCESS [25.522 s] (27 tests)
      * `web-app`: SUCCESS [15.555 s] (3 tests WebAppApplicationTests, ProfileControllerTest, HomeControllerTest + 13 tests SmokeVerifiersUnitTest + 7 tests SmokePreconditionsTest + 8 tests VideoSourceTest + 3 tests MarkdownServiceTest)
-   - **Tổng cộng**: **135/135 tests Java PASS 100%** (0 Failures, 0 Errors, 0 Skipped).
+   - **Đính chính tổng của lần chạy trước**: **282/282 tests Java toàn reactor PASS**, trong đó **135/135 thuộc web-app**; 4 Docker smoke được tính riêng. Không tính parent POM là module có test. Kết quả mới xem mục 2026-10-27 bên dưới. **Trạng thái lần chạy trước**: PASS (0 Failures, 0 Errors, 0 Skipped).
 2. **Kiểm thử JavaScript DOM (Node.js + jsdom)**:
    - **Lệnh thực thi**: `npm.cmd --prefix backend/web-app test`
    - **Kết quả**: **45/45 tests PASS 100%** (0 Failures, 0 Skipped, Thời gian: 2.900 s).
@@ -3120,4 +3120,136 @@ Bộ kiểm thử trình duyệt Playwright được thiết kế chuyên biệt
 - **Kết luận**: Giai đoạn chuyển đổi giao diện (Phase 1 -> Phase 7) cho các chức năng thuộc phạm vi của Thành viên 2 đã hoàn thành toàn diện, đáp ứng đầy đủ điều kiện kỹ thuật để chuyển sang **Đợt 4: Tích Hợp Đa Dịch Vụ Với Thành Viên 1 (TDD Cross-Service Integration)**.
 - **Kế hoạch chi tiết Đợt 4**: Đã biên soạn hoàn chỉnh tại [docs/KE_HOACH_DOT_4_TDD.md](file:///D:/LMS-main/docs/KE_HOACH_DOT_4_TDD.md).
 - **Nhánh triển khai Đợt 4**: `feature/member-2-dot-4-integration`.
+
+
+
+### Khắc phục trực tiếp và kiểm chứng lại Phase 7 — 2026-10-27
+
+**Phạm vi nghiệm thu:** các sửa lỗi bên dưới đã qua kiểm thử cô lập, HTTP smoke và
+browser E2E thật. Google OAuth vẫn thiếu credentials, chưa kiểm chứng; không tự nâng
+parity toàn hệ thống lên VERIFIED hoặc tuyên bố hoàn thành mọi chức năng.
+
+**Pre-flight và đối chiếu thực tế**
+- Đọc AGENTS.md, CODING_RULES, controller/DTO/register UI của repo và mã mẫu chỉ đọc.
+  Xác minh UserCreationRequest yêu cầu fullname chỉ gồm chữ/khoảng trắng;
+  bảng users, refresh_tokens, email_verifications và prefix avatar theo user_id.
+- Mục tiêu: sửa cảnh báo gửi OTP; ngăn E2E pass nhầm; runner cài được độc lập;
+  fixture riêng và cleanup có xác nhận; đính chính tổng test.
+- File sửa: AuthController.java, templates/auth/verify-email.html, static/js/otp-countdown.js;
+  AuthControllerTest.java; browser-avatar-cors.e2e.test.js; web-app/package.json và package-lock.json;
+  docs/DOCKER_SMOKE_TESTS.md và nhật ký này.
+- File mới trong web-app/src/test/js: e2e-assertions.test.js, otp-countdown.test.js,
+  support/e2e-assertions.js, support/e2e-fixtures.js.
+- Input: tài khoản e2e_<UUID> và mật khẩu sinh ngẫu nhiên, email Mailpit, credentials
+  MySQL/MinIO từ environment. Không dùng tài khoản admin chia sẻ cho browser suite.
+- Output: OTP lỗi vẫn giữ tài khoản và chuyển trang có cảnh báo/gửi lại ngay; login
+  phải đúng root origin và profile; avatar phải khớp policy URL, MySQL, decoded image,
+  bytes; CORS có đối chứng; cleanup thất bại phải làm suite fail.
+
+**Thay đổi**
+- OTP gửi thất bại được chuyển bằng flash attribute, không nuốt lỗi âm thầm; template
+  không khẳng định đã gửi email. Nút gửi lại bật ngay; chỉ đếm ngược khi gửi thành công.
+- Khai báo và khóa version @playwright/test, mysql2, minio trong devDependencies của
+  web-app; bỏ import đường dẫn D:/LMS-main/frontend/node_modules và credentials mặc định.
+- Browser test dùng đăng ký/xác thực OTP thật, profile đúng email và cookie session.
+- CORS thử cùng object tồn tại với custom header buộc preflight, origin hợp lệ đọc
+  đúng bytes trước/sau lần bị chặn; OPTIONS từ origin bị cấm không có allow-origin.
+- Cleanup có guard username/email được tạo trong lần chạy; xóa đúng token/OTP/user
+  bằng parameterized SQL, đúng object prefix chứa user_id, đúng IDs thư Mailpit;
+  kiểm tra lại không còn dữ liệu. Không gửi Mailpit DELETE với IDs rỗng.
+- Đối chiếu hướng dẫn cleanup Mailpit API v1 và MinIO JavaScript API; liên kết trong
+  DOCKER_SMOKE_TESTS.md. Không sửa project mẫu, .gitignore hoặc frontend/**.
+
+**TDD và kết quả lệnh thật (JDK 21)**
+- Trước sửa: 2 test Java mới chạy, 1 FAIL tái hiện thiếu flash otpDeliveryFailed,
+  1 PASS đối chứng gửi OTP thành công. Lệnh:
+  `mvn test -pl web-app -f backend/pom.xml -Dtest=AuthControllerTest#registration*`.
+- JS Red 1: helper chưa tồn tại gây MODULE_NOT_FOUND; test nút gửi lại FAIL vì vẫn disabled.
+- JS Red 2: có stub helper, 7 test chạy với 6 FAIL, 1 PASS đối chứng. Không dựng lỗi
+  compile giả cho controller đã tồn tại.
+- JS Green: 8 test mới (7 helper assertions + 1 OTP DOM) PASS.
+- `mvn clean verify -f backend/pom.xml -Dspring.profiles.active=test`:
+  **BUILD SUCCESS, 284/284 test, 0 failures/errors/skipped, 3 phút 44 giây**.
+  Phân bổ: registry 2, gateway 15, identity 45, course 58, blog 27, web-app 137.
+  Reactor có 6 module thực thi test và 1 parent POM.
+- `npm --prefix backend/web-app test`: **53/53 PASS**, 0 failed/skipped, **6.274 giây**.
+- `npm --prefix backend/web-app ci --ignore-scripts`: thành công từ lockfile;
+  `npm --prefix backend/web-app run test:e2e:install`: thành công.
+- `docker compose build lms-web-app`: thành công; recreate bằng
+  `docker compose up -d --no-deps --wait --wait-timeout 60 lms-web-app`, healthy.
+- `mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke -Dtest=WebAppDockerDeploymentSmokeTest`:
+  **4/4 PASS**, 0 failures/errors/skipped, **9.791 giây**. Account/token lấy từ cấu hình
+  local chỉ đưa vào environment của process, không in hoặc commit credentials.
+- Browser E2E chạy Node test runner mà script `test:e2e` gọi:
+  `node --test backend/web-app/src/test/js/browser-avatar-cors.e2e.test.js`:
+  **3/3 PASS**, 0 failed/cancelled/skipped, **7.811 giây**, cleanup hook thành công.
+  Lần thử đầu 1 PASS/2 FAIL vì fixture fullname có chữ số không hợp DTO; sửa fixture
+  thành tên hợp lệ, không nới validation hoặc assertion của ứng dụng.
+- Sau khi Docker tự tắt từ phiên trước, đã khởi động lại Docker Desktop và stack;
+  không reset Docker hoặc xóa volume. Không chạy phase tiếp theo.
+
+**Giới hạn và bàn giao**
+- Google OAuth: chưa có cấu hình thật, vẫn chưa nghiệm thu. Ba browser E2E không đại
+  diện mọi chức năng của hệ thống. Chỉ công nhận các luồng đã kiểm chứng ở trên.
+- Kết nối codex-with-chatgpt hiện session=null, chưa có conversation sẵn sàng;
+  phần sửa và kiểm thử này do Codex thực hiện trực tiếp, không nhận là đã qua review ChatGPT Web.
+- Chưa commit/push: khi chốt bàn giao, workspace đang ở nhánh
+  feature/member-2-dot-4-integration, khác nhánh Phase 7 trong báo cáo trước.
+  Đang chờ người dùng chọn nhánh nhận bản sửa; không tự checkout, merge hoặc force-push.
+3199: - Kiểm tra hậu cleanup bằng truy vấn đọc: còn 0 users khớp định danh e2e_<UUID>
+3200:   và email tương ứng @test.lms.invalid. Các hook đã kiểm tra object/email cũng được dọn.
+3201: 
+
+---
+
+### Đợt 4 — Phase 1: Kiểm Thử Hợp Đồng Feign Nội Bộ & Khả Năng Tương Thích Nhà Cung Cấp (Internal Feign Contracts & Provider Verification TDD)
+
+- **Thời gian hoàn thành**: 2026-10-28
+- **Nhánh thực hiện**: `feature/member-2-dot-4-integration`
+- **Mục tiêu**: Kiểm chứng 15 hợp đồng Provider API nội bộ (bao phủ toàn diện 14 endpoints nội bộ của Member 2) và 2 kiểm thử Fallback an toàn của `AssignmentClient` trong `course-service`.
+
+#### 1. Bảng 17 Test Cases Thực Tế & Kết Quả Chạy
+
+| STT | Endpoint / Hành Vi Kiểm Thử | Service & Test Class / Method | Phân Loại TDD | Kết Quả Thực Tế | Thời Gian |
+|:---:|---|---|:---:|:---:|:---:|
+| 1 | `GET /internal/user/{id}` (200) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserHttpContractReturns200AndUserDetails` | Tái sử dụng (Baseline) — Bổ sung assertion trường `fullname` | **PASS** | 8.97s (Suite) |
+| 2 | `GET /internal/user/{id}` (404) | `identity-service`: `IdentityApiIntegrationTest#internalGetUserNotFoundHttpContractReturns404` | Bổ sung mới (Red 1 compile/type -> Green) | **PASS** | 8.97s (Suite) |
+| 3 | `POST /internal/users/batch` | `identity-service`: `IdentityApiIntegrationTest#internalPostUsersBatchHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
+| 4 | `GET /internal/users/{userId}/exists` | `identity-service`: `IdentityApiIntegrationTest#internalUserExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
+| 5 | `GET /internal/users/search/by-email` | `identity-service`: `IdentityApiIntegrationTest#internalSearchUserByEmailHttpContractReturnsUser` | Tái sử dụng (Baseline) | **PASS** | 8.97s (Suite) |
+| 6 | `GET /internal/courses/{courseId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetCourseHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 7 | `GET /internal/courses/{cId}/lessons/{lId}` | `course-service`: `InternalCourseApiIntegrationTest#internalGetLessonHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 8 | `GET /internal/courses/{cId}/enrollments/{uId}` | `course-service`: `InternalCourseApiIntegrationTest#internalCheckEnrollmentHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 9 | `GET /internal/courses/{cId}/students/count` | `course-service`: `InternalCourseApiIntegrationTest#internalCountStudentsHttpContractReturnsLong` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 10 | `GET /internal/courses/{cId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalCourseExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 11 | `GET /internal/courses/{cId}/lessons/{lId}/exists` | `course-service`: `InternalCourseApiIntegrationTest#internalLessonExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 12 | `GET /internal/courses` | `course-service`: `InternalCourseApiIntegrationTest#internalGetAllCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 13 | `GET /internal/courses/enrolled` | `course-service`: `InternalCourseApiIntegrationTest#internalGetEnrolledCoursesHttpContractReturnsList` | Tái sử dụng (Baseline) | **PASS** | 8.76s (Suite) |
+| 14 | `GET /internal/posts/{postId}` | `blog-service`: `BlogApiIntegrationTest#internalGetPostHttpContractReturns200` | Tái sử dụng (Baseline) | **PASS** | 8.74s (Suite) |
+| 15 | `GET /internal/posts/{postId}/exists` | `blog-service`: `BlogApiIntegrationTest#internalPostExistsHttpContractReturnsBoolean` | Tái sử dụng (Baseline) | **PASS** | 8.74s (Suite) |
+| 16 | `AssignmentClient.Fallback` (Single Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsZeroExerciseCountWhenInvoked` | Bổ sung mới (Red -> Green) | **PASS** | 0.09s |
+| 17 | `AssignmentClient.Fallback` (Batch Count) | `course-service`: `AssignmentClientFallbackTest#assignmentClientFallbackReturnsEmptyMapForBatchWhenInvoked` | Bổ sung mới (Red -> Green) | **PASS** | 0.09s |
+
+- **Bổ sung kiểm thử hồi quy cấp Service**: `CourseServiceImplTest#getCourseByIdGracefullyHandlesAssignmentServiceFailure` (kiểm chứng `getCourseById` bắt ngoại lệ an toàn và duy trì hoạt động khi downstream `assignment-service` bị lỗi/ngắt kết nối).
+
+#### 2. Lệnh Thực Thi & Số Liệu Kiểm Thử Thực Tế (JDK 21)
+- `mvn test -f backend/pom.xml -pl identity-service -Dtest=IdentityApiIntegrationTest`:
+  **BUILD SUCCESS**, Tests run: **13**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.970 s**.
+- `mvn test -f backend/pom.xml -pl course-service "-Dtest=InternalCourseApiIntegrationTest,AssignmentClientFallbackTest"`:
+  **BUILD SUCCESS**, Tests run: **10** (8 provider + 2 fallback), Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.760 s** (InternalCourseApi) / **0.092 s** (Fallback).
+- `mvn test -f backend/pom.xml -pl course-service -Dtest=CourseServiceImplTest`:
+  **BUILD SUCCESS**, Tests run: **9**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **2.012 s**.
+- `mvn test -f backend/pom.xml -pl blog-service -Dtest=BlogApiIntegrationTest`:
+  **BUILD SUCCESS**, Tests run: **6**, Failures: **0**, Errors: **0**, Skipped: **0**, Time elapsed: **8.744 s**.
+
+#### 3. Phạm Vi Đã Kiểm Chứng & Giới Hạn Còn Lại
+- **Đã kiểm chứng**:
+  * 15/15 provider contract tests bao phủ 14 endpoints nội bộ của Member 2 tuân thủ đúng HTTP method, path, DTO request/response, validation và status code (200, 404).
+  * Khẳng định trường `fullname` (viết thường chữ n) trong `UserFullResponse`.
+  * Hợp đồng kiểu dữ liệu và giá trị trả về của `AssignmentClient.Fallback` (`ApiResponse<Long> = 0L` và `ApiResponse<Map<String, Long>> = Map.of()`).
+  * Khả năng chịu lỗi an toàn tại tầng nghiệp vụ `CourseServiceImpl` khi Feign client gặp sự cố.
+  * Mọi kiểm thử Phase 1 hoàn toàn cô lập (@WebMvcTest, @MockBean), độc lập 100% với Docker và CSDL ngoài.
+- **Giới hạn còn lại & Cần phối hợp với Trí**:
+  * Việc kích hoạt Feign fallback tự động ở tầng network proxy hiện chưa tích hợp thư viện `spring-cloud-starter-circuitbreaker-resilience4j` trong `course-service` (theo đúng nguyên bản project mẫu); hệ thống hiện tại dựa trên `AssignmentClient.Fallback` hợp đồng và cơ chế `try/catch` cô lập lỗi tại `CourseServiceImpl`.
+  * Chưa kết nối container thật của `assignment-service` và `chatbot-service` do Member 1 (Trí) chưa bàn giao.
 

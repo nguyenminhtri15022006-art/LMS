@@ -282,4 +282,18 @@ class CourseServiceImplTest {
         assertEquals("Spring Boot Microservices", result.getTitle());
         verify(courseRepository).findById(courseId);
     }
+
+    @Test
+    @DisplayName("13. getCourseByIdGracefullyHandlesAssignmentServiceFailure: Khi assignment-service bị lỗi, getCourseById vẫn trả về CourseResponse mà không bị gián đoạn")
+    void getCourseByIdGracefullyHandlesAssignmentServiceFailure() {
+        when(courseRepository.findById(courseId)).thenReturn(Optional.of(testCourse));
+        when(courseMapper.toCourseResponse(testCourse)).thenReturn(testCourseResponse);
+        when(assignmentClient.getExerciseCount(courseId)).thenThrow(new RuntimeException("Connection refused: assignment-service is down"));
+
+        CourseResponse result = courseService.getCourseById(courseId);
+
+        assertNotNull(result);
+        assertEquals(courseId, result.getId());
+        verify(assignmentClient).getExerciseCount(courseId);
+    }
 }
