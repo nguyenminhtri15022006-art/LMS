@@ -3118,3 +3118,6 @@ Bộ kiểm thử trình duyệt Playwright được thiết kế chuyên biệt
 - **Giới hạn kỹ thuật ghi nhận minh bạch**:
   * **Google OAuth 2.0**: Cấu hình `lms.google.client-id` hiện đang dùng placeholder trong môi trường dev (`replace-with-google-client-id`). Kịch bản Google OAuth yêu cầu tài khoản và Client Secret hợp lệ từ Google Cloud Console cùng màn hình tương tác người dùng (Consent Screen), không thể chạy headless tự động nếu thiếu thông tin xác thực từ nhà cung cấp bên thứ ba. Tuân thủ nghiêm ngặt nguyên tắc AGENTS.md, hệ thống ghi nhận trung thực giới hạn này mà không sử dụng mock giả mạo để tự nhận hoàn thành 100%.
 - **Kết luận**: Giai đoạn chuyển đổi giao diện (Phase 1 -> Phase 7) cho các chức năng thuộc phạm vi của Thành viên 2 đã hoàn thành toàn diện, đáp ứng đầy đủ điều kiện kỹ thuật để chuyển sang **Đợt 4: Tích Hợp Đa Dịch Vụ Với Thành Viên 1 (TDD Cross-Service Integration)**.
+- **Kế hoạch chi tiết Đợt 4**: Đã biên soạn hoàn chỉnh tại [docs/KE_HOACH_DOT_4_TDD.md](file:///D:/LMS-main/docs/KE_HOACH_DOT_4_TDD.md).
+- **Nhánh triển khai Đợt 4**: `feature/member-2-dot-4-integration`.
+
