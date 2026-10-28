@@ -2,7 +2,7 @@
   "name": "lms-web-app-ui-tests",
   "private": true,
   "scripts": {
-    "test": "node --test src/test/js/learning-hub.test.js src/test/js/curriculum-builder.test.js src/test/js/instructor-management.test.js src/test/js/blog-interactions.test.js src/test/js/admin-actions.test.js src/test/js/e2e-assertions.test.js src/test/js/otp-countdown.test.js src/test/js/phase4-fixture-verification.test.js",
+    "test": "node --test src/test/js/learning-hub.test.js src/test/js/curriculum-builder.test.js src/test/js/instructor-management.test.js src/test/js/blog-interactions.test.js src/test/js/admin-actions.test.js src/test/js/e2e-assertions.test.js src/test/js/otp-countdown.test.js src/test/js/phase4-fixture-verification.test.js src/test/js/phase4-fixture-retry-verification.test.js",
     "test:e2e": "node --test src/test/js/browser-avatar-cors.e2e.test.js",
     "test:e2e:install": "playwright install chromium"
   },

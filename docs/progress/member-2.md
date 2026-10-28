@@ -3537,8 +3537,8 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 1. **Khắc phục 5 lỗi an toàn & sở hữu fixture (`e2e-fixtures.js` & `phase4-fixture-verification.test.js`)**:
    - *A. Không nuốt lỗi MongoDB cleanup*: `cleanupCourse` bắt ngoại lệ từ `mongoExec`, lưu vào danh sách lỗi và tổng hợp ném ra ở cuối chu trình, vẫn đảm bảo dọn dẹp tiếp MySQL/MinIO.
    - *B. Không nuốt lỗi MinIO cleanup*: Bỏ toàn bộ `catch (ignored) {}` khi xóa object MinIO trong `cleanupPost`, `cleanupCourse` và `cleanupAccount`. Mọi lỗi xóa object đều khiến test/after hook báo lỗi thay vì cảnh báo console.
-   - *C. Chặn cleanup tài nguyên không thuộc sổ sở hữu*: Các hàm `cleanupCourse/Post/Category/Tag` kiểm tra sổ sở hữu (`this.courses`, `this.posts`, `this.categories`, `this.tags`), từ chối và ném lỗi ngay lập tức trước khi chạm vào CSDL/storage; đồng thời hỗ trợ gọi lại an toàn (idempotent) qua các `Set` theo dõi (`cleanedCourses`, `cleanedPosts`, v.v.).
-   - *D. Chặn prefix xóa MinIO diện rộng*: `removeObjects` từ chối các prefix nguy hiểm như `avatars/`, `thumbnails/`, `smoke/`, `e2e/`, `/`, `""`. Chỉ cho phép exact key hoặc prefix có định danh cụ thể với độ dài an toàn (`avatars/${id}-`).
+   - *C. Chặn cleanup tài nguyên không thuộc sổ sở hữu & Bảo đảm Retry*: Các hàm `cleanupCourse/Post/Category/Tag/Account` kiểm tra sổ sở hữu (`this.courses`, `this.posts`, `this.categories`, `this.tags`, `this.accounts`), từ chối và ném lỗi ngay lập tức trước khi chạm vào CSDL/storage. Khi gặp lỗi tạm thời (transient error), hàm cleanup không đánh dấu vào `cleanedXYZ`, cho phép lần gọi retry tiếp theo thực thi lại toàn bộ các bước dọn dẹp còn dang dở. Chỉ khi toàn bộ bước dọn dẹp thành công không có lỗi (`errors.length === 0`), tài nguyên mới được thêm vào `cleanedXYZ`.
+   - *D. Xác minh quyền sở hữu MinIO Prefix chặt chẽ (loại bỏ kiểm tra độ dài)*: `removeObjects` triển khai `isOwnedPrefix(prefix)` để xác minh tính chính danh dựa trên `this.corsKey`, `this.allowedPrefixes` (gắn liền với `userId` của tài khoản fixture hiện tại), hoặc `this.minioObjects`. Loại bỏ hoàn toàn việc kiểm tra độ dài lỏng lẻo (`prefix.length > 15`) để ngăn chặn việc xóa nhầm prefix của các lần chạy khác (`smoke/<UUID-khác>/`). Prefix diện rộng như `avatars/`, `thumbnails/`, `smoke/`, `e2e/`, `/`, `""` bị từ chối tuyệt đối.
    - *E. Theo dõi tài khoản ngay khi tạo*: Trong `instructorAccount()`, tài khoản được đưa vào sổ theo dõi `this.accounts.push(account)` ngay sau khi API đăng ký trả về 200, trước khi bước gửi/xác thực OTP có thể gặp lỗi. Khi OTP lỗi, cleanup vẫn dọn dẹp sạch sẽ tài khoản, email Mailpit và token.
 2. **Khắc phục assertion upload thumbnail Flow 2 và chuẩn hóa `MinioServiceImpl` trong `course-service`**:
    - *Đính chính*: Trước đây bài test có bước chèn thủ công `fixtures.minio.putObject(...)` trước khi gọi `statObject`. Đã loại bỏ hoàn toàn bước ghi đè này.
@@ -3564,23 +3564,24 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 
 #### 3. Bằng Chứng Kiểm Thử Toàn Diện Hệ Thống (Verification Evidence)
 
-1. **Bộ kiểm thử chẩn đoán an toàn fixture Codex**:
-   - `node --test backend/web-app/src/test/js/phase4-fixture-verification.test.js` -> **5/5 tests PASS 100%** (0.29s).
-2. **Bộ kiểm thử đơn vị JavaScript Web-App (kèm fixture safety)**:
-   - `npm.cmd test --prefix backend/web-app` -> **58/58 tests PASS 100%** (30.5s).
-3. **Toàn bộ bộ kiểm thử Java Web-App**:
-   - `mvn clean test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"` -> **172/172 tests PASS 100%** (57.6s).
-4. **Toàn bộ bộ kiểm thử Java Course-Service**:
-   - `mvn test -f backend/pom.xml -pl course-service` -> **67/67 tests PASS 100%** (67.0s).
-5. **Kiểm tra sức khỏe 11 Container Docker**:
-   - `mvn test -f backend/pom.xml -pl web-app -Pdocker-smoke "-Dtest=DockerStackReadinessIntegrationTest"` -> **11/11 services UP / Healthy**.
-6. **Bộ kiểm thử toàn trình 4 luồng E2E**:
-   - `node --env-file=.env --test backend/web-app/src/test/js/four-flows.e2e.test.js` -> **4/4 tests PASS 100%** (27.7s).
-7. **Kiểm chứng Zero-Leak sau khi kết thúc E2E**:
-   - MySQL `identity_lms.users WHERE user_name LIKE 'e2e_%'`: **0 bản ghi**.
-   - MySQL `course_lms.courses WHERE title LIKE 'E2E Flow 2 Course%'`: **0 bản ghi**.
-   - MySQL `blog_lms.posts WHERE title LIKE 'E2E Flow 3 Blog%'`: **0 bản ghi**.
-   - MongoDB `course_structures`: **0 documents**.
+1. **Bộ kiểm thử tái hiện retry & prefix ownership (`phase4-fixture-retry-verification`)**:
+   - `node --test backend/web-app/src/test/js/phase4-fixture-retry-verification.test.js` -> **3/3 tests PASS 100%** (0.37s).
+2. **Bộ kiểm thử chẩn đoán an toàn fixture Codex (`phase4-fixture-verification`)**:
+   - `node --test backend/web-app/src/test/js/phase4-fixture-verification.test.js` -> **5/5 tests PASS 100%** (0.26s).
+3. **Bộ kiểm thử đơn vị JavaScript Web-App (kèm fixture safety & retry tests)**:
+   - `npm.cmd test --prefix backend/web-app` -> **61/61 tests PASS 100%** (4.8s).
+4. **Toàn bộ bộ kiểm thử Java Web-App**:
+   - `mvn clean test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"` -> **172/172 tests PASS 100%** (37.3s).
+5. **Toàn bộ bộ kiểm thử Java Course-Service**:
+   - `mvn test -f backend/pom.xml -pl course-service` -> **67/67 tests PASS 100%** (61.0s).
+6. **Kiểm tra sức khỏe 11 Container Docker**:
+   - `mvn test -f backend/pom.xml -pl web-app -Pdocker-smoke "-Dtest=DockerStackReadinessIntegrationTest"` -> **11/11 services UP / Healthy** (6.1s).
+7. **Bộ kiểm thử toàn trình 4 luồng E2E**:
+   - `node --env-file=.env --test backend/web-app/src/test/js/four-flows.e2e.test.js` -> **4/4 tests PASS 100%** (28.7s).
+8. **Kiểm chứng Zero-Leak qua script audit độc lập Codex (`.codex-phase4-cleanup-audit.cjs`)**:
+   - Scope: 7 accounts, 3 courses, 1 post, 3 MinIO objects.
+   - Remaining: `users: 0, courses: 0, enrollments: 0, lessonProgress: 0, categories: 0, posts: 0, comments: 0, tags: 0, structures: 0, lessons: 0, minioObjects: 0, emails: 0`.
+   - Kết quả: `cleanupCompleted: true`, zero leak 100%.
 
 ---
 

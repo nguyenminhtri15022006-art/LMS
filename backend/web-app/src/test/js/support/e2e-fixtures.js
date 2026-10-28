@@ -62,6 +62,7 @@ class Fixtures {
         this.cleanedTags = new Set();
         this.cleanedPosts = new Set();
         this.cleanedAccounts = new Set();
+        this.allowedPrefixes = new Set();
         this.corsKey = `smoke/${randomUUID()}/cors.png`;
     }
 
@@ -170,18 +171,21 @@ class Fixtures {
         throw new Error('OTP email for this fixture did not arrive');
     }
 
+    isOwnedPrefix(prefix) {
+        if (!prefix || typeof prefix !== 'string') return false;
+        const broadPrefixes = ['avatars/', 'avatars', 'thumbnails/', 'thumbnails', 'smoke/', 'smoke', 'e2e/', 'e2e', '/', ''];
+        if (broadPrefixes.includes(prefix)) return false;
+        if (this.corsKey && prefix === this.corsKey) return true;
+        if (this.allowedPrefixes && this.allowedPrefixes.has(prefix)) return true;
+        if (this.minioObjects && this.minioObjects.some(o => o.objectKey === prefix)) return true;
+        return false;
+    }
+
     async removeObjects(prefix, bucket = this.bucket) {
         assert.ok(typeof prefix === 'string' && prefix.length > 0, 'Prefix must be a non-empty string');
         const broadPrefixes = ['avatars/', 'avatars', 'thumbnails/', 'thumbnails', 'smoke/', 'smoke', 'e2e/', 'e2e', '/', ''];
         assert.ok(!broadPrefixes.includes(prefix), `Broad prefix "${prefix}" is forbidden`);
-        assert.ok(
-            prefix === this.corsKey ||
-            (prefix.startsWith('avatars/') && prefix.length > 18) ||
-            (prefix.startsWith('thumbnails/') && prefix.length > 20) ||
-            (prefix.startsWith('smoke/') && prefix.length > 15) ||
-            (prefix.startsWith('e2e/') && prefix.length > 15),
-            `Prefix "${prefix}" is too broad or unauthorized`
-        );
+        assert.ok(this.isOwnedPrefix(prefix), `Prefix "${prefix}" is not owned by this fixture run`);
         for await (const object of this.minio.listObjectsV2(bucket, prefix, true)) {
             assert.ok(object.name.startsWith(prefix));
             await this.minio.removeObject(bucket, object.name);
@@ -281,11 +285,11 @@ class Fixtures {
             }
         }
 
-        this.cleanedCourses.add(courseId);
-
         if (errors.length) {
             throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Course cleanup failed for ${courseId}`);
         }
+
+        this.cleanedCourses.add(courseId);
     }
 
     async cleanupPost(postId) {
@@ -321,11 +325,11 @@ class Fixtures {
             }
         }
 
-        this.cleanedPosts.add(postId);
-
         if (errors.length) {
             throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Post cleanup failed for ${postId}`);
         }
+
+        this.cleanedPosts.add(postId);
     }
 
     async cleanupCategory(categoryId) {
@@ -343,11 +347,11 @@ class Fixtures {
             }
         }
 
-        this.cleanedCategories.add(categoryId);
-
         if (errors.length) {
             throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Category cleanup failed for ${categoryId}`);
         }
+
+        this.cleanedCategories.add(categoryId);
     }
 
     async cleanupTag(tagId) {
@@ -365,11 +369,11 @@ class Fixtures {
             }
         }
 
-        this.cleanedTags.add(tagId);
-
         if (errors.length) {
             throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Tag cleanup failed for ${tagId}`);
         }
+
+        this.cleanedTags.add(tagId);
     }
 
     async cleanupAccount(account) {
@@ -387,8 +391,11 @@ class Fixtures {
                 if (rows.length) {
                     userId = rows[0].user_id;
                     assert.match(userId, /^[a-f0-9-]{36}$/i);
+                    const avatarPrefix = `avatars/${userId}-`;
+                    if (!this.allowedPrefixes) this.allowedPrefixes = new Set();
+                    this.allowedPrefixes.add(avatarPrefix);
                     try {
-                        await this.removeObjects(`avatars/${userId}-`, this.bucket);
+                        await this.removeObjects(avatarPrefix, this.bucket);
                     } catch (minioErr) {
                         errors.push(minioErr);
                     }
@@ -433,11 +440,11 @@ class Fixtures {
             }
         }
 
-        this.cleanedAccounts.add(account.username);
-
         if (errors.length) {
             throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Account cleanup failed for ${account.username}`);
         }
+
+        this.cleanedAccounts.add(account.username);
     }
 
     async close() {
