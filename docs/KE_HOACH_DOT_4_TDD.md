@@ -399,8 +399,8 @@ gantt
 | **Phase 1** | Internal Feign Contracts & Provider Verification TDD (16 Tests) | MockMvc / Contract Test (Profile `test`, Isolated H2) | Mã nguồn `identity`, `course`, `blog` hiện có | 14 Provider Contracts PASS + 2 Fallback an toàn | **Hoàn thành (16/16 Tests PASS)** |
 | **Phase 2** | Gateway Resiliency & Distributed Consistency TDD | Fault / WebTestClient TDD | Phase 1 hoàn tất | `GatewayFallbackController` hoạt động + Cascading rules PASS | **Hoàn thành (21/21 Tests PASS)** |
 | **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | **Hoàn thành (25/25 Tests PASS)** |
-| **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | **Sẵn sàng triển khai khi được duyệt** |
-| **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | Nghiệm thu cuối |
+| **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | **Hoàn thành (4/4 Flows PASS 100%)** |
+| **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | **Hoàn thành (49/76 VERIFIED, Demo Seeded)** |
 
 ---
 
@@ -453,8 +453,10 @@ Mọi thao tác trong quá trình triển khai Đợt 4 phải tuân thủ nghi�
 - **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **ĐÃ KHẮC PHỤC 6 LỖI AN TOÀN VÀ XÁC THỰC THỰC TẾ**.
   * 11 container Thành viên 2 đang chạy và healthy; cơ chế Prefix Guard, Ownership Guard, Fixture Manager và Fault Wrapper đã vượt qua 100% kiểm thử (24 unit/safety tests + 1 live integration test, full suite web-app 171/171 PASS).
 - **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **ĐÃ HOÀN THÀNH 100% VÀ ĐẠT TẤT CẢ CÁC ASSERTIONS NGHIỆP VỤ & LƯU TRỮ**.
-  * Toàn bộ 4/4 luồng E2E chạy thực tế qua Playwright trên stack 11 container Thành viên 2 đều PASS 100% (`four-flows.e2e.test.js`, thời gian: ~24.1 giây).
+  * Toàn bộ 4/4 luồng E2E chạy thực tế qua Playwright trên stack 11 container Thành viên 2 đều PASS 100% (`four-flows.e2e.test.js`, thời gian: ~28.7 giây).
   * Kiểm chứng đầy đủ từ UI Web-App (:8088), API Gateway (:8080), tới CSDL thực (MySQL :3307, MongoDB :27017, MinIO :9000, Mailpit :8025) và dọn dẹp fixture an toàn trong khối `finally`.
-  * Bộ test đơn vị web-app (172/172 Java tests PASS, 53/53 JS tests PASS) và kiểm tra sức khỏe stack 11 container PASS 100%.
-- **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **CHỜ KẾT QUẢ CỦA CÁC PHASE TRƯỚC**.
-  * Cần kết quả chạy thật của cả 4 Phase trước và sự thống nhất phạm vi phát hành cùng Thành viên 1.
+  * Bộ test đơn vị web-app (172/172 Java tests PASS, 61/61 JS tests PASS) và kiểm tra sức khỏe stack 11 container PASS 100%.
+- **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **ĐÃ HOÀN THÀNH TOÀN DIỆN**.
+  * Nạp dữ liệu mẫu demo chuẩn hóa (`02-demo-seed-data.sql`, `scripts/seed-demo-data.cjs`) thành công trên MySQL và MongoDB.
+  * Hoàn thành rà soát 13 tiêu chí tại `AGENTS.md`, nâng tỷ lệ VERIFIED lên 49/76 (64.47% toàn dự án, 46/47 = 97.87% phân hệ Thành viên 2).
+  * Toàn bộ 5 Phase Đợt 4 đã hoàn thành và sẵn sàng nghiệm thu bàn giao.

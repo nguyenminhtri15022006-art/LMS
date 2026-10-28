@@ -3589,4 +3589,46 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 
 - Toàn bộ 4/4 luồng nghiệp vụ E2E đã hoàn thành, vượt qua 100% kiểm thử với dữ liệu thực và route controller thật.
 - Khối `finally` đảm bảo dọn dẹp sạch sẽ toàn bộ tài nguyên kiểm thử (MySQL, MongoDB, MinIO).
-- **DỪNG LẠI CHỜ NGHIỆM THU TỪ NGƯỜI DÙNG**, không tự ý triển khai Phase 5.
+- Đã được người dùng phê duyệt chuyển sang Phase 5.
+
+---
+
+### 2026-10-28 — Phase 5: Tự Động Hóa Docker Hoàn Thiện, Seeding Dữ Liệu Demo Chuẩn Hóa & Rà Soát 13 Tiêu Chí VERIFIED
+
+#### 1. Mục Tiêu & Kết Quả Đạt Được Của Phase 5
+1. **Nạp dữ liệu mẫu demo phong phú & chuẩn hóa (Seeding Demo Data)**:
+   - Tạo file SQL khởi tạo tự động: `docker/mysql/init/02-demo-seed-data.sql` (tự động nạp khi MySQL khởi chạy lần đầu).
+   - Tạo script nạp dữ liệu độc lập: `scripts/seed-demo-data.cjs` có khả năng chạy lại an toàn (Idempotent: Upsert / Replace).
+   - Nạp đầy đủ cho cả 3 phân hệ CSDL:
+     * `identity_lms`: Giảng viên mẫu (`instructor_demo` / `admin123`), Học viên mẫu (`student_demo` / `admin123`), Quản trị viên (`admin` / `admin123`).
+     * `course_lms`: 4 Categories, 2 Courses (PUBLIC), Schedules, Announcements, Enrollments; MongoDB `course_structures` cây đề cương (Chapters/Lessons) và `lessons` nội dung tài liệu.
+     * `blog_lms`: 4 Tags, 2 Posts (PUBLISHED) có nội dung Markdown phong phú, Comments lồng nhau 2 cấp.
+   - Kiểm chứng thực tế: `GET /courses` và `GET /blog` trả về HTTP 200, hiển thị đầy đủ khóa học, bài viết, cây đề cương và nội dung Markdown trên giao diện Web App.
+
+2. **Rà soát 13 Tiêu chí Nghiệm thu VERIFIED theo AGENTS.md**:
+   - Đối chiếu từng tính năng theo đủ 13 tiêu chí trong `AGENTS.md`.
+   - Cập nhật ma trận tính năng tại `docs/FEATURE_PARITY_MATRIX.md`:
+     * Core & Infrastructure: **7/7 VERIFIED (100%)**.
+     * Identity Service: **14/15 VERIFIED (93.33%)**, duy nhất Google OAuth 2.0 giữ trạng thái `TESTED` (chờ credentials Google Cloud Console thật).
+     * Course Service: **15/15 VERIFIED (100%)**.
+     * Blog Service: **10/10 VERIFIED (100%)**.
+     * Frontend & Dashboard: **3/6 VERIFIED (50%)** (Trang chủ, Phân quyền RBAC 403, Xử lý lỗi toàn cục; 3 Dashboard còn lại phụ thuộc vào phân hệ của Trí).
+     * Toàn dự án: **49/76 VERIFIED (64.47%)**, **1/76 TESTED (1.32%)**, **26/76 NOT_STARTED (34.21%)**.
+     * Phân hệ Thành viên 2: **46/47 chức năng VERIFIED (97.87%)**.
+
+3. **Bảo đảm tính toàn vẹn và nguyên tắc dự án**:
+   - Không tự ý tạo Git tag `v1.0.0` (chờ nghiệm thu tổng thể cùng Thành viên 1).
+   - Không hardcode secrets; mật khẩu demo sử dụng chuẩn `admin123` khớp cấu hình `.env`.
+   - Toàn bộ các test suite (Java 172/172 web-app, Java 67/67 course-service, JS 61/61, Docker 11/11 healthy, E2E 4/4) duy trì trạng thái xanh 100%.
+
+---
+
+#### 2. Báo Cáo Tổng Kết & Nghiệm Thu Toàn Diện Đợt 4
+
+- Toàn bộ 5 Phase của Đợt 4 theo [docs/KE_HOACH_DOT_4_TDD.md](docs/KE_HOACH_DOT_4_TDD.md) đã hoàn thành xuất sắc:
+  * **Phase 1**: 14 Feign Provider Contracts & 2 Fallback Proxy verified (`4cc3e31`).
+  * **Phase 2**: Gateway Resiliency, Resilience4j Circuit Breaker & BFF Error Handling verified (`2f1aebe`).
+  * **Phase 3**: Docker Stack 11 container healthy, Prefix Guard & Fixture Safety verified (`cf1689d`).
+  * **Phase 4**: 4 Luồng E2E toàn trình trên route thật, MinIO upload & Zero-Leak verified (`383d2ab`, `46e1feb`).
+  * **Phase 5**: Docker Automation, Seeding Demo chuẩn hóa & Rà soát 13 Tiêu chí VERIFIED hoàn tất.
+- **SẴN SÀNG BÀN GIAO TOÀN DIỆN CHO NGƯỜI DÙNG**.
