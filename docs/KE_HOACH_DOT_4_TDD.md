@@ -333,6 +333,16 @@ gantt
 - **Quản lý dữ liệu Fixture**:
   * Tách biệt: **Dữ liệu Demo** (tài khoản mẫu nạp ở Phase 5) và **Dữ liệu Fixture Test** (sinh động trong test: `e2e_student_<timestamp>@test.lms`).
   * Cleanup bắt buộc trong `finally`: chỉ xóa dữ liệu do test tạo ra. Tuyệt đối **không xóa volume Docker**, không chạy `DROP DATABASE` hoặc xóa dữ liệu dùng chung.
+- **Hiện trạng hoàn thành**:
+  * Đã xây dựng hoàn tất 3 thành phần nền tảng:
+    1. `DockerStackReadinessVerifier`: Kiểm tra toàn diện 11 container của Thành viên 2 qua HTTP Actuator (với đúng context-path `/identity`, `/course`, `/blog`, `/minio/health/live`) và TCP socket probe.
+    2. `IsolatedTestFixtureManager`: Quản lý vòng đời dữ liệu kiểm thử qua `AutoCloseable`, định danh riêng biệt (`e2e_<uuid32>`, `@test.lms.invalid`), áp dụng Prefix Guard nghiêm ngặt chặn xóa dữ liệu ngoài prefix an toàn.
+    3. `FaultRecoverySafetyWrapper`: Đảm bảo quy tắc an toàn tuyệt đối trong fault testing với lệnh phục hồi trong khối `finally` và vòng lặp polling health check xác nhận dịch vụ trở lại trạng thái UP.
+  * Kết quả kiểm thử:
+    - 15 Unit tests trong `web-app`: **15/15 PASS 100%** (`DockerStackReadinessVerifierTest` 5/5, `IsolatedTestFixtureManagerTest` 6/6, `FaultRecoverySafetyWrapperTest` 4/4).
+    - 1 Live integration test: `DockerStackReadinessIntegrationTest` **1/1 PASS 100%** (xác thực trực tiếp 11/11 container Docker Thành viên 2 đều phản hồi UP/healthy với độ trễ <20ms).
+    - Toàn bộ suite `web-app`: **162/162 PASS 100%**.
+  * Báo cáo kết quả thực tế, **dừng lại chờ người dùng nghiệm thu** trước khi chuyển Phase 4.
 - **Commit dự kiến**: `chore(test): chuẩn hóa fixture lifecycle cô lập và bộ kiểm tra điều kiện tiên quyết docker`.
 
 ---
@@ -382,10 +392,10 @@ gantt
 
 | Phase | Tên Giai Đoạn | Phương Pháp Kiểm Thử | Điều Kiện Tiên Quyết | Sản Phẩm Đầu Ra Cụ Thể | Trạng Thái Dự Kiến |
 | :---: | :--- | :---: | :--- | :--- | :---: |
-| **Phase 1** | Internal Feign Contracts & Provider Verification TDD (16 Tests) | MockMvc / Contract Test (Profile `test`, Isolated H2) | Mã nguồn `identity`, `course`, `blog` hiện có | 14 Provider Contracts PASS + 2 Fallback an toàn | **Sẵn sàng bắt đầu ngay** |
-| **Phase 2** | Gateway Resiliency & Distributed Consistency TDD | Fault / WebTestClient TDD | Phase 1 hoàn tất | `GatewayFallbackController` hoạt động + Cascading rules PASS | Kế tiếp |
-| **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | Kế tiếp |
-| **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | Kế tiếp |
+| **Phase 1** | Internal Feign Contracts & Provider Verification TDD (16 Tests) | MockMvc / Contract Test (Profile `test`, Isolated H2) | Mã nguồn `identity`, `course`, `blog` hiện có | 14 Provider Contracts PASS + 2 Fallback an toàn | **Hoàn thành (16/16 Tests PASS)** |
+| **Phase 2** | Gateway Resiliency & Distributed Consistency TDD | Fault / WebTestClient TDD | Phase 1 hoàn tất | `GatewayFallbackController` hoạt động + Cascading rules PASS | **Hoàn thành (21/21 Tests PASS)** |
+| **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | **Hoàn thành (16/16 Tests PASS)** |
+| **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | **Sẵn sàng triển khai khi được duyệt** |
 | **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | Nghiệm thu cuối |
 
 ---
@@ -432,13 +442,13 @@ Mọi thao tác trong quá trình triển khai Đợt 4 phải tuân thủ nghi�
 
 ## X. Kết Luận Khảo Sát & Đánh Giá Mức Độ Sẵn Sàng (Readiness)
 
-- **Phase 1 (Internal Feign Contracts & Provider Verification TDD — 16 Tests)**: **ĐÃ ĐỦ ĐIỀU KIỆN ĐỂ BẮT ĐẦU NGAY**.
-  * Có thể bắt đầu triển khai sau khi hoàn tất đối chiếu hợp đồng, chốt 16 test cases cụ thể và kiểm tra trạng thái Git; không cần chờ Trí hoàn thành toàn bộ.
-- **Phase 2 (Gateway Resiliency & Distributed Consistency TDD)**: **CẦN KIỂM CHỨNG ĐIỀU KIỆN KHI ĐẾN LƯỢT**.
-  * Cần Phase 1 hoàn tất và kiểm tra runtime Gateway trước khi triển khai `GatewayFallbackController`.
-- **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **CẦN KIỂM CHỨNG ĐIỀU KIỆN KHI ĐẾN LƯỢT**.
-  * Cần xác thực sức khỏe của 11 container Member 2 tại thời điểm chạy và kiểm tra fixture cleanup.
-- **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **CẦN KIỂM CHỨNG ĐIỀU KIỆN KHI ĐẾN LƯỢT**.
-  * Cần Phase 3 hoàn tất (stack và fixture sẵn sàng) trước khi thực thi kịch bản trình duyệt.
+- **Phase 1 (Internal Feign Contracts & Provider Verification TDD — 16 Tests)**: **ĐÃ HOÀN THÀNH VÀ NGHIỆM THU**.
+  * 14 provider contracts và 2 fallback proxy test đã PASS 100% (commit `4cc3e31`).
+- **Phase 2 (Gateway Resiliency & Distributed Consistency TDD)**: **ĐÃ HOÀN THÀNH VÀ NGHIỆM THU**.
+  * 21 test cases (gồm 4 test hồi quy do Codex tái hiện và 6 test GatewayExceptionHandler) đã PASS 100% (commit `2f1aebe`).
+- **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **ĐÃ HOÀN THÀNH VÀ XÁC THỰC THỰC TẾ**.
+  * 11 container Thành viên 2 đang chạy và healthy; cơ chế Prefix Guard, Fixture Manager và Fault Wrapper đã vượt qua 100% kiểm thử (15 unit tests + 1 live integration test, full suite web-app 162/162 PASS).
+- **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **ĐÃ ĐỦ ĐIỀU KIỆN ĐỂ BẮT ĐẦU KHI ĐƯỢC PHÊ DUYỆT**.
+  * Phase 3 đã hoàn tất, stack và fixture sẵn sàng cho kịch bản E2E toàn trình.
 - **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **CHỜ KẾT QUẢ CỦA CÁC PHASE TRƯỚC**.
   * Cần kết quả chạy thật của cả 4 Phase trước và sự thống nhất phạm vi phát hành cùng Thành viên 1.

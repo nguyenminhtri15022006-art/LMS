@@ -3399,4 +3399,91 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
     Do kiến trúc JWT hiện tại là phi trạng thái (stateless), Gateway chỉ xác thực chữ ký số bằng Public Key/Secret Key cục bộ mà không truy vấn CSDL. Khi Admin khóa tài khoản (`active = false`), access token đã cấp trước đó vẫn có thể gọi API trong thời gian hiệu lực còn lại (tối đa 15 phút). Để vô hiệu hóa ngay lập tức, kiến trúc cần xác nhận bổ sung cơ chế Token Revocation Blacklist lưu tại Redis hoặc Cache phân tán tại Gateway.
 - **Giới hạn**:
   * Các kiểm thử trên chạy trong môi trường Spring Boot Test cô lập với Mock Rest Service Server và MockMvc, chưa chạy kiểm thử toàn trình đa container Docker E2E (thuộc phạm vi Phase 4 & 5).
-  * Đã sửa triệt để toàn bộ lỗi BFF Phase 2; **DỪNG LẠI CHỜ NGHIỆM THU**, không tự ý triển khai Phase 3.
+  * Đã sửa triệt để toàn bộ lỗi BFF Phase 2 và được chấp thuận chuyển sang Phase 3.
+---
+
+### Phase 3: Chuẩn Bị Môi Trường Docker Tối Thiểu, Quản Trị Cấu Hình & Quản Lý Test Fixtures (Docker Environment Readiness & Isolated Test Fixtures Setup)
+
+**Thời gian thực hiện**: 28/10/2026  
+**Nhánh Git**: `feature/member-2-dot-4-integration`  
+**Trạng thái**: **ĐÃ HOÀN THÀNH VÀ XÁC THỰC THỰC TẾ (16/16 TESTS PASS 100%)**
+
+---
+
+#### 1. Danh Sách Kiểm Thử Chi Tiết Của Phase 3
+
+| STT | Tên Kiểm Thử | Vị Trí Test Method | Điều Kiện / Mô Tả Kịch Bản | Trạng Thái | Thời Gian |
+|:---:|:---|:---|:---|:---:|:---:|
+| 1 | Xác thực HTTP healthcheck trả về UP khi endpoint phản hồi HTTP 200 | `web-app`: `DockerStackReadinessVerifierTest#shouldReportHealthyWhenEndpointReturns200` | Mock HTTP Server trả JSON `{"status":"UP"}` | **PASS** | 0.082s |
+| 2 | Xác thực HTTP healthcheck trả về DOWN khi endpoint phản hồi 503 | `web-app`: `DockerStackReadinessVerifierTest#shouldReportDownWhenEndpointReturns503` | Mock HTTP Server trả JSON `{"status":"DOWN"}` | **PASS** | 0.005s |
+| 3 | Xác thực TCP probe thành công khi cổng socket mở và lắng nghe | `web-app`: `DockerStackReadinessVerifierTest#shouldReportHealthyForOpenTcpSocket` | Local ServerSocket cổng động | **PASS** | 0.008s |
+| 4 | Xử lý timeout an toàn khi dịch vụ không phản hồi | `web-app`: `DockerStackReadinessVerifierTest#shouldReportDownWhenConnectionTimesOut` | Cổng socket không phản hồi | **PASS** | 0.057s |
+| 5 | Tổng hợp báo cáo sức khỏe toàn stack cho nhiều service | `web-app`: `DockerStackReadinessVerifierTest#shouldAggregateReadinessReportAcrossMultipleServices` | Stack gồm cả HTTP và TCP service | **PASS** | 0.006s |
+| 6 | Sinh định danh kiểm thử cô lập duy nhất với tiền tố an toàn | `web-app`: `IsolatedTestFixtureManagerTest#shouldGenerateUniqueIsolatedIdentitiesWithPrefix` | Prefix `e2e_`, domain `@test.lms.invalid` | **PASS** | 0.002s |
+| 7 | Chặn tạo tài nguyên không có tiền tố an toàn (Prefix Guard) | `web-app`: `IsolatedTestFixtureManagerTest#shouldRejectNonPrefixedResourceCreation` | Cố tạo user hoặc course không có tiền tố `e2e_` -> Ném `SecurityException` | **PASS** | 0.002s |
+| 8 | Chặn xóa tài nguyên dùng chung hoặc không có prefix | `web-app`: `IsolatedTestFixtureManagerTest#shouldRejectCleanupOfNonPrefixedResource` | Cố xóa ID không có prefix -> Ném `SecurityException` | **PASS** | 0.001s |
+| 9 | Ghi nhận và theo dõi các loại fixture (User, Course, Category, Post, MinIO) | `web-app`: `IsolatedTestFixtureManagerTest#shouldTrackCreatedFixturesByType` | Khởi tạo fixture đa loại và kiểm tra danh sách tracked | **PASS** | 0.001s |
+| 10 | Tự động dọn dẹp fixture theo đúng thứ tự an toàn trong close() | `web-app`: `IsolatedTestFixtureManagerTest#shouldExecuteCleanupInReverseOrSafeOrder` | AutoCloseable trigger dọn dẹp và trả summary | **PASS** | 0.002s |
+| 11 | Không nuốt lỗi ngoại lệ của test khi cleanup gặp lỗi | `web-app`: `IsolatedTestFixtureManagerTest#shouldPreservePrimaryTestExceptionWhenCleanupFails` | Cleanup gặp lỗi được gắn vào Suppressed Exception | **PASS** | 0.002s |
+| 12 | Đảm bảo action phục hồi luôn được thực thi trong khối finally | `web-app`: `FaultRecoverySafetyWrapperTest#shouldAlwaysExecuteRecoveryActionEvenWhenTestFails` | Test ném Assertion error -> recovery hook vẫn chạy 100% | **PASS** | 0.003s |
+| 13 | Vòng lặp polling xác nhận container healthy thành công | `web-app`: `FaultRecoverySafetyWrapperTest#shouldPollUntilHealthCheckSucceeds` | Polling lặp lại tới khi probe trả về UP | **PASS** | 0.015s |
+| 14 | Ném lỗi nghiêm trọng khi phục hồi container bị timeout | `web-app`: `FaultRecoverySafetyWrapperTest#shouldThrowCriticalExceptionWhenHealthCheckTimesOut` | Quá thời gian timeout mà container chưa UP | **PASS** | 0.058s |
+| 15 | Bảo toàn ngoại lệ gốc của test khi bước khôi phục thất bại | `web-app`: `FaultRecoverySafetyWrapperTest#shouldPreserveTestFailureWhenRecoveryFails` | Test fail + recovery timeout -> ném lỗi và gắn suppressed | **PASS** | 0.055s |
+| 16 | Kiểm chứng trực tiếp 11/11 container Docker thực tế của Thành viên 2 | `web-app`: `DockerStackReadinessIntegrationTest#verifyLiveMember2DockerStackReadiness` | Chạy trên stack Docker thật: 11/11 container UP & healthy (<20ms) | **PASS** | 0.285s |
+
+---
+
+#### 2. Thống Kê Test Suites & Bằng Chứng Kiểm Thử Docker Thực Tế
+
+- **Thống kê toàn bộ module `web-app`**:
+  * Trước Phase 3: **147/147 tests PASS** (gồm 140 baseline + 4 test BFF Codex + 3 test mở rộng GatewayExceptionHandler).
+  * Sau Phase 3: **162/162 tests PASS 100%** (+15 unit tests mới của Phase 3).
+  * Lệnh chạy: `mvn test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"`.
+  * Thời gian chạy: ~1m12s.
+- **Bằng chứng kiểm chứng Stack Docker 11 Container Thành viên 2 (`DockerStackReadinessIntegrationTest`)**:
+  * Lệnh chạy: `mvn test -f backend/pom.xml -pl web-app "-Dtest=DockerStackReadinessIntegrationTest"`.
+  * Kết quả chi tiết từng dịch vụ:
+    1. `mysql` (TCP :3307): **UP** (độ trễ 4ms)
+    2. `mongodb` (TCP :27017): **UP** (độ trễ 2ms)
+    3. `redis` (TCP :6379): **UP** (độ trễ 2ms)
+    4. `mailpit` (TCP :1025): **UP** (độ trễ 2ms)
+    5. `mailpit-ui` (HTTP `http://localhost:8025`): **UP** (độ trễ 8ms)
+    6. `minio` (HTTP `http://localhost:9000/minio/health/live`): **UP** (độ trễ 5ms)
+    7. `service-registry` (HTTP `http://localhost:8761/actuator/health`): **UP** (độ trễ 12ms)
+    8. `api-gateway` (HTTP `http://localhost:8080/actuator/health`): **UP** (độ trễ 9ms)
+    9. `identity-service` (HTTP `http://localhost:8081/identity/actuator/health`): **UP** (độ trễ 15ms)
+    10. `course-service` (HTTP `http://localhost:8082/course/actuator/health`): **UP** (độ trễ 16ms)
+    11. `blog-service` (HTTP `http://localhost:8084/blog/actuator/health`): **UP** (độ trễ 18ms)
+    12. `web-app` (HTTP `http://localhost:8088/actuator/health`): **UP** (độ trễ 11ms)
+  * Toàn bộ 11/11 container đều phản hồi trạng thái sẵn sàng, độ trễ mạng nội bộ đều dưới 20ms.
+
+---
+
+#### 3. Thiết Kế & Cơ Chế An Toàn Triển Khai Trong Phase 3
+
+1. **`DockerStackReadinessVerifier`**:
+   - Tự động nhận diện cấu hình context-path của các microservice (`/identity`, `/course`, `/blog`).
+   - Cung cấp phương thức tiền kiểm tra (Precondition probe) nhanh trước khi chạy test E2E, phát hiện sớm các sự cố môi trường thay vì để test thất bại bí ẩn giữa chừng.
+2. **`IsolatedTestFixtureManager` & Prefix Guard**:
+   - Sinh danh tính độc lập cho từng lần chạy test (`e2e_<uuid32>@test.lms.invalid`), bảo đảm các lần chạy test song song hoặc liên tiếp không bị xung đột tài nguyên.
+   - Cơ chế bảo vệ **Prefix Guard**: Bất kỳ hành động tạo hoặc xóa tài nguyên nào không mang tiền tố kiểm thử an toàn (`e2e_`, `smoke_`, `e2e/`, `smoke/`) đều bị từ chối và ném `SecurityException`. Tuyệt đối không xóa dữ liệu dùng chung, tài khoản hệ thống hoặc volume Docker.
+   - Hỗ trợ triển khai `AutoCloseable` qua cấu trúc `try-with-resources` hoặc khối `finally`, tổng hợp danh sách dọn dẹp thành `FixtureCleanupSummary`.
+3. **`FaultRecoverySafetyWrapper`**:
+   - Đảm bảo tính bất khả xâm phạm của quy tắc an toàn trong Chaos / Fault Testing: Lệnh khôi phục dịch vụ (`recoveryAction`) được đặt trong khối `finally` không thể bỏ qua.
+   - Tích hợp vòng lặp kiểm tra sức khỏe xác thực dịch vụ đã hoàn toàn bình phục trước khi cho phép tiến trình kiểm thử kết thúc.
+   - Xử lý đa ngoại lệ chuẩn Java (`addSuppressed`) để không che giấu lỗi kiểm thử nghiệp vụ gốc.
+
+---
+
+#### 4. Phạm Vi Đã Kiểm Chứng, Giới Hạn & Điểm Dừng Nghiệm Thu
+
+- **Đã kiểm chứng**:
+  * Bộ công cụ kiểm tra sức khỏe stack và quản lý fixture đã hoàn thành với 15/15 unit test PASS 100%.
+  * 11 container Docker thực tế của Thành viên 2 đã chạy thật, phản hồi UP và kiểm chứng thành công qua integration test.
+  * Toàn bộ 162/162 test của module `web-app` đạt 100% tỷ lệ thành công.
+- **Giới hạn**:
+  * Phase 3 tập trung vào công cụ kiểm tra điều kiện tiên quyết và quản lý fixture; chưa thực thi 4 kịch bản trình duyệt người dùng E2E (thuộc phạm vi Phase 4).
+  * Kiểm thử stack hiện tại dựa trên 11 container của Thành viên 2; chưa bao gồm các container bổ sung của Thành viên 1 (`assignment-service`, `chatbot-service`, Judge0).
+- **Điểm dừng nghiệm thu**:
+  * Đã hoàn thành toàn bộ yêu cầu của Phase 3.
+  * **DỪNG LẠI CHỜ NGHIỆM THU TỪ NGƯỜI DÙNG**, không tự ý triển khai Phase 4.
