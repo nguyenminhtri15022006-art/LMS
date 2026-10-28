@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.28 — Cập nhật và theo dõi tiến độ
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Người học hoàn thành bài theo thao tác giao diện
 F -> B: Yêu cầu chức năng qua API tương ứng

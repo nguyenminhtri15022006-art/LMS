@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 4.1 — Kiến trúc triển khai theo cấu hình source
 top to bottom direction
-node "Trình duyệt / React" as F
+node "Trình duyệt (Thymeleaf/Bootstrap)" as F
 node "Gateway :8080" as G
 node "Eureka :8761" as E
 package "Service nghiệp vụ" {

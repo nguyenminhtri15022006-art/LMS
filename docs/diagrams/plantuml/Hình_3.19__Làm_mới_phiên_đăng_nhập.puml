@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.19 — Làm mới phiên đăng nhập
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Frontend yêu cầu refresh khi cần
 F -> B: Yêu cầu chức năng qua API tương ứng
@@ -25,6 +25,6 @@ F --> U: Cập nhật giao diện
 legend bottom
 Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
 Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
-Căn cứ: identity: AuthenticationServiceImpl.refreshToken;  frontend api.client.js.
+Căn cứ: identity: AuthenticationServiceImpl.refreshToken;  frontend RestClient / Gateway.
 endlegend
 @enduml

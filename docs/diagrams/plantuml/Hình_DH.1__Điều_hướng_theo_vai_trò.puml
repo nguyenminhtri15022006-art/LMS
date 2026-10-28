@@ -17,6 +17,6 @@ U --> S : nhánh STUDENT
 U --> I : nhánh INSTRUCTOR
 U --> A : nhánh ADMIN
 U --> P : logout
-note right of U: PrivateRoute / RoleRoute điều hướng frontend;\nquyền API vẫn phải kiểm tra ở backend.
-note right of P: Chi tiết route lấy từ AppRoutes.jsx.\nKhông suy mọi menu là chức năng đã hoàn thiện.
+note right of U: Spring Security / Role Check điều hướng frontend;\nquyền API vẫn phải kiểm tra ở backend.
+note right of P: Chi tiết route lấy từ SecurityConfig / Controller Routes.\nKhông suy mọi menu là chức năng đã hoàn thiện.
 @enduml

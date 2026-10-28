@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.20 — Cập nhật hồ sơ và ảnh đại diện
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Mở settings và tải myinfo
 F -> B: Yêu cầu chức năng qua API tương ứng

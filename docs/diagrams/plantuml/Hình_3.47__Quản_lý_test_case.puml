@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.47 — Quản lý test case
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Nhập input/output và thuộc tính test
 F -> B: Yêu cầu chức năng qua API tương ứng

@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.33 — Soạn chạy thử và nộp bài lập trình
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Mở bài và soạn code
 F -> B: Yêu cầu chức năng qua API tương ứng

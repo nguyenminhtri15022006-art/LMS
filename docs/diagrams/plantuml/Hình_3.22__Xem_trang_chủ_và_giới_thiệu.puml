@@ -4,7 +4,7 @@ skinparam shadowing false
 hide footbox
 title 3.22 — Xem trang chủ và giới thiệu
 actor "Người thao tác" as U
-participant "React / trình duyệt" as F
+participant "Trình duyệt (Thymeleaf UI)" as F
 participant "Hệ thống chức năng" as B
 U -> F: Mở trang chủ / giới thiệu
 F -> F: Router, layout và nội dung công khai
@@ -13,6 +13,6 @@ note over F: Sơ đồ điều hướng UI; không giả định\nAPI riêng cho
 legend bottom
 Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
 Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
-Căn cứ: frontend: AppRoutes, FallbackRoute, HomePage, AboutUsPage.
+Căn cứ: frontend: SecurityConfig, FallbackRoute, HomePage, AboutUsPage.
 endlegend
 @enduml
