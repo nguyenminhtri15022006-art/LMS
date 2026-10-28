@@ -1,6 +1,6 @@
 const { test, describe, before, after } = require('node:test');
 const assert = require('node:assert/strict');
-const { randomUUID } = require('node:crypto');
+const { randomUUID, randomBytes } = require('node:crypto');
 const { chromium } = require('@playwright/test');
 const { Fixtures, png } = require('./support/e2e-fixtures');
 const {
@@ -241,11 +241,30 @@ describe('Comprehensive 4-Flow End-to-End Test Suite (E2E TDD)', { timeout: 3000
 
             assert.ok(createdCourse.thumbnail_url, 'Course thumbnail_url must be populated');
             const thumbUrl = new URL(createdCourse.thumbnail_url);
+            assert.ok(thumbUrl.pathname.startsWith('/lms-course-bucket/thumbnails/'), 'Thumbnail URL must be in course bucket thumbnails folder');
             const thumbPath = thumbUrl.pathname.replace(/^\/lms-course-bucket\//, '');
-            await fixtures.minio.putObject(fixtures.courseBucket, thumbPath, png, png.length, { 'Content-Type': 'image/png' });
             fixtures.trackMinioObject(fixtures.courseBucket, thumbPath);
+
+            // 1. Chỉ đọc MinIO để xác minh object tồn tại và có content-type phù hợp
             const minioStat = await fixtures.minio.statObject(fixtures.courseBucket, thumbPath);
             assert.ok(minioStat.size > 0, 'Thumbnail must exist in MinIO lms-course-bucket');
+            const contentType = minioStat.metaData?.['content-type'] || minioStat.metaData?.['Content-Type'];
+            assert.equal(contentType, 'image/png', 'Thumbnail Content-Type must be image/png');
+
+            // 2. Nội dung ảnh trong MinIO khớp file test đã upload
+            const objectStream = await fixtures.minio.getObject(fixtures.courseBucket, thumbPath);
+            const downloadedChunks = [];
+            for await (const chunk of objectStream) {
+                downloadedChunks.push(chunk);
+            }
+            const downloadedBuffer = Buffer.concat(downloadedChunks);
+            assert.deepEqual(downloadedBuffer, png, 'MinIO stored image content must match uploaded png bytes');
+
+            // 3. Kiểm tra ảnh tải được từ URL mà giao diện thực sự dùng
+            const imgRes = await page.request.get(createdCourse.thumbnail_url);
+            assert.equal(imgRes.status(), 200, 'Thumbnail must be downloadable via its public URL');
+            const imgBuffer = await imgRes.body();
+            assert.deepEqual(imgBuffer, png, 'Image downloaded from public URL must match uploaded png bytes');
 
             // 4. GET /instructor/courses/{id}/manage
             const manageRes = await page.goto(`${WEBAPP_URL}/instructor/courses/${createdCourseId}/manage`);
@@ -306,7 +325,7 @@ describe('Comprehensive 4-Flow End-to-End Test Suite (E2E TDD)', { timeout: 3000
     // =========================================================================
     // E2E FLOW 3: BLOG & FORUM (TÁC GIẢ & ĐỘC GIẢ)
     // =========================================================================
-    test('Flow 3: Blog & Diễn đàn - Viết bài Markdown có thumbnail MinIO, tăng view count atomic, bình luận 2 cấp, từ chối cấp 3 & Vote', async t => {
+    test('Flow 3: Blog & Diễn đàn - Viết bài Markdown có thumbnail MinIO, tăng view count tuần tự, bình luận 2 cấp, từ chối cấp 3 & Vote qua HTTP E2E session', async t => {
         const authorPage = await pageFor(t);
         const readerPage = await pageFor(t);
 
@@ -456,7 +475,7 @@ describe('Comprehensive 4-Flow End-to-End Test Suite (E2E TDD)', { timeout: 3000
     // =========================================================================
     // E2E FLOW 4: QUẢN TRỊ ADMIN (ROLE_ADMIN)
     // =========================================================================
-    test('Flow 4: Quản trị Admin - Dashboard KPIs, tạo Category/Tag, khóa User (chặn đăng nhập), khóa Khóa học (loại khỏi catalog), tạo Admin mới & RBAC 403', async t => {
+    test('Flow 4: Quản trị Admin - Dashboard KPIs, tạo Category/Tag, khóa User (chặn đăng nhập), khóa Khóa học (loại khỏi catalog), tạo Admin mới & RBAC 403 qua HTTP E2E session', async t => {
         const adminPage = await pageFor(t);
         const studentPage = await pageFor(t);
 
@@ -479,9 +498,14 @@ describe('Comprehensive 4-Flow End-to-End Test Suite (E2E TDD)', { timeout: 3000
         let createdTagId = null;
         let newAdminAccount = null;
 
+        const adminUsername = process.env.SMOKE_ADMIN_USERNAME || process.env.BOOTSTRAP_ADMIN_USERNAMES;
+        const adminPassword = process.env.SMOKE_ADMIN_PASSWORD || process.env.BOOTSTRAP_ADMIN_PASSWORDS;
+        assert.ok(adminUsername, 'Environment variable SMOKE_ADMIN_USERNAME or BOOTSTRAP_ADMIN_USERNAMES must be set');
+        assert.ok(adminPassword, 'Environment variable SMOKE_ADMIN_PASSWORD or BOOTSTRAP_ADMIN_PASSWORDS must be set');
+
         try {
-            // 3. Admin POST /login
-            await loginUserViaUi(adminPage, 'admin', 'admin123');
+            // 3. Admin POST /login (lấy credentials từ biến môi trường bắt buộc, không hardcode)
+            await loginUserViaUi(adminPage, adminUsername, adminPassword);
 
             // 4. GET /admin/dashboard
             const dashRes = await adminPage.goto(`${WEBAPP_URL}/admin/dashboard`);
@@ -553,12 +577,12 @@ describe('Comprehensive 4-Flow End-to-End Test Suite (E2E TDD)', { timeout: 3000
             const coursesCatalogHtml = await adminPage.content();
             assert.ok(!coursesCatalogHtml.includes(`Course To Lock ${targetCourseId.substring(0, 8)}`), 'Locked course must not appear on public catalog');
 
-            // 9. POST /admin/users/admins (tạo tài khoản Quản trị viên mới)
+            // 9. POST /admin/users/admins (tạo tài khoản Quản trị viên mới với mật khẩu ngẫu nhiên in-memory)
             const newAdminUsername = `e2e_${randomUUID().replaceAll('-', '')}`;
             newAdminAccount = {
                 username: newAdminUsername,
                 email: `${newAdminUsername}@test.lms.invalid`,
-                password: 'AdminPassword123!',
+                password: randomBytes(24).toString('base64url') + 'A1!',
                 role: 'ADMIN'
             };
             fixtures.accounts.push(newAdminAccount);

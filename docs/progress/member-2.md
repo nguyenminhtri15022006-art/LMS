@@ -3513,55 +3513,74 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 
 - **Thời gian hoàn thành**: 28/10/2026.
 - **Nhánh Git**: `feature/member-2-dot-4-integration`.
-- **Mục tiêu**: Xây dựng và thực thi bộ kiểm thử toàn trình 4 luồng nghiệp vụ E2E TDD theo đúng route controller thật của Web-App BFF (:8088), đi qua API Gateway (:8080) tới các kho dữ liệu thật (MySQL container :3306, host :3307; MongoDB :27017; MinIO :9000; Mailpit :8025).
+- **Mục tiêu**: Xây dựng và thực thi bộ kiểm thử toàn trình 4 luồng nghiệp vụ E2E TDD theo đúng route controller thật của Web-App BFF (:8088), đi qua API Gateway (:8080) tới các kho dữ liệu thật (MySQL container :3306, host :3307; MongoDB :27017; MinIO :9000; Mailpit :8025), đảm bảo an toàn tuyệt đối cho lifecycle fixture, zero mock/fake data và loại bỏ toàn bộ mật khẩu hardcode.
 
 #### 1. Kết Quả Thực Thi 4 Luồng Nghiệp Vụ E2E
 
 - **Lệnh thực thi**:
   ```powershell
-  $env:SMOKE_MINIO_BUCKET="lms-identity-bucket"; $env:SMOKE_MINIO_ACCESS_KEY="minioadmin"; $env:SMOKE_MINIO_SECRET_KEY="minioadmin123"; $env:SMOKE_DB_USER="root"; $env:SMOKE_DB_PASSWORD="mysqladmin123"; $env:SMOKE_DB_HOST="127.0.0.1"; $env:SMOKE_DB_PORT="3307"; $env:SMOKE_WEBAPP_URL="http://localhost:8088"; $env:SMOKE_MAILPIT_URL="http://localhost:8025"; $env:SMOKE_MINIO_URL="http://localhost:9000"; $env:SMOKE_GATEWAY_URL="http://localhost:8080"; $env:NODE_PATH="D:\LMS-main\backend\web-app\node_modules"; node --test backend/web-app/src/test/js/four-flows.e2e.test.js
+  $env:NODE_PATH="D:\LMS-main\backend\web-app\node_modules"; node --env-file=.env --test backend/web-app/src/test/js/four-flows.e2e.test.js
   ```
-- **Kết quả tổng thể**: **4/4 PASS 100%**, 0 Failures, 0 Cancelled, 0 Skipped (thời gian: 24.1 giây).
+- **Kết quả tổng thể**: **4/4 PASS 100%**, 0 Failures, 0 Cancelled, 0 Skipped (thời gian: ~27.7 giây).
 
 | STT | Luồng Nghiệp Vụ | Vai Trò & Tuyến Đi Thực Tế | CSDL Thực & Assertions Nghiệp Vụ | Thời Gian Chạy | Kết Quả |
 |:---:|---|---|---|:---:|:---:|
-| 1 | **Flow 1**: Học viên (ROLE_STUDENT) | `GET /register` -> `POST /register` -> Đọc OTP từ API Mailpit (:8025) -> `POST /verify-email` -> `POST /login` -> `GET /courses` -> `POST /courses/{id}/enroll` -> `GET /learn/{courseId}` -> `POST /learn/{courseId}/lessons/{lessonId}/complete` | - HTTP 200/302, session cookie `JSESSIONID` hợp lệ.<br>- MySQL `identity_lms.users`: `is_active = 1`, `is_verified = 1`.<br>- MySQL `course_lms.enrollments`: `status = 'ACTIVE'`.<br>- MySQL `course_lms.lesson_progress`: `is_completed = 1`.<br>- MongoDB `course_structures`: lưu trữ cây FOLDER/LESSON. | 5.28s | **PASS** |
-| 2 | **Flow 2**: Giảng viên (ROLE_TEACHER) | `POST /login` -> `GET /instructor/courses/new` -> `POST /instructor/courses/new` (Multipart PNG) -> `GET /instructor/courses/{id}/manage` -> `POST /instructor/courses/{id}/structure/nodes` (thêm Chapter & Lesson) -> `POST /instructor/courses/{id}/edit` (`status = 'PUBLIC'`) | - MySQL `courses.status = 'PUBLIC'`.<br>- MinIO `lms-course-bucket`: thumbnail upload thành công.<br>- MongoDB `course_structures`: cây cấu trúc 2 nodes (`folder` & `lesson`).<br>- Khóa học hiển thị trên catalog public `/courses`. | 4.26s | **PASS** |
-| 3 | **Flow 3**: Blog & Diễn đàn | Tác giả `POST /blog/new` (Markdown + Multipart PNG thumbnail) -> Độc giả `GET /blog/{slug}` -> `POST /blog/posts/{id}/comments` (Cấp 1) -> `POST /blog/posts/{id}/comments` kèm `parentId` (Cấp 2) -> Thử gửi comment Cấp 3 (bị từ chối) -> `POST /blog/posts/{id}/vote` | - MySQL `blog_lms.posts`: `status = 'PUBLISHED'`, `view_count` tăng nguyên tử (tác giả xem: 1, độc giả xem: 2).<br>- MinIO `lms-blog-bucket`: thumbnail lưu trữ thành công.<br>- MySQL `comments`: Cấp 1 `parent_id = NULL`, Cấp 2 `parent_id = comment1Id`.<br>- Comment Cấp 3: HTTP 400 Bad Request, mã lỗi nghiệp vụ `4206` (`CANNOT_REPLY_TO_REPLY`).<br>- MySQL `votes`: ghi nhận bản ghi `UPVOTE` chính xác. | 3.07s | **PASS** |
-| 4 | **Flow 4**: Quản trị Admin (ROLE_ADMIN) | `POST /login` -> `GET /admin/dashboard` (KPIs) -> `POST /admin/categories` -> `POST /admin/tags` -> `POST /admin/users/{id}/toggle-active` (khóa học viên) -> Thử đăng nhập user bị khóa -> `POST /admin/courses/{id}/lock` -> `POST /admin/users/admins` (tạo admin) -> Học viên gọi `/admin/dashboard` (RBAC) | - MySQL `course_lms.categories`: category mới lưu trữ thành công.<br>- MySQL `blog_lms.tags`: tag mới lưu trữ thành công.<br>- MySQL `identity_lms.users`: user bị khóa có `is_active = 0`; đăng nhập bị từ chối.<br>- MySQL `course_lms.courses`: `status = 'LOCKED'`; biến mất khỏi danh sách `/courses` (catalog lọc `status=PUBLIC`).<br>- MySQL `identity_lms.users`: admin mới có `role = 'ADMIN'`, `is_active = 1`.<br>- RBAC: Học viên thường truy cập `/admin/dashboard` nhận HTTP **403 Forbidden**. | 5.57s | **PASS** |
+| 1 | **Flow 1**: Học viên (ROLE_STUDENT) | `GET /register` -> `POST /register` -> Đọc OTP từ API Mailpit (:8025) -> `POST /verify-email` -> `POST /login` -> `GET /courses` -> `POST /courses/{id}/enroll` -> `GET /learn/{courseId}` -> `POST /learn/{courseId}/lessons/{lessonId}/complete` | - HTTP 200/302, session cookie `JSESSIONID` hợp lệ.<br>- MySQL `identity_lms.users`: `is_active = 1`, `is_verified = 1`.<br>- MySQL `course_lms.enrollments`: `status = 'ACTIVE'`.<br>- MySQL `course_lms.lesson_progress`: `is_completed = 1`.<br>- MongoDB `course_structures`: lưu trữ cây FOLDER/LESSON. | 7.91s | **PASS** |
+| 2 | **Flow 2**: Giảng viên (ROLE_TEACHER) | `POST /login` -> `GET /instructor/courses/new` -> `POST /instructor/courses/new` (Multipart PNG) -> `GET /instructor/courses/{id}/manage` -> `POST /instructor/courses/{id}/structure/nodes` (thêm Chapter & Lesson) -> `POST /instructor/courses/{id}/edit` (`status = 'PUBLIC'`) | - MySQL `courses.status = 'PUBLIC'`.<br>- MinIO `lms-course-bucket`: upload thumbnail thật qua ứng dụng (`course-service`), content-type `image/png`, binary byte-match 100% với `png` test buffer, tải thành công qua public URL.<br>- MongoDB `course_structures`: cây cấu trúc 2 nodes (`folder` & `lesson`).<br>- Khóa học hiển thị trên catalog public `/courses`. | 6.31s | **PASS** |
+| 3 | **Flow 3**: Blog & Diễn đàn | Tác giả `POST /blog/new` (Markdown + Multipart PNG thumbnail) -> Độc giả `GET /blog/{slug}` -> `POST /blog/posts/{id}/comments` (Cấp 1) -> `POST /blog/posts/{id}/comments` kèm `parentId` (Cấp 2) -> Thử gửi comment Cấp 3 (bị từ chối) -> `POST /blog/posts/{id}/vote` (qua HTTP E2E session) | - MySQL `blog_lms.posts`: `status = 'PUBLISHED'`, `view_count` tăng tuần tự sau mỗi lần đọc (tác giả xem: 1, độc giả xem: 2).<br>- MinIO `lms-blog-bucket`: thumbnail lưu trữ thành công.<br>- MySQL `comments`: Cấp 1 `parent_id = NULL`, Cấp 2 `parent_id = comment1Id`.<br>- Comment Cấp 3: HTTP 400 Bad Request, mã lỗi nghiệp vụ `4206` (`CANNOT_REPLY_TO_REPLY`).<br>- MySQL `votes`: ghi nhận bản ghi `UPVOTE` chính xác. | 4.10s | **PASS** |
+| 4 | **Flow 4**: Quản trị Admin (ROLE_ADMIN) | `POST /login` (Admin từ biến môi trường `SMOKE_ADMIN_*` / `BOOTSTRAP_ADMIN_*`) -> `GET /admin/dashboard` (KPIs) -> `POST /admin/categories` -> `POST /admin/tags` -> `POST /admin/users/{id}/toggle-active` (khóa học viên) -> Thử đăng nhập user bị khóa -> `POST /admin/courses/{id}/lock` -> `POST /admin/users/admins` (tạo admin với mật khẩu ngẫu nhiên in-memory) -> Học viên gọi `/admin/dashboard` (RBAC) | - MySQL `course_lms.categories`: category mới lưu trữ thành công.<br>- MySQL `blog_lms.tags`: tag mới lưu trữ thành công.<br>- MySQL `identity_lms.users`: user bị khóa có `is_active = 0`; đăng nhập bị từ chối.<br>- MySQL `course_lms.courses`: `status = 'LOCKED'`; biến mất khỏi danh sách `/courses` (catalog lọc `status=PUBLIC`).<br>- MySQL `identity_lms.users`: admin mới có `role = 'ADMIN'`, `is_active = 1`.<br>- RBAC: Học viên thường truy cập `/admin/dashboard` nhận HTTP **403 Forbidden**. | 6.76s | **PASS** |
 
 ---
 
 #### 2. Các Lỗi Kỹ Thuật Đã Phát Hiện & Khắc Phục Triệt Để
 
-1. **Khắc phục lỗi HTTP PATCH của Java HttpURLConnection (`GatewayClient` & `RestClientConfig`)**:
-   - *Triệu chứng*: Khi gọi `POST /admin/users/{id}/toggle-active`, BFF gọi `gatewayClient.patch("/identity/admin/users/" + id + "/active")` dẫn đến lỗi `I/O error on PATCH request: Invalid HTTP method: PATCH` do `SimpleClientHttpRequestFactory` của JDK mặc định không hỗ trợ phương thức PATCH.
-   - *Khắc phục*: Tích hợp `JdkClientHttpRequestFactory` vào `RestClientConfig` (chạy trên môi trường runtime `prod`), cho phép client sử dụng Java 11+ HttpClient hỗ trợ đầy đủ PATCH; đồng thời cấu hình có điều kiện `!env.getActiveProfiles().contains("test")` để bảo toàn khả năng mock request của `@AutoConfigureMockRestServiceServer` trong các unit test.
-   - *Xử lý body null*: Cập nhật `GatewayClient.java` (các phương thức `post`, `put`, `patch`) để kiểm tra `if (requestBody != null) spec.body(requestBody);`, tránh `NullPointerException` khi gọi API downstream không yêu cầu body.
-2. **Ngăn chặn đệ quy vô hạn trong dựng cây đề cương (`CourseStudentController.buildTree`)**:
-   - *Triệu chứng*: Khi gọi `GET /courses/{id}` hoặc `POST /courses/{id}/enroll`, hàm `buildTree` gặp lỗi `StackOverflowError` nếu node con FOLDER có `id == null` hoặc trùng với `parentId`, dẫn đến đệ quy lặp lại cùng một node gốc vô hạn.
-   - *Khắc phục*: Thêm điều kiện chặn `dto.getId() != null && !Objects.equals(dto.getId(), parentId)` trước khi đệ quy duyệt node con; đồng thời bổ sung `_id` trong fixture MongoDB để Spring Data MongoDB map chính xác `StructureNode.id`.
-3. **Chuẩn hóa giá trị mặc định cho bài học & tiến độ (`lessonType`)**:
-   - *Triệu chứng*: Bảng MySQL `course_lms.lesson_progress` có ràng buộc NOT NULL cho cột `lesson_type`. Nếu gọi complete lesson không có `lessonType`, MySQL ném lỗi `Column 'lesson_type' cannot be null` (HTTP 500).
-   - *Khắc phục*: Trong `CourseStudentController.completeLesson`, tự động gán fallback `payload.put("lessonType", "DOCUMENT")` nếu body không truyền `lessonType`; đồng thời cập nhật kịch bản E2E truyền rõ `data: { lessonType: 'DOCUMENT' }`.
-4. **Lọc khóa học công khai trong Catalog (`CourseStudentController.catalogPage`)**:
-   - *Triệu chứng*: Catalog công khai `/courses` gọi gateway `/course/courses` không truyền param `status`, khiến các khóa học đã bị khóa (`LOCKED`) hoặc `PRIVATE` vẫn xuất hiện trên trang sinh viên.
-   - *Khắc phục*: Thêm `status=PUBLIC` mặc định vào URI truy vấn danh mục: `/course/courses?status=PUBLIC&page=...`. Khi Admin khóa khóa học, khóa học lập tức biến mất khỏi catalog công khai.
-5. **Sửa tên cột trong cleanup Fixture**:
-   - Bảng `course_lms.enrollments` sử dụng cột `user_id` (không phải `student_id`). Đã sửa câu lệnh dọn dẹp trong `four-flows.e2e.test.js:192` thành `DELETE FROM enrollments WHERE user_id = ?`.
+1. **Khắc phục 5 lỗi an toàn & sở hữu fixture (`e2e-fixtures.js` & `phase4-fixture-verification.test.js`)**:
+   - *A. Không nuốt lỗi MongoDB cleanup*: `cleanupCourse` bắt ngoại lệ từ `mongoExec`, lưu vào danh sách lỗi và tổng hợp ném ra ở cuối chu trình, vẫn đảm bảo dọn dẹp tiếp MySQL/MinIO.
+   - *B. Không nuốt lỗi MinIO cleanup*: Bỏ toàn bộ `catch (ignored) {}` khi xóa object MinIO trong `cleanupPost`, `cleanupCourse` và `cleanupAccount`. Mọi lỗi xóa object đều khiến test/after hook báo lỗi thay vì cảnh báo console.
+   - *C. Chặn cleanup tài nguyên không thuộc sổ sở hữu*: Các hàm `cleanupCourse/Post/Category/Tag` kiểm tra sổ sở hữu (`this.courses`, `this.posts`, `this.categories`, `this.tags`), từ chối và ném lỗi ngay lập tức trước khi chạm vào CSDL/storage; đồng thời hỗ trợ gọi lại an toàn (idempotent) qua các `Set` theo dõi (`cleanedCourses`, `cleanedPosts`, v.v.).
+   - *D. Chặn prefix xóa MinIO diện rộng*: `removeObjects` từ chối các prefix nguy hiểm như `avatars/`, `thumbnails/`, `smoke/`, `e2e/`, `/`, `""`. Chỉ cho phép exact key hoặc prefix có định danh cụ thể với độ dài an toàn (`avatars/${id}-`).
+   - *E. Theo dõi tài khoản ngay khi tạo*: Trong `instructorAccount()`, tài khoản được đưa vào sổ theo dõi `this.accounts.push(account)` ngay sau khi API đăng ký trả về 200, trước khi bước gửi/xác thực OTP có thể gặp lỗi. Khi OTP lỗi, cleanup vẫn dọn dẹp sạch sẽ tài khoản, email Mailpit và token.
+2. **Khắc phục assertion upload thumbnail Flow 2 và chuẩn hóa `MinioServiceImpl` trong `course-service`**:
+   - *Đính chính*: Trước đây bài test có bước chèn thủ công `fixtures.minio.putObject(...)` trước khi gọi `statObject`. Đã loại bỏ hoàn toàn bước ghi đè này.
+   - *Mã nguồn thực tế*: `MinioServiceImpl.java` trong `course-service` trước đó là bản stub trả URL giả định. Đã đối chiếu với project mẫu `Learning-Management-System-main`, chuyển sang triển khai thực tế gọi `minioClient.putObject(...)`, bổ sung `@Qualifier("minioClient")` vào constructor để tương thích trọn vẹn với cả môi trường production và mock test context.
+   - *Kiểm chứng thực tế*: Test Flow 2 upload file PNG qua form UI, sau đó chỉ đọc MinIO để xác minh: object tồn tại, Content-Type là `image/png`, nội dung binary khớp hoàn toàn file PNG test, và ảnh tải được từ URL giao diện thực tế.
+3. **Loại bỏ hoàn toàn mật khẩu hardcode**:
+   - Tài khoản Admin kiểm thử lấy từ biến môi trường bắt buộc `SMOKE_ADMIN_USERNAME` và `SMOKE_ADMIN_PASSWORD` (với fallback sang `BOOTSTRAP_ADMIN_*` trong file `.env` cục bộ), không có fallback hardcode.
+   - Mật khẩu các tài khoản fixture (học viên, giảng viên, admin mới) sinh ngẫu nhiên in-memory bằng `randomBytes(24).toString('base64url') + 'A1!'`.
+   - File `.env.example` chỉ chứa placeholder `replace-with-...`, tuyệt đối không in secret khi debug hay báo cáo.
+4. **Khắc phục lỗi HTTP PATCH của Java HttpURLConnection (`GatewayClient` & `RestClientConfig`)**:
+   - Tích hợp `JdkClientHttpRequestFactory` vào `RestClientConfig` (chạy trên runtime `prod`), hỗ trợ đầy đủ HTTP PATCH cho Java 11+; cô lập điều kiện `!test` để bảo toàn MockMvc trong unit test.
+   - Thêm null-check body trong `GatewayClient.java` tránh `NullPointerException`.
+5. **Ngăn chặn đệ quy vô hạn trong dựng cây đề cương (`CourseStudentController.buildTree`)**:
+   - Chặn đệ quy khi `dto.getId() == null` hoặc trùng `parentId`.
+6. **Chuẩn hóa giá trị mặc định cho bài học & tiến độ (`lessonType`)**:
+   - Tự động gán fallback `lessonType = "DOCUMENT"` tránh vi phạm ràng buộc NOT NULL của MySQL `course_lms.lesson_progress`.
+7. **Lọc khóa học công khai trong Catalog (`CourseStudentController.catalogPage`)**:
+   - Thêm param `status=PUBLIC` mặc định vào URI truy vấn danh mục khóa học để các khóa học `LOCKED` lập tức bị ẩn khỏi học viên.
+8. **Sửa tên cột trong cleanup Fixture**:
+   - Sửa cột dọn dẹp bảng `course_lms.enrollments` từ `student_id` thành `user_id`.
 
 ---
 
 #### 3. Bằng Chứng Kiểm Thử Toàn Diện Hệ Thống (Verification Evidence)
 
-1. **Bộ kiểm thử toàn trình 4 luồng E2E**:
-   - `node --test backend/web-app/src/test/js/four-flows.e2e.test.js` -> **4/4 tests PASS 100%** (24.1s).
-2. **Bộ kiểm thử đơn vị JavaScript Web-App**:
-   - `npm.cmd test --prefix backend/web-app` -> **53/53 tests PASS 100%** (4.0s).
+1. **Bộ kiểm thử chẩn đoán an toàn fixture Codex**:
+   - `node --test backend/web-app/src/test/js/phase4-fixture-verification.test.js` -> **5/5 tests PASS 100%** (0.29s).
+2. **Bộ kiểm thử đơn vị JavaScript Web-App (kèm fixture safety)**:
+   - `npm.cmd test --prefix backend/web-app` -> **58/58 tests PASS 100%** (30.5s).
 3. **Toàn bộ bộ kiểm thử Java Web-App**:
-   - `mvn test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"` -> **172/172 tests PASS 100%** (24.1s).
-4. **Kiểm tra sức khỏe 11 Container Docker**:
-   - `mvn test -f backend/pom.xml -pl web-app -Pdocker-smoke "-Dtest=DockerStackReadinessIntegrationTest"` -> **11/11 services UP / Healthy** (mysql, mongodb, redis, minio, mailpit, service-registry, api-gateway, identity-service, course-service, blog-service, web-app).
+   - `mvn clean test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"` -> **172/172 tests PASS 100%** (57.6s).
+4. **Toàn bộ bộ kiểm thử Java Course-Service**:
+   - `mvn test -f backend/pom.xml -pl course-service` -> **67/67 tests PASS 100%** (67.0s).
+5. **Kiểm tra sức khỏe 11 Container Docker**:
+   - `mvn test -f backend/pom.xml -pl web-app -Pdocker-smoke "-Dtest=DockerStackReadinessIntegrationTest"` -> **11/11 services UP / Healthy**.
+6. **Bộ kiểm thử toàn trình 4 luồng E2E**:
+   - `node --env-file=.env --test backend/web-app/src/test/js/four-flows.e2e.test.js` -> **4/4 tests PASS 100%** (27.7s).
+7. **Kiểm chứng Zero-Leak sau khi kết thúc E2E**:
+   - MySQL `identity_lms.users WHERE user_name LIKE 'e2e_%'`: **0 bản ghi**.
+   - MySQL `course_lms.courses WHERE title LIKE 'E2E Flow 2 Course%'`: **0 bản ghi**.
+   - MySQL `blog_lms.posts WHERE title LIKE 'E2E Flow 3 Blog%'`: **0 bản ghi**.
+   - MongoDB `course_structures`: **0 documents**.
 
 ---
 

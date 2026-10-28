@@ -15,13 +15,18 @@ async function request(url, options = {}) {
 
 class Fixtures {
     constructor() {
-        this.bucket = requiredEnv('SMOKE_MINIO_BUCKET');
-        this.courseBucket = process.env.SMOKE_MINIO_COURSE_BUCKET || 'lms-course-bucket';
-        this.blogBucket = process.env.SMOKE_MINIO_BLOG_BUCKET || 'lms-blog-bucket';
+        this.bucket = process.env.SMOKE_MINIO_BUCKET || process.env.MINIO_IDENTITY_BUCKET || 'lms-identity-bucket';
+        this.courseBucket = process.env.SMOKE_MINIO_COURSE_BUCKET || process.env.MINIO_BUCKET || 'lms-course-bucket';
+        this.blogBucket = process.env.SMOKE_MINIO_BLOG_BUCKET || process.env.MINIO_BLOG_BUCKET || 'lms-blog-bucket';
         this.mailpit = process.env.SMOKE_MAILPIT_URL || 'http://localhost:8025';
-        this.minioUrl = process.env.SMOKE_MINIO_URL || 'http://localhost:9000';
+        this.minioUrl = process.env.SMOKE_MINIO_URL || process.env.MINIO_PUBLIC_URL || 'http://localhost:9000';
         this.gatewayUrl = process.env.SMOKE_GATEWAY_URL || 'http://localhost:8080';
         this.webappUrl = process.env.SMOKE_WEBAPP_URL || 'http://localhost:8088';
+
+        const minioAccessKey = process.env.SMOKE_MINIO_ACCESS_KEY || process.env.MINIO_ACCESS_KEY || process.env.MINIO_ROOT_USER;
+        const minioSecretKey = process.env.SMOKE_MINIO_SECRET_KEY || process.env.MINIO_SECRET_KEY || process.env.MINIO_ROOT_PASSWORD;
+        assert.ok(minioAccessKey, 'MinIO access key must be provided via SMOKE_MINIO_ACCESS_KEY or MINIO_ACCESS_KEY/MINIO_ROOT_USER');
+        assert.ok(minioSecretKey, 'MinIO secret key must be provided via SMOKE_MINIO_SECRET_KEY or MINIO_SECRET_KEY/MINIO_ROOT_PASSWORD');
 
         const url = new URL(this.minioUrl);
         this.minio = new Client({
@@ -29,15 +34,19 @@ class Fixtures {
             port: Number(url.port || (url.protocol === 'https:' ? 443 : 80)),
             useSSL: url.protocol === 'https:',
             region: 'us-east-1',
-            accessKey: requiredEnv('SMOKE_MINIO_ACCESS_KEY'),
-            secretKey: requiredEnv('SMOKE_MINIO_SECRET_KEY')
+            accessKey: minioAccessKey,
+            secretKey: minioSecretKey
         });
+
+        const dbUser = process.env.SMOKE_DB_USER || process.env.MYSQL_ROOT_USERNAME || 'root';
+        const dbPassword = process.env.SMOKE_DB_PASSWORD || process.env.MYSQL_ROOT_PASSWORD;
+        assert.ok(dbPassword, 'MySQL root password must be provided via SMOKE_DB_PASSWORD or MYSQL_ROOT_PASSWORD');
 
         this.dbConfig = {
             host: process.env.SMOKE_DB_HOST || '127.0.0.1',
             port: Number(process.env.SMOKE_DB_PORT || 3307),
-            user: requiredEnv('SMOKE_DB_USER'),
-            password: requiredEnv('SMOKE_DB_PASSWORD'),
+            user: dbUser,
+            password: dbPassword,
             database: 'identity_lms',
             connectTimeout: 10000
         };
@@ -48,6 +57,11 @@ class Fixtures {
         this.tags = [];
         this.posts = [];
         this.minioObjects = [];
+        this.cleanedCourses = new Set();
+        this.cleanedCategories = new Set();
+        this.cleanedTags = new Set();
+        this.cleanedPosts = new Set();
+        this.cleanedAccounts = new Set();
         this.corsKey = `smoke/${randomUUID()}/cors.png`;
     }
 
@@ -78,7 +92,7 @@ class Fixtures {
         const account = {
             username,
             email: `${username}@test.lms.invalid`,
-            password: 'InstructorPass123!',
+            password: randomBytes(24).toString('base64url') + 'A1!',
             fullname: 'Giang Vien EtoE',
             role: 'INSTRUCTOR'
         };
@@ -100,6 +114,9 @@ class Fixtures {
         });
         assert.equal(regRes.status, 200, `Instructor registration failed: ${regRes.status}`);
 
+        // Track immediately so cleanup finds account even if OTP delivery or verification fails
+        this.accounts.push(account);
+
         // Trigger OTP delivery
         const sendRes = await fetch(`${this.gatewayUrl}/api/identity/auth/verify-email/send`, {
             method: 'POST',
@@ -117,7 +134,6 @@ class Fixtures {
         });
         assert.equal(verRes.status, 200, `Instructor verify failed: ${verRes.status}`);
 
-        this.accounts.push(account);
         return account;
     }
 
@@ -155,7 +171,17 @@ class Fixtures {
     }
 
     async removeObjects(prefix, bucket = this.bucket) {
-        assert.ok(prefix.startsWith('avatars/') || prefix.startsWith('thumbnails/') || prefix === this.corsKey || prefix.startsWith('smoke/') || prefix.startsWith('e2e/'));
+        assert.ok(typeof prefix === 'string' && prefix.length > 0, 'Prefix must be a non-empty string');
+        const broadPrefixes = ['avatars/', 'avatars', 'thumbnails/', 'thumbnails', 'smoke/', 'smoke', 'e2e/', 'e2e', '/', ''];
+        assert.ok(!broadPrefixes.includes(prefix), `Broad prefix "${prefix}" is forbidden`);
+        assert.ok(
+            prefix === this.corsKey ||
+            (prefix.startsWith('avatars/') && prefix.length > 18) ||
+            (prefix.startsWith('thumbnails/') && prefix.length > 20) ||
+            (prefix.startsWith('smoke/') && prefix.length > 15) ||
+            (prefix.startsWith('e2e/') && prefix.length > 15),
+            `Prefix "${prefix}" is too broad or unauthorized`
+        );
         for await (const object of this.minio.listObjectsV2(bucket, prefix, true)) {
             assert.ok(object.name.startsWith(prefix));
             await this.minio.removeObject(bucket, object.name);
@@ -211,92 +237,207 @@ class Fixtures {
 
     async cleanupCourse(courseId) {
         if (!courseId) return;
-        // Clean MongoDB
+        assert.ok(this.courses.includes(courseId), `Course ${courseId} is not owned by this fixture`);
+        if (this.cleanedCourses.has(courseId)) return;
+
+        const errors = [];
+
+        // 1. Clean MongoDB
         try {
             this.mongoExec(`db.getSiblingDB('course_lms').course_structures.deleteMany({ courseId: '${courseId}' })`);
             this.mongoExec(`db.getSiblingDB('course_lms').lessons.deleteMany({ courseId: '${courseId}' })`);
         } catch (e) {
-            console.warn(`Mongo cleanup error for course ${courseId}:`, e.message);
+            errors.push(e);
         }
 
-        // Clean MySQL
+        // 2. Clean MinIO thumbnail & MySQL
         if (this.courseDb) {
-            const [cRows] = await this.courseDb.execute('SELECT thumbnail_url FROM courses WHERE id = ?', [courseId]);
-            if (cRows.length && cRows[0].thumbnail_url) {
-                try {
-                    const u = new URL(cRows[0].thumbnail_url);
-                    const path = u.pathname.replace(/^\/lms-course-bucket\//, '');
-                    await this.minio.removeObject(this.courseBucket, path);
-                } catch (ignored) {}
+            try {
+                const [cRows] = await this.courseDb.execute('SELECT thumbnail_url FROM courses WHERE id = ?', [courseId]);
+                if (cRows.length && cRows[0].thumbnail_url) {
+                    try {
+                        const u = new URL(cRows[0].thumbnail_url);
+                        const path = u.pathname.replace(/^\/lms-course-bucket\//, '');
+                        await this.minio.removeObject(this.courseBucket, path);
+                    } catch (minioErr) {
+                        errors.push(minioErr);
+                    }
+                }
+            } catch (dbErr) {
+                errors.push(dbErr);
             }
-            await this.courseDb.execute('DELETE FROM lesson_progress WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM enrollments WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM announcements WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM schedules WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM course_categories WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM course_learning_points WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM course_requirements WHERE course_id = ?', [courseId]);
-            await this.courseDb.execute('DELETE FROM courses WHERE id = ?', [courseId]);
+
+            try {
+                await this.courseDb.execute('DELETE FROM lesson_progress WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM enrollments WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM announcements WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM schedules WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM course_categories WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM course_learning_points WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM course_requirements WHERE course_id = ?', [courseId]);
+                await this.courseDb.execute('DELETE FROM courses WHERE id = ?', [courseId]);
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
+        }
+
+        this.cleanedCourses.add(courseId);
+
+        if (errors.length) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Course cleanup failed for ${courseId}`);
         }
     }
 
     async cleanupPost(postId) {
-        if (!postId || !this.blogDb) return;
-        const [pRows] = await this.blogDb.execute('SELECT thumbnail FROM posts WHERE id = ?', [postId]);
-        if (pRows.length && pRows[0].thumbnail) {
+        if (!postId) return;
+        assert.ok(this.posts.includes(postId), `Post ${postId} is not owned by this fixture`);
+        if (this.cleanedPosts.has(postId)) return;
+
+        const errors = [];
+
+        if (this.blogDb) {
             try {
-                const u = new URL(pRows[0].thumbnail);
-                const path = u.pathname.replace(/^\/lms-blog-bucket\//, '');
-                await this.minio.removeObject(this.blogBucket, path);
-            } catch (ignored) {}
+                const [pRows] = await this.blogDb.execute('SELECT thumbnail FROM posts WHERE id = ?', [postId]);
+                if (pRows.length && pRows[0].thumbnail) {
+                    try {
+                        const u = new URL(pRows[0].thumbnail);
+                        const path = u.pathname.replace(/^\/lms-blog-bucket\//, '');
+                        await this.minio.removeObject(this.blogBucket, path);
+                    } catch (minioErr) {
+                        errors.push(minioErr);
+                    }
+                }
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
+
+            try {
+                await this.blogDb.execute('DELETE FROM votes WHERE target_id = ? AND target_type = "POST"', [postId]);
+                await this.blogDb.execute('DELETE FROM comments WHERE post_id = ?', [postId]);
+                await this.blogDb.execute('DELETE FROM post_tags WHERE post_id = ?', [postId]);
+                await this.blogDb.execute('DELETE FROM posts WHERE id = ?', [postId]);
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
         }
-        await this.blogDb.execute('DELETE FROM votes WHERE target_id = ? AND target_type = "POST"', [postId]);
-        await this.blogDb.execute('DELETE FROM comments WHERE post_id = ?', [postId]);
-        await this.blogDb.execute('DELETE FROM post_tags WHERE post_id = ?', [postId]);
-        await this.blogDb.execute('DELETE FROM posts WHERE id = ?', [postId]);
+
+        this.cleanedPosts.add(postId);
+
+        if (errors.length) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Post cleanup failed for ${postId}`);
+        }
     }
 
     async cleanupCategory(categoryId) {
-        if (!categoryId || !this.courseDb) return;
-        await this.courseDb.execute('DELETE FROM course_categories WHERE category_id = ?', [categoryId]);
-        await this.courseDb.execute('DELETE FROM categories WHERE id = ?', [categoryId]);
+        if (!categoryId) return;
+        assert.ok(this.categories.includes(categoryId), `Category ${categoryId} is not owned by this fixture`);
+        if (this.cleanedCategories.has(categoryId)) return;
+
+        const errors = [];
+        if (this.courseDb) {
+            try {
+                await this.courseDb.execute('DELETE FROM course_categories WHERE category_id = ?', [categoryId]);
+                await this.courseDb.execute('DELETE FROM categories WHERE id = ?', [categoryId]);
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
+        }
+
+        this.cleanedCategories.add(categoryId);
+
+        if (errors.length) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Category cleanup failed for ${categoryId}`);
+        }
     }
 
     async cleanupTag(tagId) {
-        if (!tagId || !this.blogDb) return;
-        await this.blogDb.execute('DELETE FROM post_tags WHERE tag_id = ?', [tagId]);
-        await this.blogDb.execute('DELETE FROM tags WHERE id = ?', [tagId]);
+        if (!tagId) return;
+        assert.ok(this.tags.includes(tagId), `Tag ${tagId} is not owned by this fixture`);
+        if (this.cleanedTags.has(tagId)) return;
+
+        const errors = [];
+        if (this.blogDb) {
+            try {
+                await this.blogDb.execute('DELETE FROM post_tags WHERE tag_id = ?', [tagId]);
+                await this.blogDb.execute('DELETE FROM tags WHERE id = ?', [tagId]);
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
+        }
+
+        this.cleanedTags.add(tagId);
+
+        if (errors.length) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Tag cleanup failed for ${tagId}`);
+        }
     }
 
     async cleanupAccount(account) {
         assertFixtureIdentity(account);
         assert.ok(this.accounts.includes(account), 'Only identities allocated by this run may be cleaned');
-        const [rows] = await this.db.execute('SELECT user_id FROM users WHERE user_name = ? AND email = ?', [account.username, account.email]);
-        assert.ok(rows.length <= 1);
-        if (rows.length) {
-            const id = rows[0].user_id;
-            assert.match(id, /^[a-f0-9-]{36}$/i);
-            try { await this.removeObjects(`avatars/${id}-`, this.bucket); } catch (ignored) {}
-            await this.db.beginTransaction();
+        if (this.cleanedAccounts.has(account.username)) return;
+
+        const errors = [];
+        let userId = null;
+
+        if (this.db) {
             try {
-                await this.db.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [id]);
-                await this.db.execute('DELETE FROM email_verifications WHERE user_id = ?', [id]);
-                const [deleted] = await this.db.execute('DELETE FROM users WHERE user_id = ? AND user_name = ? AND email = ?', [id, account.username, account.email]);
-                assert.equal(deleted.affectedRows, 1);
-                await this.db.commit();
-            } catch (error) { await this.db.rollback(); throw error; }
+                const [rows] = await this.db.execute('SELECT user_id FROM users WHERE user_name = ? AND email = ?', [account.username, account.email]);
+                assert.ok(rows.length <= 1);
+                if (rows.length) {
+                    userId = rows[0].user_id;
+                    assert.match(userId, /^[a-f0-9-]{36}$/i);
+                    try {
+                        await this.removeObjects(`avatars/${userId}-`, this.bucket);
+                    } catch (minioErr) {
+                        errors.push(minioErr);
+                    }
+
+                    await this.db.beginTransaction();
+                    try {
+                        await this.db.execute('DELETE FROM refresh_tokens WHERE user_id = ?', [userId]);
+                        await this.db.execute('DELETE FROM email_verifications WHERE user_id = ?', [userId]);
+                        const [deleted] = await this.db.execute('DELETE FROM users WHERE user_id = ? AND user_name = ? AND email = ?', [userId, account.username, account.email]);
+                        assert.equal(deleted.affectedRows, 1);
+                        await this.db.commit();
+                    } catch (txErr) {
+                        await this.db.rollback();
+                        errors.push(txErr);
+                    }
+                }
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
         }
-        const ids = [...new Set((await this.messages(account)).map(m => m.ID))];
-        if (ids.length) {
-            await request(`${this.mailpit}/api/v1/messages`, {
-                method: 'DELETE',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ IDs: ids })
-            });
+
+        try {
+            const ids = [...new Set((await this.messages(account)).map(m => m.ID))];
+            if (ids.length) {
+                await request(`${this.mailpit}/api/v1/messages`, {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ IDs: ids })
+                });
+            }
+            assert.equal((await this.messages(account)).length, 0, 'Fixture email must be removed');
+        } catch (mailErr) {
+            errors.push(mailErr);
         }
-        assert.equal((await this.messages(account)).length, 0, 'Fixture email must be removed');
-        const [remaining] = await this.db.execute('SELECT user_id FROM users WHERE user_name = ? OR email = ?', [account.username, account.email]);
-        assert.equal(remaining.length, 0, 'Fixture user must be removed');
+
+        if (this.db && userId) {
+            try {
+                const [remaining] = await this.db.execute('SELECT user_id FROM users WHERE user_name = ? OR email = ?', [account.username, account.email]);
+                assert.equal(remaining.length, 0, 'Fixture user must be removed');
+            } catch (dbErr) {
+                errors.push(dbErr);
+            }
+        }
+
+        this.cleanedAccounts.add(account.username);
+
+        if (errors.length) {
+            throw errors.length === 1 ? errors[0] : new AggregateError(errors, `Account cleanup failed for ${account.username}`);
+        }
     }
 
     async close() {
