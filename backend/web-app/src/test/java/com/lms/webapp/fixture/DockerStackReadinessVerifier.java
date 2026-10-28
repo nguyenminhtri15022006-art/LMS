@@ -1,23 +1,33 @@
 package com.lms.webapp.fixture;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 /**
  * Xác thực sức khỏe và tính sẵn sàng của các dịch vụ trong stack Docker Compose của Thành viên 2.
- * Hỗ trợ kiểm tra qua giao thức HTTP (Actuator health / API endpoints) và TCP port ping (CSDL / Broker).
+ * Hỗ trợ kiểm tra qua:
+ * 1. HTTP Actuator Health: Yêu cầu HTTP 200 VÀ body JSON chứa "status":"UP". Không chấp nhận HTTP 302 hoặc body DOWN.
+ * 2. Dedicated HTTP Probes: MinIO (/minio/health/live), Mailpit (/api/v1/messages), Eureka (/eureka/apps).
+ * 3. TCP Socket Probes: Kết nối socket thuần túy (CSDL / Cache / SMTP) ghi rõ phạm vi kết nối mạng.
  */
 public class DockerStackReadinessVerifier {
+
+    private static final Pattern ACTUATOR_STATUS_UP_PATTERN = Pattern.compile("\"status\"\\s*:\\s*\"UP\"");
 
     public record ServiceEndpoint(String name, String host, int port, String healthPath, boolean isHttp) {
         public static ServiceEndpoint http(String name, String host, int port, String healthPath) {
@@ -135,13 +145,60 @@ public class DockerStackReadinessVerifier {
 
             int code = conn.getResponseCode();
             long latency = System.currentTimeMillis() - startTime;
-            // 200..299 hoặc 302 (chuyển hướng login) được xem là service đang sống
-            boolean isUp = (code >= 200 && code < 400);
-            String msg = isUp ? "OK (HTTP " + code + ")" : "HTTP " + code;
+
+            // 1. Chặn tuyệt đối HTTP 3xx (Redirect về login hoặc redirect khác không được tính là ready)
+            if (code >= 300 && code < 400) {
+                String location = conn.getHeaderField("Location");
+                String redirectMsg = "HTTP " + code + " Redirect" + (location != null ? " to " + location : "") + " (not ready)";
+                return new ServiceHealthStatus(name, urlString, false, code, latency, redirectMsg);
+            }
+
+            // 2. Đọc response body
+            String body = readResponseBody(conn, code);
+            String path = url.getPath();
+            boolean isActuatorHealth = path != null && path.contains("/actuator/health");
+            boolean isMinioHealth = path != null && path.contains("/minio/health");
+            boolean isMailpitMessages = path != null && path.contains("/api/v1/messages");
+            boolean isEurekaApps = path != null && path.contains("/eureka/apps");
+
+            boolean isUp;
+            String msg;
+
+            if (isActuatorHealth) {
+                // Actuator Health: Bắt buộc HTTP 200 VÀ JSON body chứa "status":"UP"
+                boolean hasUpStatus = containsStatusUp(body);
+                if (code == 200 && hasUpStatus) {
+                    isUp = true;
+                    msg = "OK (HTTP 200, status: UP)";
+                } else if (code == 200) {
+                    isUp = false;
+                    msg = "HTTP 200 but Actuator status not UP: " + summarizeBody(body);
+                } else {
+                    isUp = false;
+                    msg = "HTTP " + code + " (Actuator health failed)";
+                }
+            } else if (isMinioHealth) {
+                // MinIO Health: HTTP 200
+                isUp = (code == 200);
+                msg = isUp ? "OK (HTTP 200 MinIO healthy)" : "HTTP " + code + " (MinIO unhealthy)";
+            } else if (isMailpitMessages) {
+                // Mailpit API: HTTP 200
+                isUp = (code == 200);
+                msg = isUp ? "OK (HTTP 200 Mailpit ready)" : "HTTP " + code;
+            } else if (isEurekaApps) {
+                // Eureka Apps: HTTP 200
+                isUp = (code == 200);
+                msg = isUp ? "OK (HTTP 200 Eureka registry)" : "HTTP " + code;
+            } else {
+                // Generic HTTP probe: 200..299
+                isUp = (code >= 200 && code < 300);
+                msg = isUp ? "OK (HTTP " + code + ")" : "HTTP " + code;
+            }
+
             return new ServiceHealthStatus(name, urlString, isUp, code, latency, msg);
         } catch (IOException e) {
             long latency = System.currentTimeMillis() - startTime;
-            return new ServiceHealthStatus(name, urlString, false, -1, latency, e.getMessage());
+            return new ServiceHealthStatus(name, urlString, false, -1, latency, "Connection failed: " + e.getMessage());
         } finally {
             if (conn != null) {
                 conn.disconnect();
@@ -150,14 +207,62 @@ public class DockerStackReadinessVerifier {
     }
 
     public ServiceHealthStatus checkTcp(String name, String host, int port, int timeoutMs, long startTime) {
-        String endpoint = host + ":" + port;
         try (Socket socket = new Socket()) {
             socket.connect(new InetSocketAddress(host, port), timeoutMs);
             long latency = System.currentTimeMillis() - startTime;
-            return new ServiceHealthStatus(name, endpoint, true, 200, latency, "Connected");
+            return new ServiceHealthStatus(
+                    name,
+                    host + ":" + port,
+                    true,
+                    0,
+                    latency,
+                    "Connected (TCP port reachable; socket open, application-level handshake not tested)"
+            );
         } catch (IOException e) {
             long latency = System.currentTimeMillis() - startTime;
-            return new ServiceHealthStatus(name, endpoint, false, -1, latency, "Connection failed: " + e.getMessage());
+            return new ServiceHealthStatus(
+                    name,
+                    host + ":" + port,
+                    false,
+                    -1,
+                    latency,
+                    "Connection failed: " + e.getMessage()
+            );
         }
+    }
+
+    private boolean containsStatusUp(String body) {
+        if (body == null || body.isBlank()) {
+            return false;
+        }
+        return ACTUATOR_STATUS_UP_PATTERN.matcher(body).find();
+    }
+
+    private String readResponseBody(HttpURLConnection conn, int code) {
+        try {
+            InputStream is = (code >= 200 && code < 400) ? conn.getInputStream() : conn.getErrorStream();
+            if (is == null) {
+                return "";
+            }
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                char[] buf = new char[1024];
+                int read;
+                while ((read = reader.read(buf)) != -1 && sb.length() < 8192) {
+                    sb.append(buf, 0, read);
+                }
+                return sb.toString();
+            }
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private String summarizeBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "<empty>";
+        }
+        String singleLine = body.replace("\r", " ").replace("\n", " ").trim();
+        return singleLine.length() <= 80 ? singleLine : singleLine.substring(0, 80) + "...";
     }
 }

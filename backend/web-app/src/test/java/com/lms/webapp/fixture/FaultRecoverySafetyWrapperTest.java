@@ -34,7 +34,7 @@ class FaultRecoverySafetyWrapperTest {
 
     @Test
     @DisplayName("2. successfulRecovery: Phục hồi thành công khi health check trả về true trong thời hạn")
-    void successfulRecoveryFlow() throws Exception {
+    void successfulRecoveryFlow() throws Throwable {
         AtomicBoolean recovered = new AtomicBoolean(false);
         AtomicInteger pollAttempts = new AtomicInteger(0);
 
@@ -71,7 +71,7 @@ class FaultRecoverySafetyWrapperTest {
     }
 
     @Test
-    @DisplayName("4. suppressedExceptionOnDualFailure: Gắn ngoại lệ test ban đầu vào suppressed khi cả test và phục hồi đều lỗi")
+    @DisplayName("4. suppressedExceptionOnDualFailure: Giữ ngoại lệ test làm lỗi chính, gắn lỗi phục hồi vào suppressed khi cả hai đều lỗi")
     void suppressedExceptionAttachedWhenBothFail() {
         assertThatThrownBy(() -> FaultRecoverySafetyWrapper.executeWithSafeRecovery(
                 "api-gateway",
@@ -80,12 +80,30 @@ class FaultRecoverySafetyWrapperTest {
                 () -> false,
                 Duration.ofMillis(200),
                 Duration.ofMillis(50)
-        )).isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("CRITICAL FAULT RECOVERY ERROR")
+        )).isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Test assertion error")
                 .satisfies(ex -> {
                     assertThat(ex.getSuppressed()).hasSize(1);
-                    assertThat(ex.getSuppressed()[0]).isInstanceOf(IllegalArgumentException.class)
-                            .hasMessage("Test assertion error");
+                    assertThat(ex.getSuppressed()[0]).isInstanceOf(IllegalStateException.class)
+                            .hasMessageContaining("CRITICAL FAULT RECOVERY ERROR");
+                });
+    }
+
+    @Test
+    @DisplayName("5. assertionErrorPreservedOnRecoveryFailure: Bảo toàn AssertionError làm lỗi chính khi test ném AssertionError")
+    void assertionErrorPreservedOnRecoveryFailure() {
+        AssertionError original = new AssertionError("Expected 200 but was 503");
+        assertThatThrownBy(() -> FaultRecoverySafetyWrapper.executeWithSafeRecovery(
+                "course-service",
+                ctx -> { throw original; },
+                () -> { throw new RuntimeException("Compose start timeout"); },
+                () -> true,
+                Duration.ofMillis(100),
+                Duration.ofMillis(20)
+        )).isSameAs(original)
+                .satisfies(err -> {
+                    assertThat(err.getSuppressed()).hasSize(1);
+                    assertThat(err.getSuppressed()[0]).isInstanceOf(IllegalStateException.class);
                 });
     }
 }

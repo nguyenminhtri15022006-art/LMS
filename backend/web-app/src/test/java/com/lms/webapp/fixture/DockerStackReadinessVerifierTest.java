@@ -50,7 +50,7 @@ class DockerStackReadinessVerifierTest {
     }
 
     @Test
-    @DisplayName("1. checkHttp: Dịch vụ HTTP trả 200 -> trạng thái UP với latency đo được")
+    @DisplayName("1. checkHttp: Dịch vụ HTTP trả 200 kèm status UP -> trạng thái UP với latency đo được")
     void http200ReturnsUp() {
         testServer.createContext("/actuator/health", exchange -> {
             byte[] response = "{\"status\":\"UP\"}".getBytes(StandardCharsets.UTF_8);
@@ -68,7 +68,7 @@ class DockerStackReadinessVerifierTest {
         assertThat(status.isUp()).isTrue();
         assertThat(status.statusCode()).isEqualTo(200);
         assertThat(status.latencyMs()).isGreaterThanOrEqualTo(0);
-        assertThat(status.message()).contains("OK (HTTP 200)");
+        assertThat(status.message()).contains("OK (HTTP 200");
     }
 
     @Test
@@ -145,5 +145,45 @@ class DockerStackReadinessVerifierTest {
         assertThat(report.isAllUp()).isFalse();
         assertThat(report.getDownServices()).hasSize(1);
         assertThat(report.getDownServices().get(0)).contains("service-down");
+    }
+
+    @Test
+    @DisplayName("6. checkHttp: Actuator trả HTTP 200 nhưng body DOWN -> trạng thái DOWN")
+    void actuatorDownBodyReturnsDown() {
+        testServer.createContext("/actuator/health", exchange -> {
+            byte[] response = "{\"status\":\"DOWN\"}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, response.length);
+            exchange.getResponseBody().write(response);
+            exchange.close();
+        });
+
+        DockerStackReadinessVerifier.ServiceEndpoint endpoint =
+                DockerStackReadinessVerifier.ServiceEndpoint.http("actuator-down", "127.0.0.1", httpPort, "/actuator/health");
+
+        DockerStackReadinessVerifier.ServiceHealthStatus status = verifier.checkEndpoint(endpoint, 1000);
+
+        assertThat(status.isUp()).isFalse();
+        assertThat(status.statusCode()).isEqualTo(200);
+        assertThat(status.message()).contains("Actuator status not UP");
+    }
+
+    @Test
+    @DisplayName("7. checkHttp: Chuyển hướng HTTP 302 về trang đăng nhập -> trạng thái DOWN")
+    void http302RedirectReturnsDown() {
+        testServer.createContext("/actuator/health", exchange -> {
+            exchange.getResponseHeaders().set("Location", "/login");
+            exchange.sendResponseHeaders(302, -1);
+            exchange.close();
+        });
+
+        DockerStackReadinessVerifier.ServiceEndpoint endpoint =
+                DockerStackReadinessVerifier.ServiceEndpoint.http("redirect-svc", "127.0.0.1", httpPort, "/actuator/health");
+
+        DockerStackReadinessVerifier.ServiceHealthStatus status = verifier.checkEndpoint(endpoint, 1000);
+
+        assertThat(status.isUp()).isFalse();
+        assertThat(status.statusCode()).isEqualTo(302);
+        assertThat(status.message()).contains("HTTP 302 Redirect");
     }
 }

@@ -50,3 +50,4 @@ class DockerStackReadinessIntegrationTest {
         assertThat(report.isAllUp()).isTrue();
     }
 }
+

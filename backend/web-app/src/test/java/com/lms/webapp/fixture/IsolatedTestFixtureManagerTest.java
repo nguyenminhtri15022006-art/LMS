@@ -50,9 +50,9 @@ class IsolatedTestFixtureManagerTest {
     }
 
     @Test
-    @DisplayName("3. registerMinioObject: Chỉ chấp nhận prefix smoke/ hoặc e2e/, từ chối các prefix nhạy cảm")
+    @DisplayName("3. registerMinioObject: Chấp nhận prefix smoke/runId hoặc e2e/runId, từ chối namespace khác hoặc runId khác")
     void minioObjectPrefixGuard() {
-        IsolatedTestFixtureManager manager = new IsolatedTestFixtureManager("test-run-1");
+        IsolatedTestFixtureManager manager = new IsolatedTestFixtureManager("run-1");
 
         IsolatedTestFixtureManager.FixtureMinioObject validSmoke =
                 manager.registerMinioObject("bucket-test", "smoke/run-1/avatar.png");
@@ -66,9 +66,10 @@ class IsolatedTestFixtureManagerTest {
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("Fixture namespace violation");
 
-        assertThatThrownBy(() -> manager.registerMinioObject("bucket-test", "course-thumbnails/1.jpg"))
+        // Khóa thuộc namespace e2e nhưng thuộc runId khác
+        assertThatThrownBy(() -> manager.registerMinioObject("bucket-test", "e2e/other-run/file.png"))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("Fixture namespace violation");
+                .hasMessageContaining("Fixture ownership violation");
     }
 
     @Test
@@ -82,9 +83,9 @@ class IsolatedTestFixtureManagerTest {
     @Test
     @DisplayName("5. cleanupAll: Thực thi dọn dẹp đầy đủ MinIO, Account và custom tasks")
     void cleanupExecutesAllRegisteredHandlers() {
-        IsolatedTestFixtureManager manager = new IsolatedTestFixtureManager();
+        IsolatedTestFixtureManager manager = new IsolatedTestFixtureManager("run-1");
         IsolatedTestFixtureManager.FixtureAccount acc = manager.generateAccount("Student");
-        IsolatedTestFixtureManager.FixtureMinioObject obj = manager.registerMinioObject("b", "smoke/run/img.png");
+        IsolatedTestFixtureManager.FixtureMinioObject obj = manager.registerMinioObject("b", "smoke/run-1/img.png");
 
         List<String> cleaned = new ArrayList<>();
         manager.onCleanup(() -> cleaned.add("custom-hook"));
@@ -98,7 +99,7 @@ class IsolatedTestFixtureManagerTest {
         assertThat(summary.totalTracked()).isEqualTo(3);
         assertThat(summary.successCleaned()).isEqualTo(3);
         assertThat(summary.failedCleaned()).isEqualTo(0);
-        assertThat(cleaned).contains("obj:smoke/run/img.png", "acc:" + acc.username(), "custom-hook");
+        assertThat(cleaned).contains("obj:smoke/run-1/img.png", "acc:" + acc.username(), "custom-hook");
     }
 
     @Test

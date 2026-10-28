@@ -334,16 +334,16 @@ gantt
   * Tách biệt: **Dữ liệu Demo** (tài khoản mẫu nạp ở Phase 5) và **Dữ liệu Fixture Test** (sinh động trong test: `e2e_student_<timestamp>@test.lms`).
   * Cleanup bắt buộc trong `finally`: chỉ xóa dữ liệu do test tạo ra. Tuyệt đối **không xóa volume Docker**, không chạy `DROP DATABASE` hoặc xóa dữ liệu dùng chung.
 - **Hiện trạng hoàn thành**:
-  * Đã xây dựng hoàn tất 3 thành phần nền tảng:
-    1. `DockerStackReadinessVerifier`: Kiểm tra toàn diện 11 container của Thành viên 2 qua HTTP Actuator (với đúng context-path `/identity`, `/course`, `/blog`, `/minio/health/live`) và TCP socket probe.
-    2. `IsolatedTestFixtureManager`: Quản lý vòng đời dữ liệu kiểm thử qua `AutoCloseable`, định danh riêng biệt (`e2e_<uuid32>`, `@test.lms.invalid`), áp dụng Prefix Guard nghiêm ngặt chặn xóa dữ liệu ngoài prefix an toàn.
-    3. `FaultRecoverySafetyWrapper`: Đảm bảo quy tắc an toàn tuyệt đối trong fault testing với lệnh phục hồi trong khối `finally` và vòng lặp polling health check xác nhận dịch vụ trở lại trạng thái UP.
+  * Đã xây dựng hoàn tất 3 thành phần nền tảng và khắc phục toàn bộ 6 lỗi an toàn do Codex tái hiện:
+    1. `DockerStackReadinessVerifier`: Kiểm tra toàn diện 11 container của Thành viên 2 qua HTTP Actuator (bắt buộc HTTP 200 và JSON `status: UP`, loại bỏ HTTP 302 redirect), probe hợp đồng riêng cho MinIO, Mailpit, Eureka, và TCP socket probe.
+    2. `IsolatedTestFixtureManager`: Quản lý vòng đời dữ liệu kiểm thử qua `AutoCloseable`, định danh riêng biệt (`e2e_<uuid32>`, `@test.lms.invalid`), áp dụng Prefix Guard và Ownership Guard (`smoke/<runId>/`, `e2e/<runId>/`) ngăn chặn chiếm đoạt fixture giữa các lần test; báo lỗi nếu thiếu cleaner hoặc cleanup thất bại.
+    3. `FaultRecoverySafetyWrapper`: Đảm bảo quy tắc an toàn tuyệt đối trong fault testing với lệnh phục hồi trong khối `finally`, bảo toàn ngoại lệ test gốc (bao gồm cả `AssertionError`) làm lỗi chính, gắn lỗi phục hồi vào danh sách `suppressed`.
   * Kết quả kiểm thử:
-    - 15 Unit tests trong `web-app`: **15/15 PASS 100%** (`DockerStackReadinessVerifierTest` 5/5, `IsolatedTestFixtureManagerTest` 6/6, `FaultRecoverySafetyWrapperTest` 4/4).
-    - 1 Live integration test: `DockerStackReadinessIntegrationTest` **1/1 PASS 100%** (xác thực trực tiếp 11/11 container Docker Thành viên 2 đều phản hồi UP/healthy với độ trễ <20ms).
-    - Toàn bộ suite `web-app`: **162/162 PASS 100%**.
+    - 24 Unit / Safety tests trong `web-app`: **24/24 PASS 100%** (`DockerStackReadinessVerifierTest` 7/7, `IsolatedTestFixtureManagerTest` 6/6, `FaultRecoverySafetyWrapperTest` 5/5, `Phase3SafetyVerificationTest` 6/6).
+    - 1 Live integration test: `DockerStackReadinessIntegrationTest` **1/1 PASS 100%** (xác thực trực tiếp 11/11 container Docker Thành viên 2 đều phản hồi UP/healthy với độ trễ <25ms).
+    - Toàn bộ suite `web-app`: **171/171 PASS 100%**.
   * Báo cáo kết quả thực tế, **dừng lại chờ người dùng nghiệm thu** trước khi chuyển Phase 4.
-- **Commit dự kiến**: `chore(test): chuẩn hóa fixture lifecycle cô lập và bộ kiểm tra điều kiện tiên quyết docker`.
+- **Commit dự kiến**: `fix(test): bảo vệ quyền sở hữu fixture và chuẩn hóa kiểm tra readiness`.
 
 ---
 
@@ -394,7 +394,7 @@ gantt
 | :---: | :--- | :---: | :--- | :--- | :---: |
 | **Phase 1** | Internal Feign Contracts & Provider Verification TDD (16 Tests) | MockMvc / Contract Test (Profile `test`, Isolated H2) | Mã nguồn `identity`, `course`, `blog` hiện có | 14 Provider Contracts PASS + 2 Fallback an toàn | **Hoàn thành (16/16 Tests PASS)** |
 | **Phase 2** | Gateway Resiliency & Distributed Consistency TDD | Fault / WebTestClient TDD | Phase 1 hoàn tất | `GatewayFallbackController` hoạt động + Cascading rules PASS | **Hoàn thành (21/21 Tests PASS)** |
-| **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | **Hoàn thành (16/16 Tests PASS)** |
+| **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | **Hoàn thành (25/25 Tests PASS)** |
 | **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | **Sẵn sàng triển khai khi được duyệt** |
 | **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | Nghiệm thu cuối |
 
@@ -446,8 +446,8 @@ Mọi thao tác trong quá trình triển khai Đợt 4 phải tuân thủ nghi�
   * 14 provider contracts và 2 fallback proxy test đã PASS 100% (commit `4cc3e31`).
 - **Phase 2 (Gateway Resiliency & Distributed Consistency TDD)**: **ĐÃ HOÀN THÀNH VÀ NGHIỆM THU**.
   * 21 test cases (gồm 4 test hồi quy do Codex tái hiện và 6 test GatewayExceptionHandler) đã PASS 100% (commit `2f1aebe`).
-- **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **ĐÃ HOÀN THÀNH VÀ XÁC THỰC THỰC TẾ**.
-  * 11 container Thành viên 2 đang chạy và healthy; cơ chế Prefix Guard, Fixture Manager và Fault Wrapper đã vượt qua 100% kiểm thử (15 unit tests + 1 live integration test, full suite web-app 162/162 PASS).
+- **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **ĐÃ KHẮC PHỤC 6 LỖI AN TOÀN VÀ XÁC THỰC THỰC TẾ**.
+  * 11 container Thành viên 2 đang chạy và healthy; cơ chế Prefix Guard, Ownership Guard, Fixture Manager và Fault Wrapper đã vượt qua 100% kiểm thử (24 unit/safety tests + 1 live integration test, full suite web-app 171/171 PASS).
 - **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **ĐÃ ĐỦ ĐIỀU KIỆN ĐỂ BẮT ĐẦU KHI ĐƯỢC PHÊ DUYỆT**.
   * Phase 3 đã hoàn tất, stack và fixture sẵn sàng cho kịch bản E2E toàn trình.
 - **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **CHỜ KẾT QUẢ CỦA CÁC PHASE TRƯỚC**.
