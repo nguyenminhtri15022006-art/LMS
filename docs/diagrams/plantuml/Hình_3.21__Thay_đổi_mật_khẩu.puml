@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.21 — Thay đổi mật khẩu
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở form đổi mật khẩu
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Nhập thông tin theo DTO
+note right of B: Gửi myinfo/password
+note right of B: Service kiểm tra điều kiện mật khẩu và lưu BCrypt hash mới
+note right of B: Thông báo kết quả
+opt Biến thể nghiệp vụ
+note over F,B: Hủy thao tác trước khi gửi không thay đổi dữ liệu.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Sai mật khẩu/không khớp xác nhận hoặc vi phạm DTO;  không suy rằng toàn bộ phiên bị thu hồi.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: UserController.changePassword, UserServiceImpl.
+endlegend
+@enduml

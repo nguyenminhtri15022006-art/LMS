@@ -1,0 +1,24 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.11 — Quản lý course và nội dung
+start
+:INSTRUCTOR tạo / sửa course;
+:Kiểm tra role và request;
+if (Đủ quyền và trạng thái cho phép?) then (Có)
+:Lưu Course / cấu trúc theo service;
+:Chọn node hoặc lesson;
+:Kiểm tra owner và quan hệ;
+if (Content hợp lệ với lessonType?) then (Có)
+:Lưu lesson;
+:Tải lại kiểm tra dữ liệu;
+else (Không)
+:Trả lỗi nội dung;
+endif
+else (Không)
+:Từ chối thao tác;
+endif
+note right: MySQL và MongoDB không mặc định\ncùng một transaction ACID
+stop
+@enduml

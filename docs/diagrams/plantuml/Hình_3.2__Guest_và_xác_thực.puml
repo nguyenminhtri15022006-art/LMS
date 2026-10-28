@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.2 — Guest và xác thực
+top to bottom direction
+actor "Guest" as G
+actor "Người dùng đã đăng nhập" as U
+rectangle "EduLearn LMS" {
+usecase "Đăng ký LOCAL" as U0
+usecase "Gửi và xác minh OTP email" as U1
+usecase "Đăng nhập LOCAL / Google" as U2
+usecase "Quên và đặt lại mật khẩu" as U3
+usecase "Làm mới phiên" as U4
+usecase "Hồ sơ và ảnh đại diện" as U5
+usecase "Đổi mật khẩu" as U6
+usecase "Đăng xuất" as U7
+usecase "Cập nhật vai trò STUDENT / INSTRUCTOR" as U8
+}
+G --> U0
+G --> U1
+G --> U2
+G --> U3
+U --> U1
+U --> U4
+U --> U5
+U --> U6
+U --> U7
+U --> U8
+
+@enduml

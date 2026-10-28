@@ -1,0 +1,45 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 4.1 — Kiến trúc triển khai theo cấu hình source
+top to bottom direction
+node "Trình duyệt / React" as F
+node "Gateway :8080" as G
+node "Eureka :8761" as E
+package "Service nghiệp vụ" {
+node "Identity :8081" as I
+node "Course :8082" as C
+node "Assignment :8083" as A
+node "Blog :8084" as B
+node "Chatbot :8085" as H
+}
+database "MySQL / 4 database" as SQL
+database "MongoDB" as M
+database "Redis" as R
+cloud "MinIO / dịch vụ ngoài" as X
+F --> G : HTTP / SSE
+G --> I
+G --> C
+G --> A
+G --> B
+G --> H
+G ..> E : discovery / lb
+I --> SQL
+C --> SQL
+A --> SQL
+B --> SQL
+C --> M
+A --> M
+H --> M
+H --> R
+I ..> X : upload / email / OAuth
+C ..> X : tài nguyên / Calendar
+A ..> X : Judge0 / AI client
+H ..> X : LLM
+legend bottom
+Mô hình theo cấu hình, không phải chứng cứ đã deploy.
+AuthFilter gắn theo route; downstream tin header nên cần mạng nội bộ bảo vệ.
+Production compose không kèm sẵn database/cache/storage.
+endlegend
+@enduml

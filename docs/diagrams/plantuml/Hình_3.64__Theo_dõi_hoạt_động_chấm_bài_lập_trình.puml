@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.64 — Theo dõi hoạt động chấm bài lập trình
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở quản lý Code Judge
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gọi API activity với tiêu chí
+note right of B: Backend tổng hợp hoạt động
+note right of B: Hiển thị dữ liệu trả về
+opt Biến thể nghiệp vụ
+note over F,B: Dữ liệu rỗng hoặc lọc phạm vi khác.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Không đủ quyền, lỗi dịch vụ/database.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: AdminCodeJudgeActivityController;  CodeJudgeMgmt.
+endlegend
+@enduml

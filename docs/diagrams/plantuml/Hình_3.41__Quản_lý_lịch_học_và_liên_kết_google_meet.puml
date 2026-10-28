@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.41 — Quản lý lịch học và liên kết google meet
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập lịch
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Kiểm tra endTime sau startTime;  lịch mới không bắt đầu trong quá khứ
+note right of B: Lưu schedule
+note right of B: Hiển thị lịch và meetingUrl của course
+opt Biến thể nghiệp vụ
+note over F,B: Sửa/xóa lịch theo API;  không mặc định tạo phòng độc lập cho từng lịch.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: SCHEDULE_TIME_INVALID, NOT_COURSE_OWNER, COURSE_LOCKED, createMeeting có thể trả URL dự phòng với eventId=null khi Calendar lỗi;  URL chưa xác nhận có phòng thật.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: ScheduleServiceImpl, GoogleMeetServiceImpl, ScheduleMapper.
+endlegend
+@enduml

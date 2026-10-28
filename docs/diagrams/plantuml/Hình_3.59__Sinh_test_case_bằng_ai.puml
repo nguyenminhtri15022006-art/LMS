@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.59 — Sinh test case bằng ai
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Chọn bài/nhập mô tả
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Yêu cầu sinh test
+note right of B: Backend xây ngữ cảnh và gọi LLM
+note right of B: Kiểm tra response
+note right of B: Người phụ trách rà soát input/output
+note right of B: Lưu qua API test case
+opt Biến thể nghiệp vụ
+note over F,B: Sửa đầu ra hoặc dùng test nhập tay.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: PROBLEM_NOT_FOUND, TESTCASE_TITLE_BLANK, TESTCASE_DESCRIPTION_BLANK, GENERATE_TESTCASE_FAILED hoặc lỗi dịch vụ.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: chatbot: GenerateServiceImpl.generateTestCase;  assignment TestCaseController.ai preview.
+endlegend
+@enduml

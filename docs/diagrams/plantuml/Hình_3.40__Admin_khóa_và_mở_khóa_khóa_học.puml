@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.40 — Admin khóa và mở khóa khóa học
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Admin tìm khóa học
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn khóa/mở khóa
+note right of B: Gửi endpoint lock/unlock
+note right of B: Backend kiểm tra và cập nhật trạng thái
+note right of B: Tải lại thông tin
+opt Biến thể nghiệp vụ
+note over F,B: Hủy trước gửi không thay đổi trạng thái.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Không phải Admin hoặc course không tồn tại;  quy tắc chuyển trạng thái theo service.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: CourseController.lock/unlock, CourseServiceImpl.
+endlegend
+@enduml

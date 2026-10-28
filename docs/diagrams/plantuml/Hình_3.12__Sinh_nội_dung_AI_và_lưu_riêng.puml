@@ -1,0 +1,23 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.12 — Sinh nội dung AI và lưu riêng
+start
+:INSTRUCTOR nhập yêu cầu;
+:Kiểm tra role, input, hạn mức theo endpoint;
+:Xây prompt / context và gọi LLM;
+if (Response hợp lệ, parse được?) then (Có)
+:Trả preview;
+:Giảng viên rà soát / chỉnh sửa;
+if (Chấp nhận?) then (Có)
+:Lưu bằng API quiz / test case riêng;
+:Công bố theo luồng riêng;
+else (Không)
+:Hủy hoặc yêu cầu sinh lại;
+endif
+else (Không)
+:Trả lỗi / xử lý theo implementation;
+endif
+stop
+@enduml

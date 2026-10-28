@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.44 — Tạo sửa và quản lý quiz
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Tạo/sửa quiz
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn câu hỏi, điểm và thời gian
+note right of B: Lưu nháp hoặc sync
+note right of B: Chọn công bố/ẩn khi phù hợp
+note right of B: Backend lưu Quiz và quan hệ câu hỏi
+opt Biến thể nghiệp vụ
+note over F,B: Giữ nháp để chỉnh sửa;  không hiển thị như quiz published cho học viên.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Cấu hình sai, câu hỏi không hợp lệ, không đủ quyền, quiz deleted/không tồn tại.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: QuizController, QuizServiceImpl.
+endlegend
+@enduml

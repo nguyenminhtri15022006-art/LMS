@@ -1,0 +1,89 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.68 — ERD course-service
+top to bottom direction
+hide circle
+skinparam linetype ortho
+entity "categories" as categories {
+id : BIGINT
+name : VARCHAR(200)
+slug : VARCHAR(200)
+created_at : DATETIME
+}
+entity "courses" as courses {
+id : VARCHAR(36)
+title : VARCHAR(500)
+description : TEXT
+instructor_id : VARCHAR(36)
+duration : INT
+level : ENUM('BEGINNER', 'INTERMEDIATE', 'ADVANCED')
+thumbnail_url : VARCHAR(1000)
+status : ENUM('PRIVATE', 'PUBLIC', 'LOCKED')
+meeting_url : VARCHAR(500)
+google_event_id : VARCHAR(200)
+mongo_structure_id : VARCHAR(36)
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "course_categories" as course_categories {
+course_id : VARCHAR(36)
+category_id : BIGINT
+}
+entity "course_learning_points" as course_learning_points {
+course_id : VARCHAR(36)
+point : TEXT
+point_order : INT
+}
+entity "course_requirements" as course_requirements {
+course_id : VARCHAR(36)
+requirement : TEXT
+requirement_order : INT
+}
+entity "enrollments" as enrollments {
+id : BIGINT
+user_id : VARCHAR(36)
+course_id : VARCHAR(36)
+status : ENUM('ACTIVE', 'CANCELLED')
+enrolled_at : DATETIME
+updated_at : DATETIME
+}
+entity "schedules" as schedules {
+id : BIGINT
+course_id : VARCHAR(36)
+title : VARCHAR(500)
+start_time : DATETIME
+end_time : DATETIME
+note : TEXT
+created_at : DATETIME
+}
+entity "announcements" as announcements {
+id : BIGINT
+course_id : VARCHAR(36)
+title : VARCHAR(500)
+content : TEXT
+created_at : DATETIME
+}
+entity "lesson_progress" as lesson_progress {
+id : BIGINT
+student_id : VARCHAR(36)
+course_id : VARCHAR(36)
+lesson_id : VARCHAR(36)
+lesson_type : ENUM('VIDEO', 'DOCUMENT')
+is_completed : BOOLEAN
+last_accessed : DATETIME
+}
+courses ||--o{ course_categories : "course_id -> id"
+categories ||--o{ course_categories : "category_id -> id"
+courses ||--o{ course_learning_points : "course_id -> id"
+courses ||--o{ course_requirements : "course_id -> id"
+courses ||--o{ enrollments : "course_id -> id"
+courses ||--o{ schedules : "course_id -> id"
+courses ||--o{ announcements : "course_id -> id"
+legend bottom
+Đường liền: FK khai báo trong migration V1.
+ID xuyên service, MongoDB và votes.target_id không tự có FK.
+PK/unique/default và V2 xem từ điển dữ liệu trong tab báo cáo.
+endlegend
+@enduml

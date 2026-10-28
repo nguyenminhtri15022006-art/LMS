@@ -1,0 +1,35 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.9 — Quiz và tính điểm
+start
+:Chọn start-or-resume;
+if (Quiz chưa xóa, published, trong thời gian?) then (Có)
+if (Có attempt IN_PROGRESS?) then (Có)
+if (Chưa hết hạn?) then (Có)
+:Tiếp tục attempt;
+else (Không)
+:Xử lý EXPIRED theo service;
+stop
+endif
+else (Không)
+if (Còn lượt?) then (Có)
+:Tạo IN_PROGRESS;
+else (Không)
+:Từ chối;
+stop
+endif
+endif
+else (Không)
+:Từ chối;
+stop
+endif
+:Chọn đáp án và autosave;
+:Submit; kiểm tra owner, quiz, question, answer;
+:Chấm theo tập đáp án và trọng số;
+:Lưu kết quả / Grade;
+:Trả dữ liệu theo show_result;
+note right: Không bổ sung bước kiểm tra enrollment\nnếu start-or-resume chưa thực hiện trong source
+stop
+@enduml

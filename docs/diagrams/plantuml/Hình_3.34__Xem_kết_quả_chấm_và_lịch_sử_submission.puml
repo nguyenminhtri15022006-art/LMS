@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.34 — Xem kết quả chấm và lịch sử submission
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở kết quả/histories
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gọi API
+note right of B: Service kiểm tra dữ liệu và quyền
+note right of B: Trả trạng thái, điểm và thông tin chấm theo response
+note right of B: Với PENDING, giao diện tiếp tục theo dõi
+opt Biến thể nghiệp vụ
+note over F,B: Lọc lịch sử hoặc xem latest accepted theo quyền.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: ACCESS_DENIED, NOT_ENROLLED hoặc submission không tồn tại.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: SubmissionServiceImpl.getSubmission/getHistory/getLatestAccepted.
+endlegend
+@enduml

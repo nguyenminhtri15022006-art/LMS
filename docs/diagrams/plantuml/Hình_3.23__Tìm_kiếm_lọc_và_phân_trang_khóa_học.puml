@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.23 — Tìm kiếm lọc và phân trang khóa học
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở danh sách khóa học
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Nhập từ khóa/chọn bộ lọc
+note right of B: Frontend gọi API danh sách
+note right of B: Backend truy vấn và trả Page<CourseResponse>
+note right of B: Hiển thị và chuyển trang
+opt Biến thể nghiệp vụ
+note over F,B: Không có kết quả thì hiển thị trạng thái rỗng và cho đổi tiêu chí.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Tham số không hợp lệ, lỗi API;  phạm vi khóa học hiển thị theo bộ lọc của service.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: CourseController.getAllCourses, CourseServiceImpl;  ListCoursePage.
+endlegend
+@enduml

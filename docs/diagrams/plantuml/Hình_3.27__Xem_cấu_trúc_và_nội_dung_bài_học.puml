@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.27 — Xem cấu trúc và nội dung bài học
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Chọn khóa học và bài
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gọi cấu trúc và chi tiết lesson
+note right of B: Service xác minh quan hệ lesson–course
+note right of B: Kiểm tra Admin/chủ khóa học/enrollment
+note right of B: Hiển thị nội dung
+opt Biến thể nghiệp vụ
+note over F,B: Chuyển bài bằng cấu trúc course;  không cần tạo lại enrollment.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: LESSON_NOT_BELONG_TO_COURSE, ACCESS_DENIED, COURSE_NOT_FOUND hoặc lesson không tồn tại.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: LessonServiceImpl.getLesson/checkAccessPermission;  CourseStructureController.
+endlegend
+@enduml

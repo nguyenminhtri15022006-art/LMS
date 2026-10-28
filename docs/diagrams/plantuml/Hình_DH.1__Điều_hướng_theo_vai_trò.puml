@@ -1,0 +1,22 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title DH.1 — Điều hướng theo vai trò
+top to bottom direction
+state "Route công khai" as P
+state "Xác thực" as L
+state "Khu vực tài khoản" as U
+state "Học tập" as S
+state "Giảng dạy" as I
+state "Quản trị" as A
+[*] --> P
+P --> L : login / register / forgot-password
+L --> U : xác thực thành công
+U --> S : nhánh STUDENT
+U --> I : nhánh INSTRUCTOR
+U --> A : nhánh ADMIN
+U --> P : logout
+note right of U: PrivateRoute / RoleRoute điều hướng frontend;\nquyền API vẫn phải kiểm tra ở backend.
+note right of P: Chi tiết route lấy từ AppRoutes.jsx.\nKhông suy mọi menu là chức năng đã hoàn thiện.
+@enduml

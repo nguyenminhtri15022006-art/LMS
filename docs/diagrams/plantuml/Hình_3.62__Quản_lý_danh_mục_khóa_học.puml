@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.62 — Quản lý danh mục khóa học
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở Course Categories
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Tạo/sửa/xóa
+note right of B: Gửi API categories
+note right of B: Backend validation và lưu
+note right of B: Cập nhật giao diện
+opt Biến thể nghiệp vụ
+note over F,B: Người không quản trị chỉ đọc danh sách.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Không phải Admin, category không tồn tại hoặc lỗi ràng buộc/DTO.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: CategoryController/Service;  CourseCategoriesTab.
+endlegend
+@enduml

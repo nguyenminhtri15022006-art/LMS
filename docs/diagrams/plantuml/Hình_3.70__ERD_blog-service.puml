@@ -1,0 +1,59 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.70 — ERD blog-service
+top to bottom direction
+hide circle
+skinparam linetype ortho
+entity "tags" as tags {
+id : BIGINT
+name : VARCHAR(100)
+slug : VARCHAR(100)
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "posts" as posts {
+id : BIGINT
+title : VARCHAR(500)
+slug : VARCHAR(500)
+summary : VARCHAR(1000)
+content : LONGTEXT
+thumbnail : VARCHAR(1000)
+author_id : VARCHAR(36)
+status : ENUM('DRAFT', 'PUBLISHED', 'HIDDEN')
+view_count : BIGINT
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "post_tags" as post_tags {
+post_id : BIGINT
+tag_id : BIGINT
+}
+entity "comments" as comments {
+id : BIGINT
+post_id : BIGINT
+user_id : VARCHAR(36)
+parent_id : BIGINT
+content : TEXT
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "votes" as votes {
+id : BIGINT
+user_id : VARCHAR(36)
+target_id : BIGINT
+target_type : ENUM('POST', 'COMMENT')
+vote_type : ENUM('UPVOTE', 'DOWNVOTE')
+created_at : DATETIME
+}
+posts ||--o{ post_tags : "post_id -> id"
+tags ||--o{ post_tags : "tag_id -> id"
+posts ||--o{ comments : "post_id -> id"
+comments |o--o{ comments : "parent_id -> id"
+legend bottom
+Đường liền: FK khai báo trong migration V1.
+ID xuyên service, MongoDB và votes.target_id không tự có FK.
+PK/unique/default và V2 xem từ điển dữ liệu trong tab báo cáo.
+endlegend
+@enduml

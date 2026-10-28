@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.38 — Quản lý bài học và tài nguyên
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Chọn bài học
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Sửa nội dung hoặc tải tài nguyên
+note right of B: Gửi cập nhật
+note right of B: Service kiểm tra owner, trạng thái khóa, quan hệ và nội dung
+note right of B: Lưu lesson
+opt Biến thể nghiệp vụ
+note over F,B: Chỉ đổi một phần dữ liệu theo UpdateLessonRequest.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: LESSON_NOT_BELONG_TO_COURSE, LESSON_CONTENT_NULL, NOT_COURSE_OWNER, COURSE_LOCKED;  lỗi upload.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: LessonServiceImpl.updateLesson/validateContent.
+endlegend
+@enduml

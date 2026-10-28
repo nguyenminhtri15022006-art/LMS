@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.26 — Xem khóa học đã tham gia
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở My Courses
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gọi /courses/enrolled
+note right of B: Backend lấy enrollment theo userId hiện tại
+note right of B: Ánh xạ khóa học và trả danh sách
+note right of B: Chọn khóa học để học
+opt Biến thể nghiệp vụ
+note over F,B: Không có enrollment thì hiển thị danh sách rỗng.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Lỗi phiên hoặc truy vấn;  không cho client tự chọn userId để xem danh sách của người khác.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: CourseServiceImpl.getEnrolledCourses;  MyCoursePage.
+endlegend
+@enduml

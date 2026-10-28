@@ -1,0 +1,25 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.5 — Quản trị viên
+top to bottom direction
+actor "ADMIN" as A
+rectangle "EduLearn LMS" {
+usecase "Tìm / quản lý user và tài khoản quản trị" as U0
+usecase "Quản lý / khóa course" as U1
+usecase "Quản lý category" as U2
+usecase "Quản lý blog và tag" as U3
+usecase "Theo dõi hoạt động chấm code" as U4
+usecase "Quản lý nội dung website theo phạm vi lưu" as U5
+usecase "Dashboard / health" as U6
+}
+A --> U0
+A --> U1
+A --> U2
+A --> U3
+A --> U4
+A --> U5
+A --> U6
+
+@enduml

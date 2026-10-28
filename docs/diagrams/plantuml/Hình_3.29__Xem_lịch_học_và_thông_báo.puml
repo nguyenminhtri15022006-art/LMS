@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.29 — Xem lịch học và thông báo
+actor "Người thao tác" as U
+participant "React / trình duyệt" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở lịch/thông báo của course
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gọi API tương ứng
+note right of B: Service kiểm tra quyền
+note right of B: Trả danh sách
+note right of B: Nếu có meetingUrl, người học mở liên kết
+opt Biến thể nghiệp vụ
+note over F,B: Danh sách rỗng hoặc chưa có liên kết Meet vẫn hiển thị nội dung khác.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: ACCESS_DENIED, COURSE_NOT_FOUND hoặc lỗi API.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: ScheduleServiceImpl, AnnouncementServiceImpl, ScheduleMapper.
+endlegend
+@enduml

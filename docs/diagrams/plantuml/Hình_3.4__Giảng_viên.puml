@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.4 — Giảng viên
+top to bottom direction
+actor "INSTRUCTOR" as I
+rectangle "EduLearn LMS" {
+usecase "Quản lý course của mình" as U0
+usecase "Cấu trúc / lesson / tài nguyên" as U1
+usecase "Mời / quản lý học viên" as U2
+usecase "Lịch và thông báo" as U3
+usecase "Ngân hàng câu hỏi / quiz" as U4
+usecase "Problem và test case" as U5
+usecase "Import template" as U6
+usecase "Analytics / submissions" as U7
+usecase "AI preview quiz / test case" as U8
+}
+I --> U0
+I --> U1
+I --> U2
+I --> U3
+I --> U4
+I --> U5
+I --> U6
+I --> U7
+I --> U8
+
+@enduml
