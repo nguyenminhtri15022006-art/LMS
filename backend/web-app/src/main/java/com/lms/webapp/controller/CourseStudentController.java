@@ -364,12 +364,8 @@ public class CourseStudentController {
     @GetMapping(value = "/courses/{courseId}/schedules", produces = MediaType.APPLICATION_JSON_VALUE)
     @ResponseBody
     public ResponseEntity<?> getSchedulesJson(@PathVariable("courseId") String courseId) {
-        try {
-            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/schedules", JsonNode.class);
-            return ResponseEntity.ok(res != null ? res : Map.of("data", List.of()));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("data", List.of()));
-        }
+        JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/schedules", JsonNode.class);
+        return ResponseEntity.ok(res != null ? res : Map.of("data", List.of()));
     }
 
     @GetMapping(value = "/courses/{courseId}/announcements", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -378,12 +374,8 @@ public class CourseStudentController {
             @PathVariable("courseId") String courseId,
             @RequestParam(value = "page", defaultValue = "0") int page,
             @RequestParam(value = "size", defaultValue = "10") int size) {
-        try {
-            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/announcements?page=" + page + "&size=" + size, JsonNode.class);
-            return ResponseEntity.ok(res != null ? res : Map.of("data", Map.of("content", List.of(), "totalPages", 0)));
-        } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("data", Map.of("content", List.of(), "totalPages", 0)));
-        }
+        JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/announcements?page=" + page + "&size=" + size, JsonNode.class);
+        return ResponseEntity.ok(res != null ? res : Map.of("data", Map.of("content", List.of(), "totalPages", 0)));
     }
 
     // Helper methods và DTO cho cấu trúc cây đề cương

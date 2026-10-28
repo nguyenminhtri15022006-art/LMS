@@ -47,15 +47,36 @@ class GatewayExceptionHandlerTest {
         public String throw404() {
             throw new HttpClientErrorException(HttpStatus.NOT_FOUND, "Resource not found");
         }
+        @GetMapping(value = "/test/json-service-unavailable", produces = MediaType.APPLICATION_JSON_VALUE)
+        @ResponseBody
+        public String throw503Json() {
+            throw new HttpServerErrorException(HttpStatus.SERVICE_UNAVAILABLE, "Gateway service unavailable");
+        }
+
+        @GetMapping(value = "/test/json-4xx-sanitized", produces = MediaType.APPLICATION_JSON_VALUE)
+        @ResponseBody
+        public String throw400WithDebug() {
+            String downstreamBody = "{\"status\":400,\"error\":\"Bad Request\",\"message\":\"Mã không hợp lệ\",\"debug\":\"http://private-service:8081; SQL_DIAGNOSTIC_MARKER\"}";
+            throw HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", HttpHeaders.EMPTY, downstreamBody.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+        }
+
+        @GetMapping(value = "/test/json-4xx-non-json", produces = MediaType.APPLICATION_JSON_VALUE)
+        @ResponseBody
+        public String throw400WithNonJson() {
+            String downstreamBody = "<html><body>502 Bad Gateway - upstream died</body></html>";
+            throw HttpClientErrorException.create(HttpStatus.BAD_REQUEST, "Bad Request", HttpHeaders.EMPTY, downstreamBody.getBytes(java.nio.charset.StandardCharsets.UTF_8), java.nio.charset.StandardCharsets.UTF_8);
+        }
     }
 
     @Test
-    @DisplayName("1. htmlRequestRenders503Page: HTML request gặp 503 từ Gateway -> render view error/503 với HTTP status 503")
+    @DisplayName("1. htmlRequestRenders503Page: HTML request gặp 503 từ Gateway -> render view error/503 với HTTP status 503 và nút thử lại")
     void htmlRequestRenders503Page() throws Exception {
         mockMvc.perform(get("/test/service-unavailable")
                         .accept(MediaType.TEXT_HTML))
                 .andExpect(status().isServiceUnavailable())
-                .andExpect(view().name("error/503"));
+                .andExpect(view().name("error/503"))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("window.location.reload()")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("Thử lại")));
     }
 
     @Test
@@ -72,7 +93,19 @@ class GatewayExceptionHandlerTest {
     }
 
     @Test
-    @DisplayName("3. business4xxNotConvertedTo503: Lỗi nghiệp vụ 400/404 không bị biến thành lỗi 503")
+    @DisplayName("3. jsonEndpointReturns503JsonWithWildcardAccept: Endpoint produces JSON khi Accept: */* và không có header X-Requested-With vẫn trả JSON 503")
+    void jsonEndpointReturns503JsonWithWildcardAccept() throws Exception {
+        mockMvc.perform(get("/test/json-service-unavailable")
+                        .accept(MediaType.ALL))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(503))
+                .andExpect(jsonPath("$.code").value(1405))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Dịch vụ tạm thời không khả dụng")));
+    }
+
+    @Test
+    @DisplayName("4. business4xxNotConvertedTo503: Lỗi nghiệp vụ 400/404 không bị biến thành lỗi 503")
     void business4xxNotConvertedTo503() throws Exception {
         // 400 Bad Request
         mockMvc.perform(get("/test/bad-request")
@@ -83,5 +116,27 @@ class GatewayExceptionHandlerTest {
         mockMvc.perform(get("/test/not-found")
                         .accept(MediaType.TEXT_HTML))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    @DisplayName("5. client4xxErrorSanitizesDebugInfoViaMockMvc: MockMvc kiểm chứng lỗi 4xx lọc sạch thông tin nhạy cảm và URL nội bộ")
+    void client4xxErrorSanitizesDebugInfoViaMockMvc() throws Exception {
+        mockMvc.perform(get("/test/json-4xx-sanitized")
+                        .accept(MediaType.ALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("private-service"))))
+                .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("SQL_DIAGNOSTIC_MARKER"))))
+                .andExpect(jsonPath("$.message").value("Mã không hợp lệ"));
+    }
+
+    @Test
+    @DisplayName("6. client4xxErrorHandlesNonJsonBodyGracefully: Downstream trả 4xx với body HTML/text -> trả thông báo an toàn, không sinh lỗi mới")
+    void client4xxErrorHandlesNonJsonBodyGracefully() throws Exception {
+        mockMvc.perform(get("/test/json-4xx-non-json")
+                        .accept(MediaType.ALL))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("Dữ liệu yêu cầu không hợp lệ")));
     }
 }

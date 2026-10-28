@@ -264,9 +264,18 @@ gantt
     }
     ```
     *Tuyệt đối không làm lộ stack trace, IP nội bộ hoặc thông tin nhạy cảm.*
-  * **Cách BFF (`web-app`) xử lý lỗi qua `GatewayExceptionHandler`**:
-    - Request HTML: bắt lỗi 503 từ Gateway/downstream, thiết lập HTTP status 503 và render view `error/503.html`.
-    - Request AJAX (`X-Requested-With: XMLHttpRequest` hoặc `Accept: application/json`): giữ HTTP status 503 và trả JSON có `code: 1405`, không trả HTML làm vỡ xử lý JavaScript.
+  * **Cách BFF (`web-app`) xử lý lỗi qua `GatewayExceptionHandler` & Tinh chỉnh tuyến BFF**:
+    - **Phát hiện và sửa lỗi nuốt lỗi 503 tại `CourseStudentController`**:
+      * Hai route `GET /courses/{courseId}/schedules` và `GET /courses/{courseId}/announcements` trước đây dùng `catch (Exception e)` tự chuyển lỗi Gateway 503 thành HTTP 500 kèm dữ liệu rỗng `{"data":[]}`.
+      * Đã sửa: Gỡ bỏ `try-catch` nuốt lỗi trong controller, để `HttpServerErrorException` từ `GatewayClient` lan truyền tự nhiên lên `GatewayExceptionHandler` xử lý tập trung, bảo toàn HTTP status 503 và mã hợp đồng 1405 cho client.
+    - **Nhận diện endpoint JSON dựa trên Spring MVC Metadata**:
+      * Trước đây chỉ kiểm tra header `X-Requested-With: XMLHttpRequest` và `Accept: application/json`. Khi client gọi bằng `fetch()` mặc định gửi `Accept: */*` mà không kèm `X-Requested-With`, handler trả nhầm HTML `ModelAndView` làm vỡ xử lý JSON.
+      * Đã sửa: Bổ sung kiểm tra `HandlerMapping.PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE` chứa `MediaType.APPLICATION_JSON`, kiểm tra handler method có `@ResponseBody`, `@RestController` hoặc trả về `ResponseEntity`. Giữ nguyên việc trả HTML view `error/503` cho request trang HTML thông thường.
+    - **Lọc sạch thông tin nhạy cảm và URL nội bộ trong lỗi 4xx**:
+      * Trước đây `handleHttpClientError` đưa trực tiếp `ex.getMessage()` ra client, làm lộ URL hạ tầng nội bộ (`private-service`) và marker chẩn đoán (`SQL_DIAGNOSTIC_MARKER`).
+      * Đã sửa: Parse JSON body từ downstream, chỉ trích xuất các trường nghiệp vụ hợp lệ (`code`, `message`), lọc bỏ các token nhạy cảm / URL nội bộ, và có thông báo an toàn mặc định khi downstream trả body không phải JSON (HTML hoặc text).
+    - **Sửa lỗi cú pháp template `error/503.html`**:
+      * Khắc phục lỗi thẻ `<button>` bị đóng nhầm bằng thẻ `</a>`. Kiểm chứng template render chuẩn xác với nút thử lại (`window.location.reload()`).
     - Lỗi nghiệp vụ 4xx (400, 401, 403, 404): giữ nguyên mã trạng thái nghiệp vụ, tuyệt đối không biến thành lỗi dịch vụ 503.
   * **Cơ chế khóa User & Tính Nhất Quán**:
     - Khi Admin khóa user (`active = false`), `authenticate()` từ chối đăng nhập mới với `USER_INACTIVE` (code 1006, HTTP 403).
@@ -284,20 +293,32 @@ gantt
 | 4 | Downstream Timeout kích hoạt Fallback | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#downstreamTimeoutTriggersCircuitBreakerFallback` | Downstream trễ 1s -> Gateway ngắt timeout 300ms, trả fallback 503 trong <900ms | TDD Verification | **PASS** | 5.113s (suite) |
 | 5 | Ngắt mạch (Open Circuit) chặn request | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerOpensAfterFailureThreshold` | Đạt ngưỡng lỗi -> Mạch OPEN; request tiếp theo bị chặn tại Gateway trước khi tới downstream (counter không tăng) | TDD Verification | **PASS** | 5.113s (suite) |
 | 6 | Phục hồi mạch (Half-Open -> Closed) | `api-gateway`: `GatewayCircuitBreakerIntegrationTest#circuitBreakerRecoversFromOpenToHalfOpenToClosed` | Sau wait-duration mạch sang HALF_OPEN; request thành công giúp phục hồi mạch về CLOSED | TDD Verification | **PASS** | 5.113s (suite) |
-| 7 | BFF xử lý 503 cho request HTML | `web-app`: `GatewayExceptionHandlerTest#htmlRequestRenders503Page` | Client nhận HTTP 503 và render view `error/503` | TDD Red 1 -> Red 2 -> Green | **PASS** | 0.615s (suite) |
-| 8 | BFF xử lý 503 cho request AJAX | `web-app`: `GatewayExceptionHandlerTest#ajaxRequestReturns503Json` | AJAX nhận HTTP 503 JSON có `code: 1405`, không nhận HTML làm vỡ JS | TDD Red 1 -> Red 2 -> Green | **PASS** | 0.615s (suite) |
-| 9 | BFF không biến lỗi 4xx thành 503 | `web-app`: `GatewayExceptionHandlerTest#business4xxNotConvertedTo503` | Lỗi 400 Bad Request và 404 Not Found giữ nguyên mã 4xx, không thành 503 | TDD Verification | **PASS** | 0.615s (suite) |
-| 10 | User bị khóa không thể đăng nhập | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotLogin` | Đăng nhập ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | Baseline Verification | **PASS** | 0.025s (suite) |
-| 11 | User bị khóa không thể refresh token | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotRefreshToken` | Refresh token ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | TDD Red -> Green | **PASS** | 0.025s (suite) |
-| 12 | Catalog public loại bỏ khóa học LOCKED | `course-service`: `CourseLockedConsistencyTest#publicCatalogExcludesLockedCourses` | Query status=PUBLIC áp dụng Specification chỉ lấy PUBLIC, loại bỏ LOCKED | TDD Verification | **PASS** | 1.788s (suite) |
-| 13 | Admin khóa khóa học chuyển sang LOCKED | `course-service`: `CourseLockedConsistencyTest#lockCourseTransitionsStatusToLockedAndCreatesAnnouncement` | Khóa học chuyển status sang LOCKED, tạo announcement thông báo học viên | TDD Verification | **PASS** | 1.788s (suite) |
-| 14 | Không thể khóa khóa học đã bị LOCKED | `course-service`: `CourseLockedConsistencyTest#cannotLockAlreadyLockedCourse` | Khóa học đã LOCKED ném `CourseException(COURSE_ALREADY_LOCKED)` | TDD Verification | **PASS** | 1.788s (suite) |
+| 7 | BFF xử lý 503 cho request HTML và render nút reload | `web-app`: `GatewayExceptionHandlerTest#htmlRequestRenders503Page` | Client nhận HTTP 503, render view `error/503`, chứa script `window.location.reload()` và nút Thử lại | TDD Red 1 -> Red 2 -> Green | **PASS** | 10.28s (suite) |
+| 8 | BFF xử lý 503 cho request AJAX trả JSON | `web-app`: `GatewayExceptionHandlerTest#ajaxRequestReturns503Json` | AJAX nhận HTTP 503 JSON có `code: 1405`, không nhận HTML làm vỡ JS | TDD Red 1 -> Red 2 -> Green | **PASS** | 10.28s (suite) |
+| 9 | BFF JSON endpoint trả JSON 503 khi nhận `Accept: */*` | `web-app`: `GatewayExceptionHandlerTest#jsonEndpointReturns503JsonWithWildcardAccept` | Endpoint produces JSON nhận `Accept: */*` không header AJAX vẫn trả JSON HTTP 503, code 1405 | TDD Red -> Green | **PASS** | 10.28s (suite) |
+| 10 | BFF không biến lỗi 4xx thành 503 | `web-app`: `GatewayExceptionHandlerTest#business4xxNotConvertedTo503` | Lỗi 400 Bad Request và 404 Not Found giữ nguyên mã 4xx, không thành 503 | TDD Verification | **PASS** | 10.28s (suite) |
+| 11 | BFF lọc sạch debug info và URL nội bộ lỗi 4xx qua MockMvc | `web-app`: `GatewayExceptionHandlerTest#client4xxErrorSanitizesDebugInfoViaMockMvc` | MockMvc xác nhận body lỗi 4xx không chứa URL `private-service` hay `SQL_DIAGNOSTIC_MARKER` | TDD Red -> Green | **PASS** | 10.28s (suite) |
+| 12 | BFF xử lý an toàn khi body lỗi 4xx không phải JSON | `web-app`: `GatewayExceptionHandlerTest#client4xxErrorHandlesNonJsonBodyGracefully` | Downstream trả text/HTML -> trả thông báo an toàn, không sinh lỗi mới | TDD Red -> Green | **PASS** | 10.28s (suite) |
+| 13 | Route `/schedules` bảo toàn HTTP 503 khi Gateway lỗi | `web-app`: `Phase2BffVerificationTest#schedulesPreserveGateway503OnRealController` | Controller gọi Gateway thật gặp 503 -> trả về HTTP 503 kèm JSON, không trả 500 với dữ liệu rỗng | TDD Red (4 failures) -> Green | **PASS** | 16.05s (suite) |
+| 14 | Route `/announcements` bảo toàn HTTP 503 khi Gateway lỗi | `web-app`: `Phase2BffVerificationTest#announcementsPreserveGateway503OnRealController` | Controller gọi Gateway thật gặp 503 -> trả về HTTP 503 kèm JSON, không trả 500 với dữ liệu rỗng | TDD Red (4 failures) -> Green | **PASS** | 16.05s (suite) |
+| 15 | Handler nhận diện endpoint JSON khi `Accept: */*` | `web-app`: `Phase2BffVerificationTest#handlerHonorsJsonEndpointForWildcardAccept` | Request attribute Spring MVC `PRODUCIBLE_MEDIA_TYPES_ATTRIBUTE` -> trả ResponseEntity thay vì ModelAndView | TDD Red -> Green | **PASS** | 16.05s (suite) |
+| 16 | Handler lọc sạch thông tin nhạy cảm lỗi 4xx từ downstream | `web-app`: `Phase2BffVerificationTest#handlerDoesNotExposeInternalDetailsIn4xx` | Loại bỏ `private-service` và `SQL_DIAGNOSTIC_MARKER` khỏi body trả về | TDD Red -> Green | **PASS** | 16.05s (suite) |
+| 17 | User bị khóa không thể đăng nhập | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotLogin` | Đăng nhập ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | Baseline Verification | **PASS** | 0.025s (suite) |
+| 18 | User bị khóa không thể refresh token | `identity-service`: `UserLockedConsistencyTest#lockedUserCannotRefreshToken` | Refresh token ném `IdentityException(USER_INACTIVE)`, mã 1006, HTTP 403 | TDD Red -> Green | **PASS** | 0.025s (suite) |
+| 19 | Catalog public loại bỏ khóa học LOCKED | `course-service`: `CourseLockedConsistencyTest#publicCatalogExcludesLockedCourses` | Query status=PUBLIC áp dụng Specification chỉ lấy PUBLIC, loại bỏ LOCKED | TDD Verification | **PASS** | 1.788s (suite) |
+| 20 | Admin khóa khóa học chuyển sang LOCKED | `course-service`: `CourseLockedConsistencyTest#lockCourseTransitionsStatusToLockedAndCreatesAnnouncement` | Khóa học chuyển status sang LOCKED, tạo announcement thông báo học viên | TDD Verification | **PASS** | 1.788s (suite) |
+| 21 | Không thể khóa khóa học đã bị LOCKED | `course-service`: `CourseLockedConsistencyTest#cannotLockAlreadyLockedCourse` | Khóa học đã LOCKED ném `CourseException(COURSE_ALREADY_LOCKED)` | TDD Verification | **PASS** | 1.788s (suite) |
 
-- **Tiêu chuẩn hoàn thành Phase 2**:
-  * 14/14 test cases Phase 2 đã chạy thực tế PASS 100%.
-  * Toàn bộ test suites liên quan (21 tests `api-gateway`, 48 tests `identity-service`, 67 tests `course-service`, 29 tests `web-app`) đều PASS 100%.
+- **Tiêu chuẩn hoàn thành Phase 2 & Đính chính số liệu kiểm thử**:
+  * **Đính chính số liệu**: Báo cáo ban đầu ghi nhận 29 tests của `web-app` là tập hợp các lớp được chọn (11 auth + 13 blog + 2 gateway client + 3 gateway exception handler), **không phải toàn bộ module `web-app`**. Toàn bộ module `web-app` trước khi bổ sung có 140 tests.
+  * **Số liệu kiểm thử thực tế hiện tại**:
+    - `api-gateway`: **21/21 tests PASS 100%**.
+    - `identity-service`: **48/48 tests PASS 100%**.
+    - `course-service`: **67/67 tests PASS 100%**.
+    - `web-app`: **147/147 tests PASS 100%** (140 baseline + 4 `Phase2BffVerificationTest` + 3 test mới mở rộng trong `GatewayExceptionHandlerTest`).
+  * Toàn bộ 4 lỗi BFF do Codex tái hiện trong `Phase2BffVerificationTest` đã chuyển từ trạng thái RED sang GREEN 100%.
   * Báo cáo kết quả thực tế, **dừng lại chờ người dùng nghiệm thu** trước khi chuyển Phase 3.
-  * Commit: `feat(gateway): bổ sung fallback controller cho circuit breaker và kiểm chứng tính nhất quán phân tán`.
+  * Commit: `fix(web-app): giữ trạng thái lỗi gateway và chuẩn hóa phản hồi bff`.
 
 ---
 
