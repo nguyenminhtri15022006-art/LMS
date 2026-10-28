@@ -54,7 +54,7 @@ public class CourseStudentController {
         }
         model.addAttribute("categories", categoriesList);
 
-        StringBuilder uri = new StringBuilder("/course/courses?page=").append(page).append("&size=").append(size);
+        StringBuilder uri = new StringBuilder("/course/courses?status=PUBLIC&page=").append(page).append("&size=").append(size);
         if (categoryId != null) {
             uri.append("&categoryId=").append(categoryId);
         }
@@ -326,7 +326,10 @@ public class CourseStudentController {
             @PathVariable("lessonId") String lessonId,
             @RequestBody(required = false) Map<String, Object> body) {
         try {
-            Object payload = body != null ? body : Map.of();
+            Map<String, Object> payload = new HashMap<>(body != null ? body : Map.of());
+            if (!payload.containsKey("lessonType")) {
+                payload.put("lessonType", "DOCUMENT");
+            }
             gatewayClient.post("/course/courses/" + courseId + "/lessons/" + lessonId + "/complete", payload, JsonNode.class);
 
             // Tải thông tin tiến độ mới nhất từ backend
@@ -410,7 +413,7 @@ public class CourseStudentController {
                     dto.setCompleted(true);
                 }
 
-                if ("FOLDER".equalsIgnoreCase(dto.getType())) {
+                if ("FOLDER".equalsIgnoreCase(dto.getType()) && dto.getId() != null && !Objects.equals(dto.getId(), parentId)) {
                     dto.setItems(buildTree(nodes, completedIds, dto.getId()));
                 }
                 list.add(dto);

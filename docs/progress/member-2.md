@@ -3506,3 +3506,67 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 - Toàn bộ 6/6 lỗi an toàn Phase 3 do Codex tái hiện đã được khắc phục triệt để và chuyển sang GREEN.
 - Toàn bộ 171 tests của `web-app` và 1 Docker integration test đạt 100% PASS.
 - **DỪNG LẠI CHỜ NGHIỆM THU TỪ NGƯỜI DÙNG**, không tự ý triển khai Phase 4.
+
+---
+
+### BÁO CÁO KẾT QUẢ TRIỂN KHAI PHASE 4: BỘ KIỂM THỬ TOÀN TRÌNH 4 LUỒNG NGHIỆP VỤ E2E TDD
+
+- **Thời gian hoàn thành**: 28/10/2026.
+- **Nhánh Git**: `feature/member-2-dot-4-integration`.
+- **Mục tiêu**: Xây dựng và thực thi bộ kiểm thử toàn trình 4 luồng nghiệp vụ E2E TDD theo đúng route controller thật của Web-App BFF (:8088), đi qua API Gateway (:8080) tới các kho dữ liệu thật (MySQL container :3306, host :3307; MongoDB :27017; MinIO :9000; Mailpit :8025).
+
+#### 1. Kết Quả Thực Thi 4 Luồng Nghiệp Vụ E2E
+
+- **Lệnh thực thi**:
+  ```powershell
+  $env:SMOKE_MINIO_BUCKET="lms-identity-bucket"; $env:SMOKE_MINIO_ACCESS_KEY="minioadmin"; $env:SMOKE_MINIO_SECRET_KEY="minioadmin123"; $env:SMOKE_DB_USER="root"; $env:SMOKE_DB_PASSWORD="mysqladmin123"; $env:SMOKE_DB_HOST="127.0.0.1"; $env:SMOKE_DB_PORT="3307"; $env:SMOKE_WEBAPP_URL="http://localhost:8088"; $env:SMOKE_MAILPIT_URL="http://localhost:8025"; $env:SMOKE_MINIO_URL="http://localhost:9000"; $env:SMOKE_GATEWAY_URL="http://localhost:8080"; $env:NODE_PATH="D:\LMS-main\backend\web-app\node_modules"; node --test backend/web-app/src/test/js/four-flows.e2e.test.js
+  ```
+- **Kết quả tổng thể**: **4/4 PASS 100%**, 0 Failures, 0 Cancelled, 0 Skipped (thời gian: 24.1 giây).
+
+| STT | Luồng Nghiệp Vụ | Vai Trò & Tuyến Đi Thực Tế | CSDL Thực & Assertions Nghiệp Vụ | Thời Gian Chạy | Kết Quả |
+|:---:|---|---|---|:---:|:---:|
+| 1 | **Flow 1**: Học viên (ROLE_STUDENT) | `GET /register` -> `POST /register` -> Đọc OTP từ API Mailpit (:8025) -> `POST /verify-email` -> `POST /login` -> `GET /courses` -> `POST /courses/{id}/enroll` -> `GET /learn/{courseId}` -> `POST /learn/{courseId}/lessons/{lessonId}/complete` | - HTTP 200/302, session cookie `JSESSIONID` hợp lệ.<br>- MySQL `identity_lms.users`: `is_active = 1`, `is_verified = 1`.<br>- MySQL `course_lms.enrollments`: `status = 'ACTIVE'`.<br>- MySQL `course_lms.lesson_progress`: `is_completed = 1`.<br>- MongoDB `course_structures`: lưu trữ cây FOLDER/LESSON. | 5.28s | **PASS** |
+| 2 | **Flow 2**: Giảng viên (ROLE_TEACHER) | `POST /login` -> `GET /instructor/courses/new` -> `POST /instructor/courses/new` (Multipart PNG) -> `GET /instructor/courses/{id}/manage` -> `POST /instructor/courses/{id}/structure/nodes` (thêm Chapter & Lesson) -> `POST /instructor/courses/{id}/edit` (`status = 'PUBLIC'`) | - MySQL `courses.status = 'PUBLIC'`.<br>- MinIO `lms-course-bucket`: thumbnail upload thành công.<br>- MongoDB `course_structures`: cây cấu trúc 2 nodes (`folder` & `lesson`).<br>- Khóa học hiển thị trên catalog public `/courses`. | 4.26s | **PASS** |
+| 3 | **Flow 3**: Blog & Diễn đàn | Tác giả `POST /blog/new` (Markdown + Multipart PNG thumbnail) -> Độc giả `GET /blog/{slug}` -> `POST /blog/posts/{id}/comments` (Cấp 1) -> `POST /blog/posts/{id}/comments` kèm `parentId` (Cấp 2) -> Thử gửi comment Cấp 3 (bị từ chối) -> `POST /blog/posts/{id}/vote` | - MySQL `blog_lms.posts`: `status = 'PUBLISHED'`, `view_count` tăng nguyên tử (tác giả xem: 1, độc giả xem: 2).<br>- MinIO `lms-blog-bucket`: thumbnail lưu trữ thành công.<br>- MySQL `comments`: Cấp 1 `parent_id = NULL`, Cấp 2 `parent_id = comment1Id`.<br>- Comment Cấp 3: HTTP 400 Bad Request, mã lỗi nghiệp vụ `4206` (`CANNOT_REPLY_TO_REPLY`).<br>- MySQL `votes`: ghi nhận bản ghi `UPVOTE` chính xác. | 3.07s | **PASS** |
+| 4 | **Flow 4**: Quản trị Admin (ROLE_ADMIN) | `POST /login` -> `GET /admin/dashboard` (KPIs) -> `POST /admin/categories` -> `POST /admin/tags` -> `POST /admin/users/{id}/toggle-active` (khóa học viên) -> Thử đăng nhập user bị khóa -> `POST /admin/courses/{id}/lock` -> `POST /admin/users/admins` (tạo admin) -> Học viên gọi `/admin/dashboard` (RBAC) | - MySQL `course_lms.categories`: category mới lưu trữ thành công.<br>- MySQL `blog_lms.tags`: tag mới lưu trữ thành công.<br>- MySQL `identity_lms.users`: user bị khóa có `is_active = 0`; đăng nhập bị từ chối.<br>- MySQL `course_lms.courses`: `status = 'LOCKED'`; biến mất khỏi danh sách `/courses` (catalog lọc `status=PUBLIC`).<br>- MySQL `identity_lms.users`: admin mới có `role = 'ADMIN'`, `is_active = 1`.<br>- RBAC: Học viên thường truy cập `/admin/dashboard` nhận HTTP **403 Forbidden**. | 5.57s | **PASS** |
+
+---
+
+#### 2. Các Lỗi Kỹ Thuật Đã Phát Hiện & Khắc Phục Triệt Để
+
+1. **Khắc phục lỗi HTTP PATCH của Java HttpURLConnection (`GatewayClient` & `RestClientConfig`)**:
+   - *Triệu chứng*: Khi gọi `POST /admin/users/{id}/toggle-active`, BFF gọi `gatewayClient.patch("/identity/admin/users/" + id + "/active")` dẫn đến lỗi `I/O error on PATCH request: Invalid HTTP method: PATCH` do `SimpleClientHttpRequestFactory` của JDK mặc định không hỗ trợ phương thức PATCH.
+   - *Khắc phục*: Tích hợp `JdkClientHttpRequestFactory` vào `RestClientConfig` (chạy trên môi trường runtime `prod`), cho phép client sử dụng Java 11+ HttpClient hỗ trợ đầy đủ PATCH; đồng thời cấu hình có điều kiện `!env.getActiveProfiles().contains("test")` để bảo toàn khả năng mock request của `@AutoConfigureMockRestServiceServer` trong các unit test.
+   - *Xử lý body null*: Cập nhật `GatewayClient.java` (các phương thức `post`, `put`, `patch`) để kiểm tra `if (requestBody != null) spec.body(requestBody);`, tránh `NullPointerException` khi gọi API downstream không yêu cầu body.
+2. **Ngăn chặn đệ quy vô hạn trong dựng cây đề cương (`CourseStudentController.buildTree`)**:
+   - *Triệu chứng*: Khi gọi `GET /courses/{id}` hoặc `POST /courses/{id}/enroll`, hàm `buildTree` gặp lỗi `StackOverflowError` nếu node con FOLDER có `id == null` hoặc trùng với `parentId`, dẫn đến đệ quy lặp lại cùng một node gốc vô hạn.
+   - *Khắc phục*: Thêm điều kiện chặn `dto.getId() != null && !Objects.equals(dto.getId(), parentId)` trước khi đệ quy duyệt node con; đồng thời bổ sung `_id` trong fixture MongoDB để Spring Data MongoDB map chính xác `StructureNode.id`.
+3. **Chuẩn hóa giá trị mặc định cho bài học & tiến độ (`lessonType`)**:
+   - *Triệu chứng*: Bảng MySQL `course_lms.lesson_progress` có ràng buộc NOT NULL cho cột `lesson_type`. Nếu gọi complete lesson không có `lessonType`, MySQL ném lỗi `Column 'lesson_type' cannot be null` (HTTP 500).
+   - *Khắc phục*: Trong `CourseStudentController.completeLesson`, tự động gán fallback `payload.put("lessonType", "DOCUMENT")` nếu body không truyền `lessonType`; đồng thời cập nhật kịch bản E2E truyền rõ `data: { lessonType: 'DOCUMENT' }`.
+4. **Lọc khóa học công khai trong Catalog (`CourseStudentController.catalogPage`)**:
+   - *Triệu chứng*: Catalog công khai `/courses` gọi gateway `/course/courses` không truyền param `status`, khiến các khóa học đã bị khóa (`LOCKED`) hoặc `PRIVATE` vẫn xuất hiện trên trang sinh viên.
+   - *Khắc phục*: Thêm `status=PUBLIC` mặc định vào URI truy vấn danh mục: `/course/courses?status=PUBLIC&page=...`. Khi Admin khóa khóa học, khóa học lập tức biến mất khỏi catalog công khai.
+5. **Sửa tên cột trong cleanup Fixture**:
+   - Bảng `course_lms.enrollments` sử dụng cột `user_id` (không phải `student_id`). Đã sửa câu lệnh dọn dẹp trong `four-flows.e2e.test.js:192` thành `DELETE FROM enrollments WHERE user_id = ?`.
+
+---
+
+#### 3. Bằng Chứng Kiểm Thử Toàn Diện Hệ Thống (Verification Evidence)
+
+1. **Bộ kiểm thử toàn trình 4 luồng E2E**:
+   - `node --test backend/web-app/src/test/js/four-flows.e2e.test.js` -> **4/4 tests PASS 100%** (24.1s).
+2. **Bộ kiểm thử đơn vị JavaScript Web-App**:
+   - `npm.cmd test --prefix backend/web-app` -> **53/53 tests PASS 100%** (4.0s).
+3. **Toàn bộ bộ kiểm thử Java Web-App**:
+   - `mvn test -f backend/pom.xml -pl web-app "-Dspring.profiles.active=test"` -> **172/172 tests PASS 100%** (24.1s).
+4. **Kiểm tra sức khỏe 11 Container Docker**:
+   - `mvn test -f backend/pom.xml -pl web-app -Pdocker-smoke "-Dtest=DockerStackReadinessIntegrationTest"` -> **11/11 services UP / Healthy** (mysql, mongodb, redis, minio, mailpit, service-registry, api-gateway, identity-service, course-service, blog-service, web-app).
+
+---
+
+#### 4. Điểm Dừng Nghiệm Thu Phase 4
+
+- Toàn bộ 4/4 luồng nghiệp vụ E2E đã hoàn thành, vượt qua 100% kiểm thử với dữ liệu thực và route controller thật.
+- Khối `finally` đảm bảo dọn dẹp sạch sẽ toàn bộ tài nguyên kiểm thử (MySQL, MongoDB, MinIO).
+- **DỪNG LẠI CHỜ NGHIỆM THU TỪ NGƯỜI DÙNG**, không tự ý triển khai Phase 5.

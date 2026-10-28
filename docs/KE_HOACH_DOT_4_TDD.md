@@ -366,9 +366,13 @@ gantt
 | **E2E Luồng 4** (Quản trị Admin) | `ROLE_ADMIN` | Tài khoản Admin test sẵn sàng | `web-app` (:8088), `api-gateway` (:8080), `identity-service`, `course-service`, `blog-service`, MySQL | `POST /login` -> `GET /admin/dashboard` (xem KPI) -> **`POST /admin/users/{id}/toggle-active`** (khóa user vi phạm) -> **`POST /admin/courses/{id}/lock`** (khóa khóa học) -> **`POST /admin/users/admins`** (tạo Admin mới) -> **`POST /admin/categories`** & **`POST /admin/tags`** | - MySQL `users.is_active = false`; user bị khóa nhận lỗi `USER_INACTIVE` (HTTP 403, code 1006) khi đăng nhập.<br>- MySQL `courses.status = 'LOCKED'`; biến mất khỏi danh sách public.<br>- RBAC: Học viên cố gọi API Admin nhận **403 Forbidden**.<br>- Category & Tag mới lưu thành công. | Mở khóa hoặc dọn dẹp user/course/category test trong khối `finally` | Độc lập (Thống kê bài tập cần Trí) |
 
 - **Tiêu chuẩn hoàn thành Phase 4**:
-  * 4/4 Luồng E2E chạy thực tế PASS 100%.
+  * **Kết quả thực tế**: 4/4 Luồng E2E chạy thực tế trên stack 11 container Docker đều **PASS 100%** (thời gian chạy toàn bộ suite: ~24.1 giây):
+    - *Flow 1 (Học viên - ROLE_STUDENT)*: PASS (5.28s) - Đăng ký, OTP Mailpit, Đăng nhập, Ghi danh & Hoàn thành bài học, tiến độ MySQL `lesson_progress` 100%, cây đề cương MongoDB.
+    - *Flow 2 (Giảng viên - ROLE_TEACHER)*: PASS (4.26s) - Tạo khóa học có thumbnail MinIO multipart S3, dựng đề cương MongoDB FOLDER/LESSON, công khai status `PUBLIC`.
+    - *Flow 3 (Blog & Diễn đàn)*: PASS (3.07s) - Viết bài Markdown có thumbnail MinIO, tăng view count atomic, bình luận 2 cấp, từ chối cấp 3 (mã 4206) & Vote POST.
+    - *Flow 4 (Quản trị Admin - ROLE_ADMIN)*: PASS (5.57s) - Dashboard KPIs, tạo Category/Tag, khóa User (chặn đăng nhập), khóa Khóa học (loại khỏi catalog), tạo Admin mới & RBAC 403 Forbidden đối với học viên.
   * Báo cáo kết quả thực tế, **dừng lại chờ người dùng nghiệm thu** trước khi chuyển Phase 5.
-  * Commit dự kiến: `test(e2e): hoàn thành 4 luồng kiểm thử toàn trình học viên giảng viên blog admin theo route controller thật`.
+  * Commit: `test(e2e): hoàn thành 4 luồng kiểm thử toàn trình học viên giảng viên blog admin theo route controller thật`.
 
 ---
 
@@ -448,7 +452,9 @@ Mọi thao tác trong quá trình triển khai Đợt 4 phải tuân thủ nghi�
   * 21 test cases (gồm 4 test hồi quy do Codex tái hiện và 6 test GatewayExceptionHandler) đã PASS 100% (commit `2f1aebe`).
 - **Phase 3 (Docker Environment Readiness & Isolated Test Fixtures)**: **ĐÃ KHẮC PHỤC 6 LỖI AN TOÀN VÀ XÁC THỰC THỰC TẾ**.
   * 11 container Thành viên 2 đang chạy và healthy; cơ chế Prefix Guard, Ownership Guard, Fixture Manager và Fault Wrapper đã vượt qua 100% kiểm thử (24 unit/safety tests + 1 live integration test, full suite web-app 171/171 PASS).
-- **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **ĐÃ ĐỦ ĐIỀU KIỆN ĐỂ BẮT ĐẦU KHI ĐƯỢC PHÊ DUYỆT**.
-  * Phase 3 đã hoàn tất, stack và fixture sẵn sàng cho kịch bản E2E toàn trình.
+- **Phase 4 (4 Luồng E2E TDD Theo Route Controller Thật)**: **ĐÃ HOÀN THÀNH 100% VÀ ĐẠT TẤT CẢ CÁC ASSERTIONS NGHIỆP VỤ & LƯU TRỮ**.
+  * Toàn bộ 4/4 luồng E2E chạy thực tế qua Playwright trên stack 11 container Thành viên 2 đều PASS 100% (`four-flows.e2e.test.js`, thời gian: ~24.1 giây).
+  * Kiểm chứng đầy đủ từ UI Web-App (:8088), API Gateway (:8080), tới CSDL thực (MySQL :3307, MongoDB :27017, MinIO :9000, Mailpit :8025) và dọn dẹp fixture an toàn trong khối `finally`.
+  * Bộ test đơn vị web-app (172/172 Java tests PASS, 53/53 JS tests PASS) và kiểm tra sức khỏe stack 11 container PASS 100%.
 - **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **CHỜ KẾT QUẢ CỦA CÁC PHASE TRƯỚC**.
   * Cần kết quả chạy thật của cả 4 Phase trước và sự thống nhất phạm vi phát hành cùng Thành viên 1.
