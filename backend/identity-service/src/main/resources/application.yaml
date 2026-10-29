@@ -93,7 +93,7 @@ app:
       token-url: https://oauth2.googleapis.com/token
       user-info-url: https://www.googleapis.com/oauth2/v3/userinfo
       scopes: openid,email,profile
-      allowed-redirect-uris: ${GOOGLE_ALLOWED_REDIRECT_URIS:http://localhost:5173/authenticate,https://lmsystem.cloud/authenticate}
+      allowed-redirect-uris: ${GOOGLE_ALLOWED_REDIRECT_URIS:http://localhost:8088/auth/callback/google,http://lms-edulearn.localtest.me/auth/callback/google,http://localhost:5173/authenticate,https://lmsystem.cloud/authenticate}
 
 eureka:
   client:

@@ -179,6 +179,9 @@ services:
       - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
       - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
       - MINIO_IDENTITY_BUCKET=lms-identity-bucket
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-replace-with-google-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-replace-with-google-client-secret}
+      - GOOGLE_ALLOWED_REDIRECT_URIS=${GOOGLE_ALLOWED_REDIRECT_URIS:-http://localhost:8088/auth/callback/google,http://lms-edulearn.localtest.me/auth/callback/google,http://localhost:5173/authenticate}
     depends_on:
       mysql:
         condition: service_healthy
@@ -390,6 +393,8 @@ services:
       - GATEWAY_URL=http://api-gateway:8080/api
       - SPRING_PROFILES_ACTIVE=prod
       - EUREKA_CLIENT_ENABLED=false
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-replace-with-google-client-id}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8088/auth/callback/google}
     depends_on:
       api-gateway:
         condition: service_healthy

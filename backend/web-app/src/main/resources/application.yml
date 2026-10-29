@@ -1,5 +1,11 @@
 server:
   port: ${SERVER_PORT:8088}
+  servlet:
+    session:
+      cookie:
+        name: JSESSIONID
+        http-only: true
+        same-site: lax
 
 spring:
   application:
@@ -16,6 +22,9 @@ spring:
 lms:
   gateway:
     base-url: ${GATEWAY_URL:http://localhost:8080/api}
+  google:
+    client-id: ${GOOGLE_CLIENT_ID:replace-with-google-client-id}
+    redirect-uri: ${GOOGLE_REDIRECT_URI:http://localhost:8088/auth/callback/google}
 
 management:
   endpoints:

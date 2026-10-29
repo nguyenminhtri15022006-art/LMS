@@ -25,6 +25,7 @@ import static org.springframework.test.web.client.response.MockRestResponseCreat
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -255,6 +256,14 @@ class AuthControllerTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").isNotEmpty());
 
         mockServer.verify();
+    }
+
+    @Test
+    void startGoogleOAuthRedirectsWithSelectAccountPrompt() throws Exception {
+        mockMvc.perform(get("/auth/google"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("prompt=select_account")))
+                .andExpect(header().string("Location", containsString("accounts.google.com/o/oauth2/v2/auth")));
     }
 
     @Test

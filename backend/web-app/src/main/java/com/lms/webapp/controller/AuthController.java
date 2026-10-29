@@ -408,6 +408,7 @@ public class AuthController {
                 + "&redirect_uri=" + URLEncoder.encode(googleRedirectUri, StandardCharsets.UTF_8)
                 + "&response_type=code"
                 + "&scope=openid%20email%20profile"
+                + "&prompt=select_account"
                 + "&state=" + URLEncoder.encode(state, StandardCharsets.UTF_8);
 
         return "redirect:" + authUrl;
