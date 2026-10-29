@@ -1,0 +1,24 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.65 — Quản lý nội dung website
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Admin mở tab Web Content
+alt Course / Blog category
+F -> B: API danh mục
+B --> F: Dữ liệu server
+else InspireImages
+F -> F: Lưu localStorage
+else Founders
+F -> F: Sửa state; toast nội dung đặt cứng
+end
+F --> U: Hiển thị theo phạm vi lưu thực tế
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: frontend: WebContentMgmt và bốn tab con.
+endlegend
+@enduml

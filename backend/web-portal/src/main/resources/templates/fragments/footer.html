@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<footer th:fragment="footer" class="bg-dark text-white-50 pt-5 pb-3 border-top border-secondary">
+    <div class="container">
+        <div class="row g-4 mb-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="d-flex align-items-center gap-2 mb-3">
+                    <span class="badge bg-primary p-2 rounded-3 fs-6">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </span>
+                    <span class="fs-5 fw-bold text-white">EduLearn <span class="text-primary">LMS</span></span>
+                </div>
+                <p class="small text-muted mb-3">
+                    Hệ thống Quản lý Học tập &amp; Thực hành Lập trình Trực tuyến tích hợp máy chấm tự động Judge0 và Trợ lý AI.
+                </p>
+                <div class="small">
+                    <p class="mb-1"><i class="bi bi-geo-alt me-2 text-primary"></i>Trường ĐH Sư phạm Kỹ thuật TP.HCM (HCMUTE)</p>
+                    <p class="mb-1"><i class="bi bi-book me-2 text-primary"></i>Đồ án môn: Lập trình Web</p>
+                </div>
+            </div>
+            <div class="col-lg-2 col-md-6 col-6">
+                <h6 class="text-white fw-bold mb-3">Khám Phá</h6>
+                <ul class="list-unstyled small">
+                    <li class="mb-2"><a th:href="@{/courses}" class="text-white-50 text-decoration-none hover-primary">Khóa học</a></li>
+                    <li class="mb-2"><a th:href="@{/problems}" class="text-white-50 text-decoration-none hover-primary">Bài tập lập trình</a></li>
+                    <li class="mb-2"><a th:href="@{/quizzes}" class="text-white-50 text-decoration-none hover-primary">Thi trắc nghiệm</a></li>
+                    <li class="mb-2"><a th:href="@{/leaderboard}" class="text-white-50 text-decoration-none hover-primary">Bảng xếp hạng</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-6 col-6">
+                <h6 class="text-white fw-bold mb-3">Công Nghệ Cốt Lõi</h6>
+                <ul class="list-unstyled small">
+                    <li class="mb-2"><i class="bi bi-check2 text-success me-1"></i>Spring Boot &amp; Spring Cloud</li>
+                    <li class="mb-2"><i class="bi bi-check2 text-success me-1"></i>Thymeleaf &amp; Bootstrap 5</li>
+                    <li class="mb-2"><i class="bi bi-check2 text-success me-1"></i>Judge0 Code Sandbox</li>
+                    <li class="mb-2"><i class="bi bi-check2 text-success me-1"></i>MySQL &amp; MongoDB &amp; Redis</li>
+                </ul>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <h6 class="text-white fw-bold mb-3">Nhóm Phát Triển</h6>
+                <p class="small mb-2 text-white">Thành viên 1: <strong>Nguyễn Minh Trí</strong> (23110340)</p>
+                <p class="small mb-3 text-muted">Chủ trì: Assignment, Code Judge &amp; Chatbot AI</p>
+                <div class="d-flex gap-2">
+                    <span class="badge bg-secondary p-2"><i class="bi bi-github"></i> GitHub</span>
+                    <span class="badge bg-success p-2"><i class="bi bi-shield-check"></i> v1.0.0</span>
+                </div>
+            </div>
+        </div>
+        <hr class="border-secondary my-3">
+        <div class="d-flex flex-column flex-sm-row justify-content-between align-items-center small text-muted">
+            <span>&copy; 2026 EduLearn LMS. Đồ án Lập trình Web - HCMUTE.</span>
+            <span class="mt-2 mt-sm-0">Giao diện Spring Boot MVC &amp; Thymeleaf</span>
+        </div>
+    </div>
+</footer>
+</body>
+</html>

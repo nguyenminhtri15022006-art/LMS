@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.18 — Quên và đặt lại mật khẩu
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập email
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Nếu có User, backend vô hiệu OTP reset cũ hợp lệ và gửi mã mới
+note right of B: Nhập OTP, mật khẩu mới và xác nhận
+note right of B: Kiểm tra mã và hai mật khẩu
+note right of B: Đánh dấu OTP dùng rồi và lưu hash mới
+opt Biến thể nghiệp vụ
+note over F,B: Email không tồn tại ở bước gửi không tạo OTP;  luồng không mặc định tiết lộ tồn tại tài khoản.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: PASSWORD_NOT_MATCH, INVALID_VERIFICATION_TOKEN, INVALID_OTP, TOO_MANY_ATTEMPTS, USER_NOT_EXISTED ở bước reset.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: EmailVerificationServiceImpl.sendResetPassword/resetPassword.
+endlegend
+@enduml

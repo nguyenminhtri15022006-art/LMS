@@ -11,8 +11,9 @@
     </parent>
 
     <artifactId>api-gateway</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
     <name>api-gateway</name>
-    <description>Spring Cloud API Gateway</description>
+    <description>EduLearn LMS - Spring Cloud API Gateway</description>
 
     <dependencies>
         <dependency>

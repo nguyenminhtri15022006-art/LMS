@@ -1,0 +1,23 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.72 — Liên kết logic giữa service
+top to bottom direction
+rectangle "Identity / users" as I
+rectangle "Course / courses, lessons, enrollments" as C
+rectangle "Assignment / quizzes, problems, attempts, submissions" as A
+rectangle "Blog / posts, comments, votes" as B
+rectangle "Chatbot / chat_sessions, chat_messages" as H
+I ..> C : userId / instructorId / studentId
+I ..> A : userId / createdBy
+I ..> B : authorId / userId
+I ..> H : user_id
+C ..> A : courseId / lessonId
+C ..> H : context qua API
+A ..> H : context qua API
+legend bottom
+Tất cả đường ở hình này là liên kết nghiệp vụ/API,
+không phải FK MySQL xuyên database, không ngụ ý cascade xóa.
+endlegend
+@enduml

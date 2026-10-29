@@ -30,7 +30,7 @@
                     </div>
                     <div id="avatarUploadMessage" class="small text-muted mb-2"></div>
 
-                    <h4 class="fw-bold mb-1" th:text="${profile != null && profile.hasNonNull('fullName')} ? ${profile.get('fullName').asText()} : 'Người dùng EduLearn'">Họ và tên</h4>
+                    <h4 class="fw-bold mb-1" th:text="${displayName != null ? displayName : 'Người dùng EduLearn'}">Họ và tên</h4>
                     <p class="text-muted small mb-2">
                         @<span th:text="${profile != null && profile.hasNonNull('username')} ? ${profile.get('username').asText()} : ${session.username}">username</span>
                     </p>

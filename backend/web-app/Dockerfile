@@ -6,7 +6,10 @@ COPY service-registry/pom.xml service-registry/pom.xml
 COPY api-gateway/pom.xml api-gateway/pom.xml
 COPY identity-service/pom.xml identity-service/pom.xml
 COPY course-service/pom.xml course-service/pom.xml
+COPY assignment-service/pom.xml assignment-service/pom.xml
 COPY blog-service/pom.xml blog-service/pom.xml
+COPY chatbot-service/pom.xml chatbot-service/pom.xml
+COPY web-portal/pom.xml web-portal/pom.xml
 COPY web-app/pom.xml web-app/
 COPY web-app/src web-app/src
 RUN mvn -f pom.xml clean package -pl web-app -am -DskipTests

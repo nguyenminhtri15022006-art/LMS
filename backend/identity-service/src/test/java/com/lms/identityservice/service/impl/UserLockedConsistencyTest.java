@@ -12,6 +12,7 @@ import com.lms.identityservice.exception.IdentityException;
 import com.lms.identityservice.mapper.UserMapper;
 import com.lms.identityservice.repository.RefreshTokenRepository;
 import com.lms.identityservice.repository.UserRepository;
+import com.lms.identityservice.service.EmailVerificationService;
 import com.lms.identityservice.service.GoogleOAuthService;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -60,6 +61,9 @@ class UserLockedConsistencyTest {
     @Mock
     GoogleOAuthService googleOAuthService;
 
+    @Mock
+    EmailVerificationService emailVerificationService;
+
     AuthenticationServiceImpl authenticationService;
 
     @BeforeEach
@@ -69,7 +73,8 @@ class UserLockedConsistencyTest {
                 refreshTokenRepository,
                 passwordEncoder,
                 userMapper,
-                googleOAuthService
+                googleOAuthService,
+                emailVerificationService
         );
         ReflectionTestUtils.setField(authenticationService, "signerKey", SIGNER_KEY);
         ReflectionTestUtils.setField(authenticationService, "validDuration", 900L);

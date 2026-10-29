@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.6 — Đăng ký và xác minh OTP
+start
+:Nhập đăng ký;
+if (DTO hợp lệ và không trùng?) then (Có)
+:BCrypt;
+:Lưu User LOCAL;
+else (Không)
+:Trả lỗi;
+stop
+endif
+:Request gửi OTP riêng;
+:Lưu mã VERIFY_EMAIL;
+:Gửi SMTP;
+:Nhập OTP;
+if (Mã còn hạn, chưa dùng, chưa vượt attempts?) then (Có)
+if (Mã khớp?) then (Có)
+:Ghi usedAt;
+:User verified=true;
+else (Không)
+:Tăng attempts;
+:Trả lỗi;
+endif
+else (Không)
+:Trả lỗi xác minh;
+endif
+stop
+@enduml

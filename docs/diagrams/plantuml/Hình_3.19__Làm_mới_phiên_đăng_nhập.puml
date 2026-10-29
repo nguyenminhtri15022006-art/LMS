@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.19 — Làm mới phiên đăng nhập
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Frontend yêu cầu refresh khi cần
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Backend xác minh token và bản ghi hash
+note right of B: Kiểm tra hết hạn/thu hồi
+note right of B: Cấp token theo chính sách rotation implementation
+note right of B: Frontend cập nhật phiên
+opt Biến thể nghiệp vụ
+note over F,B: Refresh thất bại thì chuyển người dùng đăng nhập lại.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: INVALID_TOKEN, TOKEN_REVOKED và lỗi thời hạn/token type theo implementation.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: AuthenticationServiceImpl.refreshToken;  frontend RestClient / Gateway.
+endlegend
+@enduml

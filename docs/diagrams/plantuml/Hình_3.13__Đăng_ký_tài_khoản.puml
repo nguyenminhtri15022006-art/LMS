@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.13 — Đăng ký tài khoản
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở đăng ký và nhập thông tin
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gửi request register
+note right of B: Backend kiểm tra trùng username/email và validation
+note right of B: Băm mật khẩu, đặt provider LOCAL và lưu User
+note right of B: Trả thông tin tài khoản
+opt Biến thể nghiệp vụ
+note over F,B: Người dùng chuyển sang luồng gửi/xác minh OTP riêng.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: USER_EXISTED, EMAIL_EXISTED hoặc lỗi DTO. Chưa khẳng định login bị chặn khi verified=false: authenticate hiện kiểm tra active và mật khẩu.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: AuthenticationController, AuthenticationServiceImpl, UserCreationRequest.
+endlegend
+@enduml

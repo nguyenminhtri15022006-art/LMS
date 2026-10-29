@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.61 — Quản lý khóa học toàn hệ thống
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Tìm và xem khóa học
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn thao tác quản trị được giao diện hỗ trợ
+note right of B: Gọi API course, gồm lock/unlock
+note right of B: Kiểm tra quyền và cập nhật
+note right of B: Tải lại
+opt Biến thể nghiệp vụ
+note over F,B: Đọc dữ liệu hoặc hủy thao tác.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Course không tồn tại, lỗi API, dữ liệu sai.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: CourseController/Service;  admin CourseManagement.
+endlegend
+@enduml

@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.7 — Đăng nhập và phân quyền
+start
+:Nhập username/email và mật khẩu;
+if (User tồn tại và active?) then (Có)
+if (BCrypt.matches?) then (Có)
+:Cập nhật lastLogin;
+:Cấp access / refresh token;
+:Lưu hash refresh token;
+:Frontend điều hướng theo role;
+:Request bảo vệ qua Gateway;
+if (JWT ACCESS hợp lệ?) then (Có)
+:Service kiểm tra quyền và tài nguyên;
+else (Không)
+:Từ chối hoặc yêu cầu refresh;
+endif
+else (Không)
+:Lỗi đăng nhập;
+endif
+else (Không)
+:Lỗi đăng nhập;
+endif
+note right: authenticate chưa kiểm tra verified
+stop
+@enduml

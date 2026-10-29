@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.20 — Cập nhật hồ sơ và ảnh đại diện
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở settings và tải myinfo
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Sửa trường hồ sơ
+note right of B: Nếu đổi avatar, lấy URL upload và tải tệp theo luồng lưu trữ
+note right of B: Gửi cập nhật myinfo
+note right of B: Hiển thị dữ liệu mới
+opt Biến thể nghiệp vụ
+note over F,B: Có thể chỉ sửa hồ sơ mà không đổi ảnh.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Dữ liệu sai, tệp quá giới hạn, không tìm thấy người dùng hoặc lỗi MinIO.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: UserController, UserServiceImpl, StorageServiceImpl;  SettingsPage.
+endlegend
+@enduml

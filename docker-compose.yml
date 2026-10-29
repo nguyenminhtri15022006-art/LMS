@@ -1,80 +1,86 @@
-networks:
-  lms-network:
-    driver: bridge
-
-volumes:
-  mysql-data:
-  mongo-data:
-  redis-data:
-  minio-data:
-
 services:
-  # ==========================================
-  # 1. HẠ TẦNG DỮ LIỆU & STORAGE (INFRASTRUCTURE)
-  # ==========================================
+  # ============================================================================
+  # 1. HẠ TẦNG CƠ SỞ DỮ LIỆU & STORAGE (MySQL, MongoDB, Redis, MinIO)
+  # ============================================================================
   mysql:
     image: mysql:8.4
     container_name: lms-mysql
+    restart: always
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
     environment:
-      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqladmin123}
+      MYSQL_ROOT_HOST: "%"
     ports:
       - "${MYSQL_PORT:-3307}:3306"
     volumes:
-      - mysql-data:/var/lib/mysql
+      - mysql_data:/var/lib/mysql
       - ./docker/mysql/init/01-init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      test: [ "CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD:-mysqladmin123} --silent" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 30s
     networks:
       - lms-network
 
   mongodb:
     image: mongo:7.0
     container_name: lms-mongodb
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27017}:27017"
     volumes:
-      - mongo-data:/data/db
+      - mongo_data:/data/db
     healthcheck:
-      test: ["CMD-SHELL", "mongosh --quiet --eval 'db.runCommand(\"ping\").ok' || exit 1"]
+      test: [ "CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
+      start_period: 20s
     networks:
       - lms-network
 
   redis:
-    image: redis:7.4-alpine
+    image: redis:7.2-alpine
     container_name: lms-redis
+    restart: always
+    command: [ "redis-server", "--requirepass", "${REDIS_PASSWORD:-redisadmin123}", "--appendonly", "yes" ]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redisadmin123}
     ports:
-      - "6379:6379"
+      - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - redis-data:/data
+      - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "-a", "${REDIS_PASSWORD:-redisadmin123}", "ping" ]
       interval: 10s
       timeout: 5s
-      retries: 5
+      retries: 10
     networks:
       - lms-network
 
   minio:
     image: cgr.dev/chainguard/minio:latest
     container_name: lms-minio
-    ports:
-      - "9000:9000"
-      - "9001:9001"
+    restart: always
+    command: [ "server", "/data", "--console-address", ":9001" ]
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
-      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:8088,http://127.0.0.1:8088,http://localhost:3000"
-    command: server /data --console-address ":9001"
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:8088,http://127.0.0.1:8088,http://localhost:3000,http://localhost:5173"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
-      - minio-data:/data
+      - minio_data:/data
     healthcheck:
-      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      test: [ "CMD-SHELL", "mc ready local || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -88,8 +94,8 @@ services:
       minio:
         condition: service_healthy
     environment:
-      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
-      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
     entrypoint:
       - /bin/sh
       - -c
@@ -105,35 +111,39 @@ services:
     networks:
       - lms-network
 
-  # ==========================================
-  # 2. MICROSERVICES NỀN TẢNG (BACKEND)
-  # ==========================================
+  # ============================================================================
+  # 2. KHÁM PHÁ DỊCH VỤ & GIAO TIẾP NỀN TẢNG (Service Registry & Mail Server)
+  # ============================================================================
   service-registry:
     build:
       context: ./backend
-      dockerfile: service-registry/Dockerfile
+      dockerfile: ./service-registry/Dockerfile
     container_name: lms-service-registry
+    restart: always
+    environment:
+      SERVER_PORT: 8761
     ports:
       - "8761:8761"
-    environment:
-      - SERVER_PORT=8761
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8761/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
-      retries: 5
-      start_period: 25s
+      retries: 10
+      start_period: 30s
     networks:
       - lms-network
 
   mailpit:
     image: axllent/mailpit:latest
     container_name: lms-mailpit
+    restart: always
+    environment:
+      - MP_UI_TITLE=Hộp Thư LMS-EduLearn
     ports:
       - "1025:1025"
       - "8025:8025"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8025/readyz || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8025/readyz || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -141,54 +151,50 @@ services:
     networks:
       - lms-network
 
+  # ============================================================================
+  # 3. CÁC MICROSERVICES NGHIỆP VỤ CỐT LÕI (5 Dịch Vụ Backend)
+  # ============================================================================
   identity-service:
     build:
       context: ./backend
       dockerfile: identity-service/Dockerfile
     container_name: lms-identity-service
+    restart: always
     ports:
       - "8081:8081"
     environment:
       - SERVER_PORT=8081
       - IDENTITY_URL_DB=jdbc:mysql://mysql:3306/identity_lms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true
       - IDENTITY_DB_USERNAME=root
-      - IDENTITY_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
-      - BOOTSTRAP_ADMIN_ENABLED=${BOOTSTRAP_ADMIN_ENABLED:-false}
-      - BOOTSTRAP_ADMIN_USERNAMES=${BOOTSTRAP_ADMIN_USERNAMES:-}
-      - BOOTSTRAP_ADMIN_PASSWORDS=${BOOTSTRAP_ADMIN_PASSWORDS:-}
-      - BOOTSTRAP_ADMIN_EMAILS=${BOOTSTRAP_ADMIN_EMAILS:-}
-      - SPRING_DATA_REDIS_HOST=redis
-      - SPRING_DATA_REDIS_PORT=6379
-      - EUREKA_URL=http://service-registry:8761/eureka
+      - IDENTITY_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-mysqladmin123}
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
-      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
+      - EUREKA_URL=http://service-registry:8761/eureka
+      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:-yJTHpt18uThscnn2pXCGIhoXbv55gBLQF4bWZJKQDPVuny0bigzI2LAWWy0bBXki}
+      - MAIL_HOST=${MAIL_HOST:-smtp.gmail.com}
+      - MAIL_PORT=${MAIL_PORT:-587}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
       - MINIO_IDENTITY_BUCKET=lms-identity-bucket
-      - MAIL_HOST=mailpit
-      - MAIL_PORT=1025
-      - MAIL_USERNAME=
-      - MAIL_PASSWORD=
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=false
-      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=false
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-replace-with-google-client-id}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-replace-with-google-client-secret}
-      - GOOGLE_ALLOWED_REDIRECT_URIS=http://localhost:8088/auth/callback/google
+      - GOOGLE_ALLOWED_REDIRECT_URIS=${GOOGLE_ALLOWED_REDIRECT_URIS:-http://localhost:8088/auth/callback/google,http://lms-edulearn.localtest.me/auth/callback/google,http://localhost:5173/authenticate}
     depends_on:
       mysql:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       service-registry:
         condition: service_healthy
-      mailpit:
-        condition: service_started
+      minio:
+        condition: service_healthy
       minio-create-buckets:
         condition: service_completed_successfully
+      mailpit:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/identity/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8081/identity/actuator/health/liveness || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -201,20 +207,22 @@ services:
       context: ./backend
       dockerfile: course-service/Dockerfile
     container_name: lms-course-service
+    restart: always
     ports:
       - "8082:8082"
     environment:
       - SERVER_PORT=8082
       - COURSE_DB_URL=jdbc:mysql://mysql:3306/course_lms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true
       - COURSE_DB_USERNAME=root
-      - COURSE_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
+      - COURSE_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-mysqladmin123}
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/course_lms
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
-      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
+      - EUREKA_URL=http://service-registry:8761/eureka
+      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:-yJTHpt18uThscnn2pXCGIhoXbv55gBLQF4bWZJKQDPVuny0bigzI2LAWWy0bBXki}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
       - MINIO_BUCKET=lms-course-bucket
     depends_on:
       mysql:
@@ -228,11 +236,44 @@ services:
       service-registry:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/course/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8082/course/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
       start_period: 30s
+    networks:
+      - lms-network
+
+  assignment-service:
+    build:
+      context: ./backend
+      dockerfile: ./assignment-service/Dockerfile
+    container_name: lms-assignment-service
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8083
+      EUREKA_URL: http://service-registry:8761/eureka
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: lms_assignment_db
+      MYSQL_USER: root
+      MYSQL_PASSWORD: ${MYSQL_ROOT_PASSWORD:-mysqladmin123}
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}:${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}@mongodb:27017/lms_assignment_mongo?authSource=admin
+    ports:
+      - "8083:8083"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/assignment/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
     networks:
       - lms-network
 
@@ -241,20 +282,22 @@ services:
       context: ./backend
       dockerfile: blog-service/Dockerfile
     container_name: lms-blog-service
+    restart: always
     ports:
       - "8084:8084"
     environment:
       - SERVER_PORT=8084
       - BLOG_DB_URL=jdbc:mysql://mysql:3306/blog_lms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=UTC&allowPublicKeyRetrieval=true&useSSL=false&createDatabaseIfNotExist=true
       - BLOG_DB_USERNAME=root
-      - BLOG_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:?Cần đặt MYSQL_ROOT_PASSWORD trong file .env không commit}
+      - BLOG_DB_PASSWORD=${MYSQL_ROOT_PASSWORD:-mysqladmin123}
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/blog_lms
       - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
-      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
+      - EUREKA_URL=http://service-registry:8761/eureka
+      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:-yJTHpt18uThscnn2pXCGIhoXbv55gBLQF4bWZJKQDPVuny0bigzI2LAWWy0bBXki}
       - MINIO_URL=http://minio:9000
       - MINIO_PUBLIC_URL=http://localhost:9000
-      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:?Cần đặt MINIO_ROOT_USER hoặc MINIO_ACCESS_KEY trong file .env không commit}}
-      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:?Cần đặt MINIO_ROOT_PASSWORD hoặc MINIO_SECRET_KEY trong file .env không commit}}
+      - MINIO_ACCESS_KEY=${MINIO_ROOT_USER:-${MINIO_ACCESS_KEY:-minioadmin}}
+      - MINIO_SECRET_KEY=${MINIO_ROOT_PASSWORD:-${MINIO_SECRET_KEY:-minioadmin123}}
       - MINIO_BLOG_BUCKET=lms-blog-bucket
     depends_on:
       mysql:
@@ -268,7 +311,7 @@ services:
       service-registry:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/blog/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8084/blog/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -276,35 +319,62 @@ services:
     networks:
       - lms-network
 
-  # ==========================================
-  # 3. API GATEWAY & GIAO DIỆN WEB BFF
-  # ==========================================
+  chatbot-service:
+    build:
+      context: ./backend
+      dockerfile: ./chatbot-service/Dockerfile
+    container_name: lms-chatbot-service
+    restart: always
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      service-registry:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8085
+      EUREKA_URL: http://service-registry:8761/eureka
+      MONGODB_URI: mongodb://${MONGO_INITDB_ROOT_USERNAME:-mongoadmin}:${MONGO_INITDB_ROOT_PASSWORD:-mongoadmin123}@mongodb:27017/lms_chatbot_db?authSource=admin
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-redisadmin123}
+    ports:
+      - "8085:8085"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/chatbot/actuator/health/liveness" ]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - lms-network
+
+  # ============================================================================
+  # 4. API GATEWAY & GIAO DIỆN NGƯỜI DÙNG (Gateway, Web-App BFF & Web-Portal)
+  # ============================================================================
   api-gateway:
     build:
       context: ./backend
-      dockerfile: api-gateway/Dockerfile
+      dockerfile: ./api-gateway/Dockerfile
     container_name: lms-api-gateway
-    ports:
-      - "8080:8080"
-    environment:
-      - SERVER_PORT=8080
-      - EUREKA_CLIENT_SERVICEURL_DEFAULTZONE=http://service-registry:8761/eureka/
-      - FRONTEND_URL=http://localhost:8088
-      - JWT_SIGNER_KEY=${JWT_SIGNER_KEY:?Cần đặt JWT_SIGNER_KEY trong file .env không commit}
+    restart: always
     depends_on:
       service-registry:
         condition: service_healthy
-      identity-service:
-        condition: service_healthy
-      course-service:
-        condition: service_healthy
-      blog-service:
-        condition: service_healthy
+    environment:
+      SERVER_PORT: 8080
+      EUREKA_URL: http://service-registry:8761/eureka
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://service-registry:8761/eureka/
+      FRONTEND_URL: http://localhost:8088
+      JWT_SIGNER_KEY: ${JWT_SIGNER_KEY:-yJTHpt18uThscnn2pXCGIhoXbv55gBLQF4bWZJKQDPVuny0bigzI2LAWWy0bBXki}
+    ports:
+      - "8080:8080"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
-      retries: 5
+      retries: 10
       start_period: 30s
     networks:
       - lms-network
@@ -314,22 +384,52 @@ services:
       context: ./backend
       dockerfile: web-app/Dockerfile
     container_name: lms-web-app
+    restart: unless-stopped
     ports:
       - "8088:8088"
+      - "80:8088"
     environment:
       - SERVER_PORT=8088
       - GATEWAY_URL=http://api-gateway:8080/api
       - SPRING_PROFILES_ACTIVE=prod
       - EUREKA_CLIENT_ENABLED=false
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-replace-with-google-client-id}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8088/auth/callback/google}
     depends_on:
       api-gateway:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8088/actuator/health || exit 1"]
+      test: [ "CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:8088/actuator/health || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 3
       start_period: 30s
     networks:
       - lms-network
-    restart: unless-stopped
+
+  web-portal:
+    build:
+      context: ./backend
+      dockerfile: ./web-portal/Dockerfile
+    container_name: lms-web-portal
+    restart: always
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    environment:
+      SERVER_PORT: 8086
+      API_GATEWAY_URL: http://api-gateway:8080
+    ports:
+      - "8086:8086"
+    networks:
+      - lms-network
+
+networks:
+  lms-network:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  mongo_data:
+  redis_data:
+  minio_data:

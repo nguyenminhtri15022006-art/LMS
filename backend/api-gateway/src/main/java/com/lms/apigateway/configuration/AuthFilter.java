@@ -25,6 +25,7 @@ import java.util.Optional;
 
 /**
  * AuthFilter — Gateway Filter thực hiện Token Offloading & Whitelist.
+ * Xác thực JWT tại Gateway và tiêm header định danh người dùng xuống microservices.
  */
 @Component
 public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {

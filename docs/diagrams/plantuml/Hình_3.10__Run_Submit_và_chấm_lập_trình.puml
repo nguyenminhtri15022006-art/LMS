@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.10 — Run, Submit và chấm lập trình
+start
+:Soạn code và chọn language;
+:Kiểm tra quyền, language, code size;
+if (Chọn Run?) then (Có)
+:Gọi engine với custom input;
+:Trả output chạy thử;
+else (Submit)
+:Compile preflight;
+if (Biên dịch hợp lệ?) then (Có)
+:Lưu submission PENDING;
+fork
+:Trả response cho frontend;
+:Frontend đọc trạng thái;
+fork again
+:judgeAsync;
+:Chuyển JUDGING;
+:Chạy test và cập nhật kết quả;
+end fork
+else (Không)
+:Trả lỗi biên dịch;
+endif
+endif
+note right: Bài không có test trả AC/100 là giới hạn;\nkhông dùng làm minh chứng chấm đúng
+stop
+@enduml

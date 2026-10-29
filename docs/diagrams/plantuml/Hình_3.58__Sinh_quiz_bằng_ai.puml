@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.58 — Sinh quiz bằng ai
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập yêu cầu sinh quiz
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Backend kiểm tra role/hạn mức
+note right of B: Xây prompt và gọi LLM
+note right of B: Parse/kiểm tra kết quả
+note right of B: Giảng viên xem và sửa
+note right of B: Lưu bằng luồng tạo quiz riêng
+opt Biến thể nghiệp vụ
+note over F,B: Sửa tay hoặc sinh lại nếu nội dung không phù hợp.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: GENERATE_QUIZ_FAILED, lỗi provider/hạn mức hoặc định dạng response.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: chatbot: ChatController.generateQuiz, GenerateServiceImpl;  assignment QuizAiPreviewService.
+endlegend
+@enduml

@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.48 — Nhập bài lập trình từ template
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Tải template test case
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn problem đã có và file nhập
+note right of B: Gửi POST /problems/{problemId}/testcases/import
+note right of B: Service kiểm tra quyền/resource và điều kiện bài nộp, parse và lưu theo implementation
+note right of B: Đối chiếu BulkTestCaseResponse với danh sách test. PreviewImportPage riêng dùng dữ liệu mẫu và LockedFeature, không coi là preview API hoàn chỉnh
+opt Biến thể nghiệp vụ
+note over F,B: Hủy preview hoặc chọn lại tệp.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Tệp sai, dữ liệu thiếu, lỗi API;  chi tiết định dạng lấy từ implementation ở Chương 5.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: TestCaseController.importTestCases;  PreviewImportPage có dữ liệu mẫu và LockedFeature, chưa là luồng preview API hoàn chỉnh.
+endlegend
+@enduml

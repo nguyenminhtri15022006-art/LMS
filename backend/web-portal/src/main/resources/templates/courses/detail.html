@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Chi Tiết Khóa Học - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="bg-light min-vh-100">
+    <!-- Header Banner -->
+    <section class="bg-dark text-white py-5">
+        <div class="container">
+            <!-- Breadcrumb -->
+            <nav aria-label="breadcrumb" class="mb-3">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a th:href="@{/}" class="text-white-50 text-decoration-none">Trang chủ</a></li>
+                    <li class="breadcrumb-item"><a th:href="@{/courses}" class="text-white-50 text-decoration-none">Khóa học</a></li>
+                    <li class="breadcrumb-item active text-white" aria-current="page" th:text="${course.title}">Chi tiết</li>
+                </ol>
+            </nav>
+
+            <div class="row align-items-center">
+                <div class="col-lg-8">
+                    <div class="d-flex flex-wrap gap-2 mb-3">
+                        <span class="badge bg-primary rounded-pill px-3 py-2" th:text="${course.category}">Web Development</span>
+                        <span th:if="${course.difficulty == 'BEGINNER'}" class="badge bg-success rounded-pill px-3 py-2">Cơ bản</span>
+                        <span th:if="${course.difficulty == 'INTERMEDIATE'}" class="badge bg-warning text-dark rounded-pill px-3 py-2">Trung cấp</span>
+                        <span th:if="${course.difficulty == 'ADVANCED'}" class="badge bg-danger rounded-pill px-3 py-2">Nâng cao</span>
+                    </div>
+
+                    <h1 class="display-6 fw-bold mb-3" th:text="${course.title}">Lập trình Web Nâng Cao & Spring Boot Microservices</h1>
+                    <p class="lead text-white-50 mb-4" th:text="${course.shortDescription}">Mô tả ngắn gọn...</p>
+
+                    <div class="d-flex flex-wrap align-items-center gap-4 text-white-50 small">
+                        <div>
+                            <i class="bi bi-person text-primary me-1"></i>
+                            <span class="text-white fw-semibold" th:text="${course.instructorName}">Giảng viên</span>
+                        </div>
+                        <div>
+                            <i class="bi bi-star-fill text-warning me-1"></i>
+                            <span class="text-white fw-semibold" th:text="${course.rating}">4.9</span>
+                            (<span th:text="${course.reviewsCount}">140</span> đánh giá)
+                        </div>
+                        <div>
+                            <i class="bi bi-people text-info me-1"></i>
+                            <span class="text-white" th:text="${course.studentsEnrolled}">850</span> học viên
+                        </div>
+                        <div>
+                            <i class="bi bi-clock text-secondary me-1"></i>
+                            <span class="text-white" th:text="${course.durationHours}">36</span> giờ học
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <div class="container py-5">
+        <!-- Success Alert -->
+        <div th:if="${success}" class="alert alert-success d-flex align-items-center gap-2 alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill fs-5"></i>
+            <div>
+                <strong th:text="${success}">Đăng ký thành công!</strong>
+                <span class="small ms-2">Bạn có thể bắt đầu học ngay bây giờ.</span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div class="row g-4">
+            <!-- Left Column: Syllabus & Details -->
+            <div class="col-lg-8">
+                <!-- What you'll learn -->
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white" th:if="${not #lists.isEmpty(course.outcomes)}">
+                    <h5 class="fw-bold mb-3">
+                        <i class="bi bi-check2-circle text-success me-2"></i>Bạn sẽ học được gì trong khóa này?
+                    </h5>
+                    <div class="row g-2">
+                        <div class="col-md-6" th:each="outcome : ${course.outcomes}">
+                            <div class="d-flex align-items-start gap-2">
+                                <i class="bi bi-check-lg text-primary flex-shrink-0 mt-1"></i>
+                                <span class="small" th:text="${outcome}">Kỹ năng đạt được</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Course Description -->
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+                    <h5 class="fw-bold mb-3">Mô tả chi tiết khóa học</h5>
+                    <p class="text-secondary leading-relaxed" th:text="${course.description}">
+                        Nội dung chi tiết khóa học...
+                    </p>
+                </div>
+
+                <!-- Syllabus Accordion -->
+                <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="fw-bold mb-0">Nội dung chương trình học</h5>
+                        <small class="text-muted" th:text="${course.totalLessons + ' bài học • ' + course.durationHours + ' giờ tổng cộng'}">18 bài học</small>
+                    </div>
+
+                    <div class="accordion" id="syllabusAccordion" th:if="${not #lists.isEmpty(course.chapters)}">
+                        <div class="accordion-item border rounded-3 mb-2 overflow-hidden" th:each="chapter, iterStat : ${course.chapters}">
+                            <h2 class="accordion-header" th:id="${'heading-' + chapter.id}">
+                                <button class="accordion-button fw-semibold bg-light" type="button" data-bs-toggle="collapse"
+                                        th:data-bs-target="${'#collapse-' + chapter.id}"
+                                        th:aria-expanded="${iterStat.index == 0 ? 'true' : 'false'}"
+                                        th:aria-controls="${'collapse-' + chapter.id}">
+                                    <span th:text="${chapter.title}">Chương 1</span>
+                                    <span class="badge bg-secondary-subtle text-secondary ms-auto me-3 small"
+                                          th:text="${#lists.size(chapter.lessons) + ' bài'}">2 bài</span>
+                                </button>
+                            </h2>
+                            <div th:id="${'collapse-' + chapter.id}"
+                                 class="accordion-collapse collapse"
+                                 th:classappend="${iterStat.index == 0 ? 'show' : ''}"
+                                 th:aria-labelledby="${'heading-' + chapter.id}"
+                                 data-bs-parent="#syllabusAccordion">
+                                <div class="accordion-body p-0">
+                                    <ul class="list-group list-group-flush">
+                                        <li class="list-group-item d-flex align-items-center justify-content-between py-3 px-3"
+                                            th:each="lesson : ${chapter.lessons}">
+                                            <div class="d-flex align-items-center gap-2">
+                                                <i th:if="${lesson.type == 'VIDEO'}" class="bi bi-play-circle text-primary"></i>
+                                                <i th:if="${lesson.type == 'ARTICLE'}" class="bi bi-file-earmark-text text-info"></i>
+                                                <i th:if="${lesson.type == 'CODE_LAB'}" class="bi bi-code-square text-warning"></i>
+                                                <i th:if="${lesson.type == 'QUIZ'}" class="bi bi-patch-question text-success"></i>
+
+                                                <a th:href="@{/courses/{id}/lessons/{lessonId}(id=${course.id}, lessonId=${lesson.id})}"
+                                                   class="text-decoration-none text-dark fw-medium small hover-primary"
+                                                   th:text="${lesson.title}">
+                                                    Tên bài học
+                                                </a>
+                                                <span th:if="${lesson.isPreview}" class="badge bg-primary-subtle text-primary" style="font-size: 10px;">Xem trước</span>
+                                            </div>
+                                            <div class="d-flex align-items-center gap-3">
+                                                <span class="text-muted small" th:text="${lesson.durationMinutes + ' phút'}">25 phút</span>
+                                                <a th:href="@{/courses/{id}/lessons/{lessonId}(id=${course.id}, lessonId=${lesson.id})}"
+                                                   class="btn btn-sm btn-outline-primary rounded-pill py-0 px-2 small">
+                                                    Học
+                                                </a>
+                                            </div>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div th:if="${#lists.isEmpty(course.chapters)}" class="text-center py-4 text-muted">
+                        <i class="bi bi-clock-history fs-3 mb-2 d-block"></i>
+                        Đề cương bài học đang được giảng viên cập nhật hoàn thiện.
+                    </div>
+                </div>
+
+                <!-- Instructor Card -->
+                <div class="card border-0 shadow-sm rounded-4 p-4 bg-white">
+                    <h5 class="fw-bold mb-3">Về Giảng Viên</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow-sm" style="width: 64px; height: 64px; font-size: 24px;">
+                            <i class="bi bi-person-fill"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold mb-1" th:text="${course.instructorName}">ThS. Nguyễn Minh Trí</h6>
+                            <p class="text-muted small mb-1" th:text="${course.instructorTitle}">Giảng viên Khoa CNTT - HCMUTE</p>
+                            <span class="badge bg-success-subtle text-success small"><i class="bi bi-patch-check-fill me-1"></i>Giảng viên Xác thực</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Sticky Action Card -->
+            <div class="col-lg-4">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden sticky-top" style="top: 90px;">
+                    <img th:src="${course.thumbnailUrl}" class="card-img-top object-fit-cover" style="height: 200px;" alt="Course Thumbnail">
+                    <div class="card-body p-4">
+                        <div class="d-flex align-items-baseline gap-2 mb-3">
+                            <span class="display-6 fw-bold text-primary">Miễn phí</span>
+                            <span class="text-muted text-decoration-line-through small">599.000 đ</span>
+                            <span class="badge bg-danger-subtle text-danger ms-auto">Ưu đãi sinh viên HCMUTE</span>
+                        </div>
+
+                        <!-- CTA Actions -->
+                        <div th:if="${course.isEnrolled}">
+                            <div class="alert alert-info py-2 small mb-3">
+                                <i class="bi bi-info-circle me-1"></i>Bạn đã đăng ký khóa học này
+                            </div>
+                            <a th:href="@{/courses/{id}/lessons/les-101(id=${course.id})}" class="btn btn-success w-100 py-3 fw-bold shadow-sm">
+                                <i class="bi bi-play-circle-fill me-2"></i>Tiếp Tục Học Ngay
+                            </a>
+                        </div>
+
+                        <div th:if="${!course.isEnrolled}">
+                            <form th:action="@{/courses/{id}/enroll(id=${course.id})}" method="post">
+                                <button type="submit" class="btn btn-primary w-100 py-3 fw-bold shadow-sm">
+                                    <i class="bi bi-pencil-square me-2"></i>Đăng Ký Khóa Học Miễn Phí
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="mt-4">
+                            <h6 class="fw-bold small text-uppercase text-secondary mb-3">Khóa học này bao gồm:</h6>
+                            <ul class="list-unstyled small mb-0 d-flex flex-column gap-2 text-muted">
+                                <li><i class="bi bi-camera-video text-primary me-2"></i><span th:text="${course.durationHours}">36</span> giờ bài giảng video full HD</li>
+                                <li><i class="bi bi-journal-text text-primary me-2"></i><span th:text="${course.totalLessons}">18</span> bài đọc lý thuyết &amp; slide</li>
+                                <li><i class="bi bi-code-slash text-primary me-2"></i>Thực hành Luyện Code &amp; chấm điểm tự động</li>
+                                <li><i class="bi bi-patch-question text-primary me-2"></i>Bài kiểm tra Quiz trắc nghiệm đánh giá</li>
+                                <li><i class="bi bi-infinity text-primary me-2"></i>Quyền truy cập học trọn đời</li>
+                                <li><i class="bi bi-award text-primary me-2"></i>Chứng nhận hoàn thành môn học</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

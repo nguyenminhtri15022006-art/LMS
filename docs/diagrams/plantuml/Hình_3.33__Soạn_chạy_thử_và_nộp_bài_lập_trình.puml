@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.33 — Soạn chạy thử và nộp bài lập trình
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở bài và soạn code
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn ngôn ngữ, chạy thử với input
+note right of B: Backend kiểm tra code và quyền
+note right of B: Khi nộp, thực hiện compile preflight
+note right of B: Lưu submission PENDING và gọi chấm bất đồng bộ
+note right of B: Giao diện theo dõi kết quả
+opt Biến thể nghiệp vụ
+note over F,B: Chạy thử không đồng nghĩa đã nộp;  sửa code và nộp lại tạo lượt riêng.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: INVALID_LANGUAGE, SOURCE_CODE_EMPTY, SOURCE_CODE_TOO_LARGE, NOT_ENROLLED, JUDGE0_TIMEOUT/JUDGE0_ERROR hoặc lỗi biên dịch.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: SubmissionServiceImpl.submit/runCode, SubmissionJudgingService.
+endlegend
+@enduml

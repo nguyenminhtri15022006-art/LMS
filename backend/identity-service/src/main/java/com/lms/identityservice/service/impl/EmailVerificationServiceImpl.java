@@ -11,6 +11,7 @@ import com.lms.identityservice.enums.VerificationType;
 import com.lms.identityservice.exception.ErrorCode;
 import com.lms.identityservice.exception.IdentityException;
 import com.lms.identityservice.repository.EmailVerificationRepository;
+import com.lms.identityservice.repository.RefreshTokenRepository;
 import com.lms.identityservice.repository.UserRepository;
 import com.lms.identityservice.service.EmailService;
 import com.lms.identityservice.service.EmailVerificationService;
@@ -43,6 +44,7 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
     int otpMaxAttempts;
 
     EmailVerificationRepository emailVerificationRepository;
+    RefreshTokenRepository refreshTokenRepository;
     UserRepository userRepository;
     EmailService emailService;
     OtpAttemptHandler otpAttemptHandler;
@@ -58,10 +60,12 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
             throw new IdentityException(ErrorCode.EMAIL_ALREADY_VERIFIED);
         }
 
-        if (emailVerificationRepository.existsByValidOtp(
-                user, VerificationType.VERIFY_EMAIL, Instant.now(), otpMaxAttempts)) {
-            throw new IdentityException(ErrorCode.VERIFICATION_EMAIL_ALREADY_SENT);
-        }
+        emailVerificationRepository.findValidOtp(
+                user, VerificationType.VERIFY_EMAIL, Instant.now(), otpMaxAttempts)
+                .ifPresent(oldVerification -> {
+                    oldVerification.setUsedAt(Instant.now());
+                    emailVerificationRepository.save(oldVerification);
+                });
 
         String otp = generateOtp();
         saveOtp(user, otp, VerificationType.VERIFY_EMAIL);
@@ -137,6 +141,8 @@ public class EmailVerificationServiceImpl implements EmailVerificationService {
         String passwordHash = passwordEncoder.encode(request.getNewPassword());
         user.setPassword(passwordHash);
         userRepository.save(user);
+
+        refreshTokenRepository.revokeAllByUserId(user.getUserId());
     }
 
     private String generateOtp() {

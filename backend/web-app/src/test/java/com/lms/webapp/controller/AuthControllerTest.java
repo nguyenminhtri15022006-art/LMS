@@ -6,6 +6,7 @@ import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureMockR
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,10 +20,12 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +36,43 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockRestServiceServer
 @ActiveProfiles("test")
 class AuthControllerTest {
+
+    @Test
+    void registrationKeepsAccountAndExplainsOtpDeliveryFailure() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/register"))
+                .andExpect(jsonPath("$.role").value("STUDENT"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withServerError());
+        var result = mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "otp_test").param("email", "otp@example.com")
+                        .param("password", "test-only-password").param("confirmPassword", "test-only-password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/verify-email?email=otp%40example.com"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("otpDeliveryFailed", true)).andReturn();
+        mockMvc.perform(get("/verify-email").param("email", "otp@example.com")
+                        .flashAttrs(result.getFlashMap()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Tài khoản đã được tạo")))
+                .andExpect(content().string(containsString("data-delivery-failed=\"true\"")))
+                .andExpect(content().string(containsString("Gửi lại mã OTP")));
+        mockServer.verify();
+    }
+
+    @Test
+    void registrationSendsOtpWithoutFailureWarningOnSuccess() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/register"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "otp_test").param("email", "otp@example.com")
+                        .param("password", "test-only-password").param("confirmPassword", "test-only-password"))
+                .andExpect(redirectedUrl("/verify-email?email=otp%40example.com"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeCount(0));
+        mockServer.verify();
+    }
 
     @Autowired
     private MockMvc mockMvc;
@@ -71,6 +111,24 @@ class AuthControllerTest {
         assertThat(session.getAttribute("accessToken")).isEqualTo("test-access-jwt");
         assertThat(session.getAttribute("refreshToken")).isEqualTo("test-refresh-jwt");
         assertThat(session.getAttribute("username")).isEqualTo("alice");
+    }
+
+    @Test
+    void loginUnverifiedAccountShowsErrorAndActivationLink() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/login"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"code\":1009,\"message\":\"Tài khoản chưa được kích hoạt qua email\",\"data\":{\"email\":\"alice@example.com\"}}"));
+
+        mockMvc.perform(post("/login")
+                        .with(csrf())
+                        .param("username", "alice")
+                        .param("password", "secret123"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("auth/login"))
+                .andExpect(model().attribute("unverifiedUser", true))
+                .andExpect(model().attribute("unverifiedEmail", "alice@example.com"));
         mockServer.verify();
     }
 
@@ -198,6 +256,14 @@ class AuthControllerTest {
                 .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath("$.message").isNotEmpty());
 
         mockServer.verify();
+    }
+
+    @Test
+    void startGoogleOAuthRedirectsWithSelectAccountPrompt() throws Exception {
+        mockMvc.perform(get("/auth/google"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(header().string("Location", containsString("prompt=select_account")))
+                .andExpect(header().string("Location", containsString("accounts.google.com/o/oauth2/v2/auth")));
     }
 
     @Test

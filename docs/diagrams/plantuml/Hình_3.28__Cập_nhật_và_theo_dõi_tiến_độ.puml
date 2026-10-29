@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.28 — Cập nhật và theo dõi tiến độ
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Người học hoàn thành bài theo thao tác giao diện
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gửi completeLesson
+note right of B: Backend kiểm tra enrollment và quan hệ bài học
+note right of B: Lưu/cập nhật LessonProgress
+note right of B: Tải tiến độ khóa học
+opt Biến thể nghiệp vụ
+note over F,B: Đọc lại tiến độ để tiếp tục học;  số lần gọi không tự chứng minh đã hiểu nội dung.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: NOT_ENROLLED, LESSON_NOT_BELONG_TO_COURSE và lỗi dữ liệu.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: course: LessonProgressServiceImpl.completeLesson/getCourseProgress.
+endlegend
+@enduml

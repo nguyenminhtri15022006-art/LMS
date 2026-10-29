@@ -1,13 +1,13 @@
 # Sample reference project (read-only)
 Learning-Management-System-main/
 
-# Compiled class file
+# ==============================
+# JAVA & COMPILER
+# ==============================
 *.class
-
-# Log file
 *.log
-
-# Package Files #
+*.ctxt
+.mtj.tmp/
 *.jar
 *.war
 *.nar
@@ -15,12 +15,12 @@ Learning-Management-System-main/
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs
 hs_err_pid*
 replay_pid*
 
-# Maven
+# ==============================
+# MAVEN
+# ==============================
 target/
 pom.xml.tag
 pom.xml.releaseBackup
@@ -32,13 +32,52 @@ buildNumber.properties
 .mvn/timing.properties
 .mvn/wrapper/maven-wrapper.jar
 
-# Node
+# ==============================
+# NODE / REACT / VITE
+# ==============================
 node_modules/
 dist/
-.env
-.env.local
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# IDE
+# ==============================
+# ENVIRONMENT VARIABLES & SECRETS
+# ==============================
+.env
+.env.production
+.env.development
+.env.local
+!.env.example
+!frontend/.env.example
+
+# ==============================
+# IDE & EDITORS
+# ==============================
 .idea/
 *.iml
+*.iws
+*.ipr
 .vscode/
+*.sublime-workspace
+*.sublime-project
+.project
+.classpath
+.settings/
+
+# ==============================
+# OS & SYSTEM
+# ==============================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# ==============================
+# DOCKER & PERSISTENCE DATA
+# ==============================
+docker-data/
+minio_data/

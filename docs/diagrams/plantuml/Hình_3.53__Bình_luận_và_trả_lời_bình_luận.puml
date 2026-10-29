@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.53 — Bình luận và trả lời bình luận
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập bình luận/reply
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gửi API
+note right of B: Backend kiểm tra post và parent
+note right of B: Lưu comment
+note right of B: Khi sửa/xóa, kiểm tra owner theo service
+opt Biến thể nghiệp vụ
+note over F,B: Reply vào comment gốc;  không cho reply của reply theo source.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: POST_NOT_PUBLISHED, COMMENT_NOT_BELONG_TO_POST, CANNOT_REPLY_TO_REPLY, NOT_COMMENT_OWNER.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: blog: CommentServiceImpl.
+endlegend
+@enduml

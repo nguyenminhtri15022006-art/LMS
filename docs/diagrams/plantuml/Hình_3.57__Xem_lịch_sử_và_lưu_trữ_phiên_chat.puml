@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.57 — Xem lịch sử và lưu trữ phiên chat
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Tải danh sách phiên theo userId
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Chọn sessionId và đọc tin nhắn
+note right of B: Chọn New Chat/archive
+note right of B: Backend archiveSessionByUser kiểm tra chủ phiên
+opt Biến thể nghiệp vụ
+note over F,B: Lần chat sau tạo phiên mới theo luồng hệ thống.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: SESSION_NOT_OWNER khi archive. getMessages/getMessageResponses chưa thấy kiểm tra owner trong tuyến đã đọc;  không tuyên bố đã cô lập lịch sử hoàn toàn, cần kiểm thử truy cập chéo.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: chatbot: ChatController.getMessages/archiveSession, ChatMessageServiceImpl, ChatSessionServiceImpl.
+endlegend
+@enduml

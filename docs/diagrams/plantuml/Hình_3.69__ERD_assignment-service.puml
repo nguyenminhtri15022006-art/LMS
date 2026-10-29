@@ -1,0 +1,137 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.69 — ERD assignment-service
+top to bottom direction
+hide circle
+skinparam linetype ortho
+entity "problems" as problems {
+problem_id : INT
+course_id : CHAR(36)
+lesson_id : CHAR(36)
+title : VARCHAR(300)
+slug : VARCHAR(350)
+description : LONGTEXT
+difficulty : ENUM ('EASY','MEDIUM','HARD')
+time_limit_ms : INT
+memory_limit_mb : INT
+allowed_langs : JSON
+score : SMALLINT
+is_public : TINYINT(1)
+is_deleted : TINYINT(1)
+deleted_at : DATETIME
+deleted_by : CHAR(36)
+total_submit : INT
+total_accepted : INT
+created_by : CHAR(36)
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "test_cases" as test_cases {
+test_id : BIGINT
+problem_id : INT
+input : LONGTEXT
+expected_output : LONGTEXT
+is_hidden : TINYINT(1)
+order_index : SMALLINT
+score_weight : FLOAT
+created_at : DATETIME
+}
+entity "quizzes" as quizzes {
+quiz_id : INT
+course_id : CHAR(36)
+lesson_id : CHAR(36)
+title : VARCHAR(300)
+description : TEXT
+duration : INT
+total_score : SMALLINT
+pass_score : TINYINT
+max_attempts : TINYINT
+shuffle_questions : TINYINT(1)
+shuffle_answers : TINYINT(1)
+show_result : ENUM ('IMMEDIATELY','AFTER_SUBMIT','AFTER_DEADLINE')
+start_time : DATETIME
+end_time : DATETIME
+created_by : CHAR(36)
+created_at : DATETIME
+is_published : TINYINT(1)
+is_deleted : TINYINT(1)
+deleted_at : DATETIME
+deleted_by : CHAR(36)
+updated_at : DATETIME
+}
+entity "questions" as questions {
+question_id : INT
+course_id : CHAR(36)
+content : TEXT
+type : ENUM ('SINGLE','MULTIPLE','TRUE_FALSE')
+topic : VARCHAR(100)
+explanation : TEXT
+score : TINYINT
+image_url : VARCHAR(500)
+created_by : CHAR(36)
+created_at : DATETIME
+updated_at : DATETIME
+}
+entity "answers" as answers {
+answer_id : INT
+question_id : INT
+content : TEXT
+is_correct : TINYINT(1)
+order_index : SMALLINT
+}
+entity "quiz_questions" as quiz_questions {
+id : BIGINT
+quiz_id : INT
+question_id : INT
+override_score : SMALLINT
+order_index : SMALLINT
+}
+entity "quiz_attempts" as quiz_attempts {
+attempt_id : BIGINT
+quiz_id : INT
+user_id : CHAR(36)
+score : FLOAT
+total_score : DECIMAL(10, 2)
+is_passed : TINYINT(1)
+time_spent_s : INT
+status : ENUM ('IN_PROGRESS','SUBMITTED','EXPIRED')
+started_at : DATETIME
+submitted_at : DATETIME
+expires_at : DATETIME
+attempt_number : TINYINT
+in_progress_lock : VARCHAR(100)
+version : BIGINT
+}
+entity "quiz_answer_records" as quiz_answer_records {
+id : BIGINT
+attempt_id : BIGINT
+question_id : INT
+selected_answer_ids : JSON
+earned_score : DECIMAL(10, 2)
+}
+entity "grades" as grades {
+id : BIGINT
+user_id : CHAR(36)
+course_id : CHAR(36)
+quiz_id : INT
+best_score : FLOAT
+attempts_count : INT
+last_attempt_at : DATETIME
+updated_at : DATETIME
+}
+problems ||--o{ test_cases : "problem_id -> problem_id"
+questions ||--o{ answers : "question_id -> question_id"
+quizzes ||--o{ quiz_questions : "quiz_id -> quiz_id"
+questions ||--o{ quiz_questions : "question_id -> question_id"
+quizzes ||--o{ quiz_attempts : "quiz_id -> quiz_id"
+quiz_attempts ||--o{ quiz_answer_records : "attempt_id -> attempt_id"
+questions ||--o{ quiz_answer_records : "question_id -> question_id"
+quizzes ||--o{ grades : "quiz_id -> quiz_id"
+legend bottom
+Đường liền: FK khai báo trong migration V1.
+ID xuyên service, MongoDB và votes.target_id không tự có FK.
+PK/unique/default và V2 xem từ điển dữ liệu trong tab báo cáo.
+endlegend
+@enduml

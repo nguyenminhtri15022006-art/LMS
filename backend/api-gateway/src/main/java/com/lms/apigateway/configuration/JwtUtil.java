@@ -13,6 +13,10 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.util.Optional;
 
+/**
+ * Utility class verify JWT tại API Gateway.
+ * Nơi duy nhất trong hệ thống giải mã chữ ký JWT signer-key.
+ */
 @Component
 public class JwtUtil {
 
@@ -24,6 +28,9 @@ public class JwtUtil {
         this.secretKey = Keys.hmacShaKeyFor(signerKey.getBytes(StandardCharsets.UTF_8));
     }
 
+    /**
+     * Verify token và trả về Claims nếu hợp lệ.
+     */
     public Optional<Claims> verify(String token) {
         try {
             Claims claims = Jwts.parser()
@@ -50,6 +57,9 @@ public class JwtUtil {
         }
     }
 
+    /**
+     * Extract token từ Authorization header: "Bearer <token>"
+     */
     public Optional<String> extractToken(String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return Optional.empty();

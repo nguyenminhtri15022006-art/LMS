@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title">Đăng Ký Tài Khoản - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100 d-flex align-items-center">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-md-9 col-lg-6">
+                <div class="card border-0 shadow-sm rounded-4 overflow-hidden">
+                    <div class="card-header bg-primary text-white text-center py-4">
+                        <div class="display-6 mb-2">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </div>
+                        <h4 class="fw-bold mb-1">Tạo Tài Khoản Mới</h4>
+                        <p class="small text-white-50 mb-0">Tham gia cộng đồng học tập &amp; rèn luyện lập trình</p>
+                    </div>
+
+                    <div class="card-body p-4 p-md-5">
+                        <!-- Error message -->
+                        <div th:if="${error}" class="alert alert-danger d-flex align-items-center gap-2 alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-triangle-fill"></i>
+                            <span th:text="${error}">Đăng ký thất bại!</span>
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+
+                        <form th:action="@{/auth/register}" th:object="${registerDto}" method="post">
+                            <div class="mb-3">
+                                <label for="fullname" class="form-label fw-semibold">Họ và tên</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-card-text"></i></span>
+                                    <input type="text" id="fullname" th:field="*{fullname}" class="form-control border-start-0" placeholder="Ví dụ: Nguyễn Văn A" required autofocus>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="username" class="form-label fw-semibold">Tên đăng nhập</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-person"></i></span>
+                                        <input type="text" id="username" th:field="*{username}" class="form-control border-start-0" placeholder="nguyenvana" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="email" class="form-label fw-semibold">Địa chỉ Email</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-envelope"></i></span>
+                                        <input type="email" id="email" th:field="*{email}" class="form-control border-start-0" placeholder="vana@ute.edu.vn" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-6">
+                                    <label for="password" class="form-label fw-semibold">Mật khẩu</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-lock"></i></span>
+                                        <input type="password" id="password" th:field="*{password}" class="form-control border-start-0" placeholder="Ít nhất 6 ký tự" minlength="6" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="confirmPassword" class="form-label fw-semibold">Xác nhận mật khẩu</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="bi bi-check2-circle"></i></span>
+                                        <input type="password" id="confirmPassword" th:field="*{confirmPassword}" class="form-control border-start-0" placeholder="Nhập lại mật khẩu" minlength="6" required>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold d-block">Vai trò học tập</label>
+                                <div class="d-flex gap-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" th:field="*{role}" id="roleStudent" value="STUDENT" checked>
+                                        <label class="form-check-label" for="roleStudent">
+                                            <i class="bi bi-person-fill text-primary me-1"></i>Học viên (Sinh viên)
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" th:field="*{role}" id="roleInstructor" value="INSTRUCTOR">
+                                        <label class="form-check-label" for="roleInstructor">
+                                            <i class="bi bi-mortarboard text-success me-1"></i>Giảng viên
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="form-check mb-4">
+                                <input class="form-check-input" type="checkbox" id="terms" required>
+                                <label class="form-check-label small text-muted" for="terms">
+                                    Tôi đồng ý với các điều khoản sử dụng và chính sách học vụ của hệ thống.
+                                </label>
+                            </div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold shadow-sm">
+                                <i class="bi bi-person-check me-1"></i>Hoàn Tất Đăng Ký
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="card-footer bg-light text-center py-3 border-0">
+                        <span class="small text-muted">Đã có tài khoản?</span>
+                        <a th:href="@{/auth/login}" class="small fw-bold text-decoration-none ms-1">Đăng nhập</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

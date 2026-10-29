@@ -1,0 +1,28 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.8 — Enrollment, lesson và tiến độ
+start
+:Chọn course và đăng nhập;
+if (PUBLIC, không LOCKED, chưa đăng ký?) then (Có)
+:Lưu Enrollment ACTIVE;
+else (Không)
+:Từ chối đăng ký;
+stop
+endif
+:Chọn lesson;
+if (Thuộc course và đủ quyền?) then (Có)
+:Trả nội dung;
+else (Không)
+:Từ chối đọc;
+stop
+endif
+:Yêu cầu hoàn thành;
+if (Enrollment và quan hệ hợp lệ?) then (Có)
+:Lưu LessonProgress;
+else (Không)
+:Từ chối cập nhật;
+endif
+stop
+@enduml

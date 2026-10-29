@@ -1,3 +1,6 @@
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- ==============================================================================
 -- LMS Demo Seeding Script (Phase 5 - Dữ liệu Demo Chuẩn Hóa)
 -- Lưu ý: Kịch bản này được nạp sau khi các microservices đã khởi chạy và Flyway
@@ -71,7 +74,8 @@ INSERT INTO `courses` (
     'd1111111-1111-1111-1111-111111111111',
     NOW(), NOW()
 ) ON DUPLICATE KEY UPDATE
-    `title` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`title`), (SELECT 1 UNION ALL SELECT 2));
+    `title` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`title`), (SELECT 1 UNION ALL SELECT 2)),
+    `description` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`description`), (SELECT 1 UNION ALL SELECT 2));
 
 -- Gán danh mục cho khóa học 1 (tra cứu dynamic ID theo slug để bảo đảm an toàn FK)
 INSERT INTO `course_categories` (`course_id`, `category_id`)
@@ -93,7 +97,8 @@ INSERT INTO `courses` (
     'd2222222-2222-2222-2222-222222222222',
     NOW(), NOW()
 ) ON DUPLICATE KEY UPDATE
-    `title` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`title`), (SELECT 1 UNION ALL SELECT 2));
+    `title` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`title`), (SELECT 1 UNION ALL SELECT 2)),
+    `description` = IF(`instructor_id` = VALUES(`instructor_id`), VALUES(`description`), (SELECT 1 UNION ALL SELECT 2));
 
 -- Gán danh mục cho khóa học 2 (tra cứu dynamic ID theo slug để bảo đảm an toàn FK)
 INSERT INTO `course_categories` (`course_id`, `category_id`)

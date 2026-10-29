@@ -17,6 +17,7 @@ import com.lms.identityservice.mapper.UserMapper;
 import com.lms.identityservice.repository.RefreshTokenRepository;
 import com.lms.identityservice.repository.UserRepository;
 import com.lms.identityservice.service.GoogleOAuthService;
+import com.lms.identityservice.service.EmailVerificationService;
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
@@ -64,6 +65,9 @@ class AuthenticationServiceImplTest {
     @Mock
     GoogleOAuthService googleOAuthService;
 
+    @Mock
+    EmailVerificationService emailVerificationService;
+
     AuthenticationServiceImpl authenticationService;
 
     @BeforeEach
@@ -73,7 +77,8 @@ class AuthenticationServiceImplTest {
                 refreshTokenRepository,
                 passwordEncoder,
                 userMapper,
-                googleOAuthService);
+                googleOAuthService,
+                emailVerificationService);
         ReflectionTestUtils.setField(authenticationService, "signerKey", SIGNER_KEY);
         ReflectionTestUtils.setField(authenticationService, "validDuration", 900L);
         ReflectionTestUtils.setField(authenticationService, "refreshableDuration", 3600L);
@@ -84,6 +89,113 @@ class AuthenticationServiceImplTest {
     @org.junit.jupiter.api.AfterEach
     void tearDown() {
         org.springframework.security.core.context.SecurityContextHolder.clearContext();
+    }
+
+    @Test
+    void authenticateThrowsWhenUserNotVerified() {
+        User user = activeStudent();
+        user.setVerified(false);
+        when(userRepository.findByUsername("student")).thenReturn(Optional.of(user));
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> authenticationService.authenticate(AuthenticationRequest.builder()
+                        .username("student")
+                        .password("secret123")
+                        .build()))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.USER_NOT_VERIFIED));
+    }
+
+    @Test
+    void createUserSavesUserWithVerifiedFalseAndSendsVerifyEmail() {
+        var request = com.lms.identityservice.dto.request.UserCreationRequest.builder()
+                .username("newstudent")
+                .email("newstudent@example.com")
+                .password("password123")
+                .fullname("New Student")
+                .build();
+
+        User user = User.builder()
+                .username(request.getUsername())
+                .email(request.getEmail())
+                .fullname(request.getFullname())
+                .build();
+
+        when(userRepository.existsByUsername(request.getUsername())).thenReturn(false);
+        when(userRepository.existsByEmail(request.getEmail())).thenReturn(false);
+        when(userMapper.toUser(request)).thenReturn(user);
+        when(passwordEncoder.encode("password123")).thenReturn("encoded-pwd");
+        when(userMapper.toUserCreationResponse(user)).thenReturn(
+                com.lms.identityservice.dto.response.UserCreationResponse.builder()
+                        .userId("user-123")
+                        .username("newstudent")
+                        .email("newstudent@example.com")
+                        .build()
+        );
+
+        var response = authenticationService.createUser(request);
+
+        assertThat(response).isNotNull();
+        assertThat(user.getVerified()).isFalse();
+        assertThat(user.getActive()).isTrue();
+        verify(userRepository).save(user);
+        verify(emailVerificationService).sendVerifyEmail(any());
+    }
+
+    @Test
+    void createUserReRegistersExistingUnverifiedUser() {
+        var request = com.lms.identityservice.dto.request.UserCreationRequest.builder()
+                .username("unverified_user")
+                .email("unverified@example.com")
+                .password("newpassword123")
+                .fullname("Updated Name")
+                .build();
+
+        User existingUnverifiedUser = User.builder()
+                .userId("u-unverified")
+                .username("unverified_user")
+                .email("unverified@example.com")
+                .verified(false)
+                .build();
+
+        when(userRepository.findByUsername(request.getUsername())).thenReturn(Optional.of(existingUnverifiedUser));
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(existingUnverifiedUser));
+        when(passwordEncoder.encode("newpassword123")).thenReturn("encoded-new-pwd");
+        when(userMapper.toUserCreationResponse(existingUnverifiedUser)).thenReturn(
+                com.lms.identityservice.dto.response.UserCreationResponse.builder()
+                        .userId("u-unverified")
+                        .username("unverified_user")
+                        .email("unverified@example.com")
+                        .build()
+        );
+
+        var response = authenticationService.createUser(request);
+
+        assertThat(response).isNotNull();
+        assertThat(existingUnverifiedUser.getVerified()).isFalse();
+        assertThat(existingUnverifiedUser.getFullname()).isEqualTo("Updated Name");
+        verify(userRepository).save(existingUnverifiedUser);
+        verify(emailVerificationService).sendVerifyEmail(any());
+    }
+
+    @Test
+    void createUserThrowsWhenUserAlreadyVerified() {
+        var request = com.lms.identityservice.dto.request.UserCreationRequest.builder()
+                .username("verified_student")
+                .email("new@example.com")
+                .password("password123")
+                .build();
+
+        User verifiedUser = User.builder()
+                .userId("u-verified")
+                .username("verified_student")
+                .verified(true)
+                .build();
+
+        when(userRepository.findByUsername("verified_student")).thenReturn(Optional.of(verifiedUser));
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> authenticationService.createUser(request))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.USER_EXISTED));
     }
 
     @Test

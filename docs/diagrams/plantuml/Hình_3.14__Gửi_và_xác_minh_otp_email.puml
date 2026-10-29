@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.14 — Gửi và xác minh otp email
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập email và yêu cầu gửi mã
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Backend kiểm tra tài khoản và OTP đang hợp lệ
+note right of B: Tạo mã sáu chữ số, lưu loại VERIFY_EMAIL và gửi SMTP
+note right of B: Nhập OTP
+note right of B: Kiểm tra mã;  đánh dấu usedAt và verified=true
+opt Biến thể nghiệp vụ
+note over F,B: Gửi lại khi không còn mã hợp lệ theo điều kiện source;  OTP sai tăng số lần thử.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: EMAIL_ALREADY_VERIFIED, VERIFICATION_EMAIL_ALREADY_SENT, INVALID_OTP, TOO_MANY_ATTEMPTS;  lỗi SMTP cần kiểm thử cấu hình.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: identity: EmailVerificationController, EmailVerificationServiceImpl, OtpAttemptHandler.
+endlegend
+@enduml

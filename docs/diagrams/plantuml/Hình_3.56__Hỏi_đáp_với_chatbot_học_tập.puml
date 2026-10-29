@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.56 — Hỏi đáp với chatbot học tập
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Nhập câu hỏi
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Gửi chat
+note right of B: Backend kiểm tra request/hạn mức, xây context và lịch sử
+note right of B: Gọi provider
+note right of B: Trả nội dung theo SSE và cập nhật lịch sử theo service
+opt Biến thể nghiệp vụ
+note over F,B: Người dùng bắt đầu câu hỏi khác hoặc phiên mới;  phản hồi cần được người dùng đánh giá.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: Rate limit, context/provider không khả dụng, lỗi kết nối/stream;  không cam kết AI luôn đúng.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: chatbot: ChatController, ChatServiceImpl, ContextBuilderServiceImpl.
+endlegend
+@enduml

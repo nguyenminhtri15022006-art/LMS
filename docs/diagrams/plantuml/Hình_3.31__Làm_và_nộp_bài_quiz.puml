@@ -1,0 +1,31 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.31 — Làm và nộp bài quiz
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Chọn bắt đầu
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Backend start-or-resume, tiếp tục IN_PROGRESS nếu có
+note right of B: Tạo attempt mới khi đủ điều kiện
+note right of B: Người học chọn đáp án và autosave
+note right of B: Gửi submit
+note right of B: Kiểm tra owner/quiz/câu hỏi/đáp án, chấm và lưu trạng thái
+opt Biến thể nghiệp vụ
+note over F,B: F5 lấy lại attempt đang làm;  practice có luồng kiểm tra đáp án riêng.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: QUIZ_NOT_PUBLISHED, QUIZ_NOT_AVAILABLE, MAX_ATTEMPTS_REACHED, ATTEMPT_EXPIRED;  đáp án/câu hỏi không thuộc bài bị từ chối. Không tự khẳng định start đã kiểm tra enrollment nếu chưa thấy điều kiện đó.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: assignment: QuizAttemptServiceImpl;  QuizAttemptController.
+endlegend
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.1 — Use Case tổng thể
+top to bottom direction
+actor "Guest" as G
+actor "STUDENT" as S
+actor "INSTRUCTOR" as I
+actor "ADMIN" as A
+rectangle "EduLearn LMS" {
+usecase "Tra cứu công khai" as U0
+usecase "Xác thực và tài khoản" as U1
+usecase "Học và đánh giá" as U2
+usecase "Quản lý giảng dạy" as U3
+usecase "Blog và tương tác" as U4
+usecase "Chatbot học tập" as U5
+usecase "Quản trị hệ thống" as U6
+}
+G --> U0
+G --> U1
+S --> U0
+S --> U1
+S --> U2
+S --> U4
+S --> U5
+I --> U0
+I --> U1
+I --> U3
+I --> U4
+I --> U5
+A --> U0
+A --> U1
+A --> U6
+
+@enduml

@@ -22,7 +22,10 @@
         <module>api-gateway</module>
         <module>identity-service</module>
         <module>course-service</module>
+        <module>assignment-service</module>
         <module>blog-service</module>
+<module>chatbot-service</module>
+        <module>web-portal</module>
         <module>web-app</module>
     </modules>
 
@@ -121,3 +124,4 @@
     </build>
 
 </project>
+

@@ -1,0 +1,45 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.71 — MongoDB và cấu trúc nhúng
+top to bottom direction
+class course_structures <<collection>> {
+courseId
+nodes : StructureNode[]
+}
+class StructureNode <<embedded>> {
+id
+type
+parentId
+lessonId
+}
+class lessons <<collection>> {
+courseId
+lessonType
+content : Map
+}
+class submissions <<collection>> {
+problemId
+userId
+courseId
+status
+score
+test_case_result[]
+}
+class TestCaseResult <<embedded>>
+class chat_sessions <<collection>> {
+user_id
+}
+class chat_messages <<collection>> {
+session_id
+}
+course_structures *-- StructureNode
+submissions *-- TestCaseResult
+StructureNode ..> lessons : lessonId / logic
+chat_sessions ..> chat_messages : session_id / logic
+legend bottom
+Composition: dữ liệu nhúng. Đường chấm: tham chiếu logic.
+Đây là mô hình document trong source, không khẳng định MongoDB có FK.
+endlegend
+@enduml

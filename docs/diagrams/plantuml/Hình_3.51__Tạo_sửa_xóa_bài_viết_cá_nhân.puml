@@ -1,0 +1,30 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.51 — Tạo sửa xóa bài viết cá nhân
+actor "Người thao tác" as U
+participant "Trình duyệt (Thymeleaf UI)" as F
+participant "Hệ thống chức năng" as B
+U -> F: Mở form bài viết
+F -> B: Yêu cầu chức năng qua API tương ứng
+note right of B: Nhập nội dung và tệp
+note right of B: Gửi tạo/sửa hoặc xác nhận xóa
+note right of B: Backend kiểm tra title và quyền sở hữu
+note right of B: Lưu dữ liệu/xóa tài nguyên theo service
+opt Biến thể nghiệp vụ
+note over F,B: Giữ nháp theo trạng thái được hỗ trợ;  hủy form.
+end
+alt Đủ điều kiện
+B --> F: Kết quả theo response của chức năng
+else Không đủ điều kiện / lỗi
+B --> F: Lỗi theo điều kiện source
+note over F,B: POST_TITLE_EXISTED, NOT_POST_OWNER, bài không tồn tại, lỗi upload.
+end
+F --> U: Cập nhật giao diện
+legend bottom
+Mức nghiệp vụ: các note là bước xử lý, không phải log chạy.
+Request bảo vệ đi qua Gateway; chi tiết controller/service ở Chương 5.
+Căn cứ: blog: PostServiceImpl.createPost/updatePost/deletePost/checkPostOwner.
+endlegend
+@enduml

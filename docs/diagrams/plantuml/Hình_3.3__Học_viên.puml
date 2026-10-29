@@ -1,0 +1,29 @@
+@startuml
+skinparam defaultFontName DejaVu Sans
+skinparam shadowing false
+hide footbox
+title 3.3 — Học viên
+top to bottom direction
+actor "STUDENT" as S
+rectangle "EduLearn LMS" {
+usecase "Tìm / xem khóa học" as U0
+usecase "Tham gia và xem course đã học" as U1
+usecase "Xem lesson và cập nhật tiến độ" as U2
+usecase "Xem lịch và thông báo" as U3
+usecase "Làm quiz / xem kết quả" as U4
+usecase "Run / Submit code và lịch sử" as U5
+usecase "Xem leaderboard" as U6
+usecase "Viết bài / comment / vote" as U7
+usecase "Chat và quản lý phiên của mình" as U8
+}
+S --> U0
+S --> U1
+S --> U2
+S --> U3
+S --> U4
+S --> U5
+S --> U6
+S --> U7
+S --> U8
+
+@enduml
