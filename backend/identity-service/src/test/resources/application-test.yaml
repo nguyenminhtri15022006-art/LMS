@@ -1,0 +1,58 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: identity-service
+  datasource:
+    url: jdbc:h2:mem:identity_test;DB_CLOSE_DELAY=-1;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+  flyway:
+    enabled: false
+
+jwt:
+  signer-key: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+  valid-duration: 900
+  refreshable-duration: 3600
+
+app:
+  otp-expiry-minutes: 15
+  otp:
+    max-attempts: 5
+  bootstrap-admin:
+    enabled: false
+  cleanup:
+    cron: "0 0 2 * * *"
+    zone: "UTC"
+  internal-secret: dev-internal-secret
+  social:
+    google:
+      client-id: test-client-id
+      client-secret: test-client-secret
+      token-url: https://oauth2.googleapis.com/token
+      user-info-url: https://www.googleapis.com/oauth2/v3/userinfo
+      allowed-redirect-uris: http://localhost:5173/authenticate
+
+eureka:
+  client:
+    enabled: false
+    register-with-eureka: false
+    fetch-registry: false
+
+minio:
+  url: http://localhost:9000
+  public-url: http://localhost:9000
+  access-key: minioadmin
+  secret-key: minioadmin123
+  bucket-name: lms-identity-bucket
+  max-file-size-bytes: 5242880
+  presigned-expiry-minutes: 5

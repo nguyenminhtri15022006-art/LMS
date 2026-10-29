@@ -1,6 +1,6 @@
 # Quy Trình Quản Lý Mã Nguồn Git — EduLearn LMS (GIT_WORKFLOW.md)
 
-Tài liệu này xác định mô hình phân nhánh, quy trình vòng đời của một tính năng và tiêu chuẩn kiểm soát chất lượng mã nguồn trên Git & GitHub trong suốt dự án `DoAnCK`.
+Tài liệu này xác định mô hình phân nhánh, quy trình vòng đời của một tính năng và tiêu chuẩn kiểm soát chất lượng mã nguồn trên Git & GitHub trong suốt dự án **EduLearn LMS** (`d:\LMS-main`).
 
 ---
 
@@ -14,18 +14,18 @@ gitGraph
     branch develop
     checkout develop
     commit id: "Setup infra"
-    branch feature/member-1/auth
-    checkout feature/member-1/auth
+    branch feature/member-2/auth
+    checkout feature/member-2/auth
     commit id: "Implement JWT"
     commit id: "Pass auth tests"
     checkout develop
-    merge feature/member-1/auth
-    branch feature/member-2/quiz
-    checkout feature/member-2/quiz
+    merge feature/member-2/auth
+    branch feature/member-1/quiz
+    checkout feature/member-1/quiz
     commit id: "Implement Quiz"
     commit id: "Pass quiz tests"
     checkout develop
-    merge feature/member-2/quiz
+    merge feature/member-1/quiz
     checkout main
     merge develop tag: "v1.0.0"
 ```

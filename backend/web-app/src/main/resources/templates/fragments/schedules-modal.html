@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org">
+<body>
+<!-- Fragment Modal Lịch Học -->
+<div th:fragment="schedulesModal" class="modal fade" id="schedulesModal" tabindex="-1" aria-labelledby="schedulesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h5 class="modal-title fw-bold" id="schedulesModalLabel">
+                    <i class="bi bi-calendar-event me-2 text-primary"></i>Lịch Học Khóa Học
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                <!-- State: Loading -->
+                <div id="schedulesLoading" class="text-center py-4">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Đang tải...</span>
+                    </div>
+                    <p class="text-muted small mt-2 mb-0">Đang tải lịch học...</p>
+                </div>
+
+                <!-- State: Error -->
+                <div id="schedulesError" class="alert alert-danger d-none my-2 small" role="alert">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <div>
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                            <span id="schedulesErrorMsg">Không thể tải lịch học từ hệ thống.</span>
+                        </div>
+                        <button type="button" id="schedulesRetryBtn" class="btn btn-sm btn-outline-danger">Thử lại</button>
+                    </div>
+                </div>
+
+                <!-- State: Empty -->
+                <div id="schedulesEmpty" class="text-center py-4 text-muted d-none">
+                    <i class="bi bi-calendar-x display-4 text-muted"></i>
+                    <p class="mt-2 mb-0">Chưa có lịch học nào được lên kế hoạch cho khóa học này.</p>
+                </div>
+
+                <!-- State: Success Content -->
+                <div id="schedulesContent" class="list-group list-group-flush d-none">
+                    <!-- Dynamic Items rendered by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

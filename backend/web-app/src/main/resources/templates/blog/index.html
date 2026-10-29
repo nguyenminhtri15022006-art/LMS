@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/main :: layout(~{::title}, ~{::#contentBlock}, ~{::#scriptBlock})}">
+<head>
+    <title>Diễn Đàn & Bài Viết Chia Sẻ — EduLearn LMS</title>
+</head>
+<body>
+
+<div id="contentBlock" class="container py-4">
+    <!-- Hero Header -->
+    <div class="row align-items-center mb-4 pb-3 border-bottom">
+        <div class="col-lg-8">
+            <h1 class="fw-bold mb-2 text-primary"><i class="bi bi-chat-square-text-fill me-2"></i>Diễn Đàn Học Thuật & Công Nghệ</h1>
+            <p class="text-muted mb-0">Chia sẻ kiến thức, kinh nghiệm lập trình, thảo luận đồ án và hỏi đáp cùng cộng đồng học viên EduLearn.</p>
+        </div>
+        <div class="col-lg-4 text-lg-end mt-3 mt-lg-0">
+            <a th:href="@{/blog/new}" class="btn btn-primary shadow-sm me-2">
+                <i class="bi bi-pencil-square me-1"></i>Viết Bài Mới
+            </a>
+            <a th:href="@{/blog/my-posts}" class="btn btn-outline-secondary">
+                <i class="bi bi-journal-text me-1"></i>Bài Viết Của Tôi
+            </a>
+        </div>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+        <form method="get" th:action="@{/blog}" class="row g-2 align-items-center">
+            <div class="col-md-7">
+                <div class="input-group">
+                    <span class="input-group-text bg-light border-end-0"><i class="bi bi-search text-muted"></i></span>
+                    <input type="text" name="keyword" class="form-control border-start-0 bg-light"
+                           placeholder="Tìm kiếm bài viết theo từ khóa..." th:value="${keyword}">
+                </div>
+            </div>
+            <div class="col-md-3">
+                <select name="tagId" class="form-select bg-light">
+                    <option value="">-- Tất cả chủ đề / Thẻ --</option>
+                    <option th:each="tag : ${tags}"
+                            th:value="${tag.get('id').asLong()}"
+                            th:text="${tag.get('name').asText()}"
+                            th:selected="${selectedTagId != null and selectedTagId == tag.get('id').asLong()}">
+                        Java
+                    </option>
+                </select>
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary">Lọc Bài Viết</button>
+            </div>
+        </form>
+
+        <!-- Tag badges quick filter -->
+        <div class="d-flex flex-wrap gap-2 mt-3 pt-2 border-top align-items-center" th:if="${tags != null and !tags.isEmpty()}">
+            <span class="small text-muted fw-bold"><i class="bi bi-tags me-1"></i>Tags phổ biến:</span>
+            <a th:href="@{/blog}" class="badge rounded-pill text-decoration-none py-2 px-3"
+               th:classappend="${selectedTagId == null} ? 'bg-primary text-white' : 'bg-light text-secondary border'">
+                Tất cả
+            </a>
+            <a th:each="t : ${tags}"
+               th:href="@{/blog(tagId=${t.get('id').asLong()})}"
+               class="badge rounded-pill text-decoration-none py-2 px-3"
+               th:classappend="${selectedTagId != null and selectedTagId == t.get('id').asLong()} ? 'bg-primary text-white' : 'bg-light text-secondary border'"
+               th:text="${t.get('name').asText()}">
+                Spring Boot
+            </a>
+        </div>
+    </div>
+
+    <!-- Posts List Grid -->
+    <div class="row g-4" th:if="${posts != null and posts.has('content') and posts.get('content').isArray() and !posts.get('content').isEmpty()}">
+        <div class="col-md-6 col-lg-4" th:each="p : ${posts.get('content')}">
+            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden d-flex flex-column hover-shadow">
+                <!-- Cover Image -->
+                <div class="position-relative bg-secondary-subtle" style="height: 180px;">
+                    <img th:if="${p.hasNonNull('thumbnail') and !#strings.isEmpty(p.get('thumbnail').asText())}"
+                         th:src="${p.get('thumbnail').asText()}"
+                         class="w-100 h-100 object-fit-cover"
+                         th:alt="${p.hasNonNull('title') ? p.get('title').asText() : 'Ảnh bài viết'}">
+                    <div th:unless="${p.hasNonNull('thumbnail') and !#strings.isEmpty(p.get('thumbnail').asText())}"
+                         class="w-100 h-100 d-flex align-items-center justify-content-center text-muted">
+                        <i class="bi bi-image fs-1 opacity-50"></i>
+                    </div>
+                </div>
+
+                <!-- Card Body -->
+                <div class="card-body d-flex flex-column p-4 flex-grow-1">
+                    <!-- Tags -->
+                    <div class="mb-2" th:if="${p.has('tags') and p.get('tags').isArray()}">
+                        <span th:each="tagItem : ${p.get('tags')}"
+                              class="badge bg-primary-subtle text-primary small me-1"
+                              th:text="${tagItem.hasNonNull('name') ? tagItem.get('name').asText() : ''}">
+                            Công nghệ
+                        </span>
+                    </div>
+
+                    <!-- Title -->
+                    <h5 class="card-title fw-bold mb-2">
+                        <a th:href="@{'/blog/' + ${p.hasNonNull('slug') ? p.get('slug').asText() : ''}}"
+                           class="text-dark text-decoration-none"
+                           th:text="${p.hasNonNull('title') ? p.get('title').asText() : 'Tiêu đề bài viết'}">
+                            Tiêu đề bài viết
+                        </a>
+                    </h5>
+
+                    <!-- Summary -->
+                    <p class="card-text text-muted small flex-grow-1"
+                       th:text="${p.hasNonNull('summary') ? p.get('summary').asText() : 'Không có tóm tắt.'}">
+                        Tóm tắt nội dung bài viết chia sẻ...
+                    </p>
+
+                    <!-- Footer Meta -->
+                    <div class="d-flex justify-content-between align-items-center pt-3 border-top mt-2 small text-muted">
+                        <div class="d-flex align-items-center gap-2">
+                            <i class="bi bi-person-circle fs-6"></i>
+                            <span th:text="${p.hasNonNull('authorName') ? p.get('authorName').asText() : 'Ẩn danh'}">Tác giả</span>
+                        </div>
+                        <div class="d-flex gap-3">
+                            <span title="Lượt xem"><i class="bi bi-eye me-1"></i><span th:text="${p.hasNonNull('viewCount') ? p.get('viewCount').asLong() : 0}">0</span></span>
+                            <span title="Lượt thích"><i class="bi bi-hand-thumbs-up me-1"></i><span th:text="${p.hasNonNull('upvoteCount') ? p.get('upvoteCount').asLong() : 0}">0</span></span>
+                            <span title="Bình luận"><i class="bi bi-chat me-1"></i><span th:text="${p.hasNonNull('commentCount') ? p.get('commentCount').asLong() : 0}">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Empty State -->
+    <div class="text-center py-5 my-4"
+         th:if="${posts == null or !posts.has('content') or !posts.get('content').isArray() or posts.get('content').isEmpty()}">
+        <div class="text-muted mb-3"><i class="bi bi-journal-x fs-1"></i></div>
+        <h5 class="fw-bold text-secondary">Chưa có bài viết nào phù hợp</h5>
+        <p class="text-muted small">Hãy thử tìm kiếm với từ khóa khác hoặc là người đầu tiên đăng bài viết chia sẻ!</p>
+        <a th:href="@{/blog/new}" class="btn btn-primary btn-sm mt-2">
+            <i class="bi bi-pencil-square me-1"></i>Viết Bài Ngay
+        </a>
+    </div>
+
+    <!-- Pagination -->
+    <div class="d-flex justify-content-center mt-5"
+         th:if="${posts != null and posts.hasNonNull('totalPages') and posts.get('totalPages').asInt() > 1}">
+        <nav aria-label="Page navigation">
+            <ul class="pagination pagination-sm">
+                <li class="page-item" th:classappend="${posts.get('pageable').get('pageNumber').asInt() == 0} ? 'disabled'">
+                    <a class="page-link" th:href="@{/blog(page=${posts.get('pageable').get('pageNumber').asInt() - 1}, tagId=${selectedTagId}, keyword=${keyword})}">
+                        Trước
+                    </a>
+                </li>
+                <li class="page-item disabled">
+                    <span class="page-link" th:text="${'Trang ' + (posts.get('pageable').get('pageNumber').asInt() + 1) + ' / ' + posts.get('totalPages').asInt()}">1 / 1</span>
+                </li>
+                <li class="page-item" th:classappend="${posts.get('pageable').get('pageNumber').asInt() + 1 >= posts.get('totalPages').asInt()} ? 'disabled'">
+                    <a class="page-link" th:href="@{/blog(page=${posts.get('pageable').get('pageNumber').asInt() + 1}, tagId=${selectedTagId}, keyword=${keyword})}">
+                        Sau
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    </div>
+</div>
+
+<th:block id="scriptBlock">
+    <!-- Optional Page Scripts -->
+</th:block>
+</body>
+</html>
