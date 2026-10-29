@@ -53,7 +53,13 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Khởi động đếm ngược lần đầu khi vào trang
-    startCountdown(60);
+    if (timerElement.dataset.deliveryFailed === 'true') {
+        timeLeft = 0;
+        timerElement.textContent = '0';
+        resendBtn.disabled = false;
+    } else {
+        startCountdown(60);
+    }
 
     resendBtn.addEventListener('click', async function () {
         const email = emailInput ? emailInput.value.trim() : '';

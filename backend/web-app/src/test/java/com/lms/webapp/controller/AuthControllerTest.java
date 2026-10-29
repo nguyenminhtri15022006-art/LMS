@@ -34,6 +34,43 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @ActiveProfiles("test")
 class AuthControllerTest {
 
+    @Test
+    void registrationKeepsAccountAndExplainsOtpDeliveryFailure() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/register"))
+                .andExpect(jsonPath("$.role").value("STUDENT"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andRespond(org.springframework.test.web.client.response.MockRestResponseCreators.withServerError());
+        var result = mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "otp_test").param("email", "otp@example.com")
+                        .param("password", "test-only-password").param("confirmPassword", "test-only-password"))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/verify-email?email=otp%40example.com"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("otpDeliveryFailed", true)).andReturn();
+        mockMvc.perform(get("/verify-email").param("email", "otp@example.com")
+                        .flashAttrs(result.getFlashMap()))
+                .andExpect(status().isOk())
+                .andExpect(content().string(containsString("Tài khoản đã được tạo")))
+                .andExpect(content().string(containsString("data-delivery-failed=\"true\"")))
+                .andExpect(content().string(containsString("Gửi lại mã OTP")));
+        mockServer.verify();
+    }
+
+    @Test
+    void registrationSendsOtpWithoutFailureWarningOnSuccess() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/register"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/verify-email/send"))
+                .andRespond(withSuccess("{\"code\":1000}", MediaType.APPLICATION_JSON));
+        mockMvc.perform(post("/register").with(csrf())
+                        .param("username", "otp_test").param("email", "otp@example.com")
+                        .param("password", "test-only-password").param("confirmPassword", "test-only-password"))
+                .andExpect(redirectedUrl("/verify-email?email=otp%40example.com"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash().attributeCount(0));
+        mockServer.verify();
+    }
+
     @Autowired
     private MockMvc mockMvc;
 

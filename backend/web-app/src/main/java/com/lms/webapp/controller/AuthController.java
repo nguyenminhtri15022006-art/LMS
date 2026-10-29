@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -188,7 +189,7 @@ public class AuthController {
     @PostMapping("/register")
     public String handleRegister(@Valid @ModelAttribute("registerForm") RegisterForm form,
                                  BindingResult bindingResult,
-                                 Model model) {
+                                 Model model, RedirectAttributes redirectAttributes) {
         if (bindingResult.hasErrors()) {
             return "auth/register";
         }
@@ -215,7 +216,8 @@ public class AuthController {
 
             try {
                 gatewayClient.post("/identity/auth/verify-email/send", Map.of("email", form.getEmail().trim()), JsonNode.class);
-            } catch (Exception ignored) {
+            } catch (Exception deliveryFailure) {
+                redirectAttributes.addFlashAttribute("otpDeliveryFailed", true);
             }
 
             return "redirect:/verify-email?email=" + URLEncoder.encode(form.getEmail(), StandardCharsets.UTF_8);
