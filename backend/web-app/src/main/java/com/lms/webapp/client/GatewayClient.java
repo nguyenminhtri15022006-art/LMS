@@ -20,27 +20,27 @@ public class GatewayClient {
     }
 
     public <T> T post(String uri, Object requestBody, Class<T> responseType) {
-        return restClient.post()
-                .uri(uri)
-                .body(requestBody)
-                .retrieve()
-                .body(responseType);
+        RestClient.RequestBodySpec spec = restClient.post().uri(uri);
+        if (requestBody != null) {
+            spec.body(requestBody);
+        }
+        return spec.retrieve().body(responseType);
     }
 
     public <T> T put(String uri, Object requestBody, Class<T> responseType) {
-        return restClient.put()
-                .uri(uri)
-                .body(requestBody)
-                .retrieve()
-                .body(responseType);
+        RestClient.RequestBodySpec spec = restClient.put().uri(uri);
+        if (requestBody != null) {
+            spec.body(requestBody);
+        }
+        return spec.retrieve().body(responseType);
     }
 
     public <T> T patch(String uri, Object requestBody, Class<T> responseType) {
-        return restClient.patch()
-                .uri(uri)
-                .body(requestBody)
-                .retrieve()
-                .body(responseType);
+        RestClient.RequestBodySpec spec = restClient.patch().uri(uri);
+        if (requestBody != null) {
+            spec.body(requestBody);
+        }
+        return spec.retrieve().body(responseType);
     }
 
     public <T> T postMultipart(String uri, org.springframework.util.MultiValueMap<String, Object> body, Class<T> responseType) {

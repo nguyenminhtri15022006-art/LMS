@@ -5,6 +5,8 @@ import com.lms.identityservice.dto.response.AuthenticationResponse;
 import com.lms.identityservice.dto.response.PresignedUrlResponse;
 import com.lms.identityservice.dto.response.UserFullResponse;
 import com.lms.identityservice.dto.response.UserPublicProfileResponse;
+import com.lms.identityservice.exception.ErrorCode;
+import com.lms.identityservice.exception.IdentityException;
 import com.lms.identityservice.service.AdminUserService;
 import com.lms.identityservice.service.AuthenticationService;
 import com.lms.identityservice.service.EmailVerificationService;
@@ -122,6 +124,7 @@ class IdentityApiIntegrationTest {
                 .userId("user-1")
                 .username("student01")
                 .email("student01@example.com")
+                .fullname("Student One")
                 .role("STUDENT")
                 .build());
 
@@ -130,9 +133,22 @@ class IdentityApiIntegrationTest {
                 .andExpect(jsonPath("$.userId").value("user-1"))
                 .andExpect(jsonPath("$.username").value("student01"))
                 .andExpect(jsonPath("$.email").value("student01@example.com"))
+                .andExpect(jsonPath("$.fullname").value("Student One"))
                 .andExpect(jsonPath("$.role").value("STUDENT"));
 
         verify(internalUserService).getUserById("user-1");
+    }
+
+    @Test
+    void internalGetUserNotFoundHttpContractReturns404() throws Exception {
+        when(internalUserService.getUserById("user-not-found"))
+                .thenThrow(new IdentityException(ErrorCode.USER_NOT_EXISTED));
+
+        mockMvc.perform(get("/internal/user/user-not-found"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value(1003));
+
+        verify(internalUserService).getUserById("user-not-found");
     }
 
     @Test

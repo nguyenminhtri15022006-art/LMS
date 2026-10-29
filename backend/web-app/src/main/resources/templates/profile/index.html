@@ -13,7 +13,7 @@
                 <div class="card-body">
                     <div class="position-relative d-inline-block mb-3">
                         <img id="avatarImage"
-                             th:src="${profile != null && profile.hasNonNull('avatarUrl') && !profile.get('avatarUrl').asText().isEmpty()} ? ${profile.get('avatarUrl').asText()} : @{/images/default-avatar.svg}"
+                             th:src="${profile != null && profile.hasNonNull('avatarUrl') && !profile.get('avatarUrl').asText().isEmpty() && profile.get('avatarUrl').asText() != 'undefined'} ? ${profile.get('avatarUrl').asText()} : @{/images/default-avatar.svg}"
                              class="rounded-circle border border-3 border-primary shadow-sm"
                              style="width: 130px; height: 130px; object-fit: cover;"
                              alt="Avatar" />

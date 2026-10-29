@@ -2,8 +2,8 @@ package com.lms.apigateway.exception;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.web.reactive.error.ErrorWebExceptionHandler;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
@@ -20,13 +20,17 @@ import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-@Slf4j
 @Component
 @Order(-2)
-@RequiredArgsConstructor
 public class GlobalErrorExceptionHandler implements ErrorWebExceptionHandler {
 
+    private static final Logger log = LoggerFactory.getLogger(GlobalErrorExceptionHandler.class);
+
     private final ObjectMapper objectMapper;
+
+    public GlobalErrorExceptionHandler(ObjectMapper objectMapper) {
+        this.objectMapper = objectMapper;
+    }
 
     @Override
     public Mono<Void> handle(ServerWebExchange exchange, Throwable ex) {

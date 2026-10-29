@@ -314,4 +314,43 @@ class SmokeVerifiersUnitTest {
         // Cookie phải được làm sạch, không được chứa Path=/; HttpOnly
         assertThat(result.getCleanSessionCookie()).isEqualTo("JSESSIONID=SECURE_SESSION_12345");
     }
+
+    @Test
+    @DisplayName("Auth Verifier: redirect validation accepts relative root and absolute same-origin root")
+    void redirectValidationAcceptsValidRoots() {
+        String baseUrl = "http://localhost:8088";
+
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("/", baseUrl)).isTrue();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:8088/", baseUrl)).isTrue();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:8088", baseUrl)).isTrue();
+    }
+
+    @Test
+    @DisplayName("Auth Verifier: redirect validation rejects different host, port, scheme, path, query and malformed URL")
+    void redirectValidationRejectsInvalidOrMaliciousUrls() {
+        String baseUrl = "http://localhost:8088";
+
+        // Khác host
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://evil.com/", baseUrl)).isFalse();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://attacker.org:8088/", baseUrl)).isFalse();
+
+        // Khác port
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:9999/", baseUrl)).isFalse();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:8080/", baseUrl)).isFalse();
+
+        // Khác scheme
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("https://localhost:8088/", baseUrl)).isFalse();
+
+        // Khác path
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:8088/admin", baseUrl)).isFalse();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("/login?error", baseUrl)).isFalse();
+
+        // Có error query param
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("http://localhost:8088/?error=true", baseUrl)).isFalse();
+
+        // Malformed URL / null / blank
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("not a valid uri :::", baseUrl)).isFalse();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect("", baseUrl)).isFalse();
+        assertThat(AuthSessionSmokeVerifier.isValidLoginRedirect(null, baseUrl)).isFalse();
+    }
 }

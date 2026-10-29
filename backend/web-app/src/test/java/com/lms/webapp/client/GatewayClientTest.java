@@ -101,4 +101,16 @@ class GatewayClientTest {
 
         mockServer.verify();
     }
+
+    @Test
+    void patchWithNullBodyDoesNotThrowNpe() {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/admin/users/123/active"))
+                .andExpect(method(HttpMethod.PATCH))
+                .andRespond(withSuccess("{\"code\":1000,\"message\":\"ok\"}", MediaType.APPLICATION_JSON));
+
+        String result = gatewayClient.patch("/identity/admin/users/123/active", null, String.class);
+        assertThat(result).contains("1000");
+
+        mockServer.verify();
+    }
 }

@@ -1,6 +1,6 @@
 # Ma Trận Đối Chiếu Tính Năng — EduLearn LMS (FEATURE_PARITY_MATRIX.md)
 
-Tài liệu này theo dõi mức độ tương đương 100% giữa **Project Mẫu** và **EduLearn LMS** (`d:\LMS-main`).  
+Tài liệu này theo dõi mức độ tương đương giữa **Project Mẫu** và **EduLearn LMS** (`d:\LMS-main`).
 Mọi chức năng của hệ thống được kiểm kê chi tiết theo từng module, file frontend, file backend, endpoint API, cơ sở dữ liệu và bài kiểm thử liên quan.
 
 ---
@@ -12,8 +12,8 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 - `IN_PROGRESS`: Đang trong quá trình lập trình hoặc cấu hình.
 - `BLOCKED`: Đang bị tắc nghẽn do phụ thuộc vào module/hạ tầng khác chưa hoàn thành.
 - `IMPLEMENTED`: Đã viết xong mã nguồn nghiệp vụ nhưng chưa có kiểm thử đầy đủ.
-- `TESTED`: Đã chạy xong unit/integration test cục bộ nhưng chưa kiểm thử tích hợp toàn diện.
-- `VERIFIED`: Đã được kiểm thử hành vi thực tế trên môi trường Docker/Full stack, đạt độ tương đương 100% so với project mẫu.
+- `TESTED`: Đã chạy xong unit/integration test cục bộ hoặc MockMvc nhưng chưa kiểm thử tích hợp toàn diện qua luồng E2E thực tế.
+- `VERIFIED`: Đã được kiểm thử hành vi thực tế trên môi trường Docker/Full stack qua bộ kịch bản Playwright E2E theo route controller thật, đạt độ tương đương 100% so với project mẫu và thỏa mãn đủ 13 tiêu chí tại AGENTS.md.
 
 ---
 
@@ -21,13 +21,13 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `service-registry` | Eureka Service Discovery | — | `ServiceRegistryApplication.java` | `GET :8761/eureka/apps` | In-memory | `ServiceRegistryApplicationTests.java` | `VERIFIED` |
-| `api-gateway` | Định tuyến ngược (Dynamic Reverse Routing) | `services/api.client.js` | `ApiGatewayApplication.java`, `application.yaml` | `ALL :8080/api/**` | — | `ApiGatewayApplicationTests.java` | `VERIFIED` |
-| `api-gateway` | Xác thực JWT & Inject Headers (`AuthFilter`) | `context/AuthContext.jsx` | `AuthFilter.java`, `JwtUtils.java` | Pre-filter trên routes private | — | `AuthFilterTest.java` | `VERIFIED` |
-| `api-gateway` | Chống giả mạo danh tính (Header Stripping) | — | `application.yaml` (RemoveRequestHeader) | Public endpoints | — | Integration Test | `VERIFIED` |
-| `api-gateway` | Khả năng chịu lỗi Circuit Breaker (Resilience4j) | `components/ui/Toast.jsx` | `application.yaml` (circuitbreaker) | Tất cả các tuyến microservices | — | Load / Fault test | `VERIFIED` |
-| `api-gateway` | Actuator Health Routing cho Admin Dashboard | `configurations/env.js` | `application.yaml` | `GET :8080/api/*/actuator/**` | — | Health check test | `VERIFIED` |
-| `infrastructure` | Docker Compose Stack (Local & Prod) | `Dockerfile`, `nginx.conf` | 7 Dockerfiles backend | Localhost ports | MySQL, Mongo, Redis, MinIO | Docker smoke test | `TESTED` |
+| `service-registry` | Eureka Service Discovery | — | `ServiceRegistryApplication.java` | `GET :8761/eureka/apps` | In-memory | `ServiceRegistryApplicationTests.java`, Docker live probe | `VERIFIED` |
+| `api-gateway` | Định tuyến ngược (Dynamic Reverse Routing) | `services/api.client.js` | `ApiGatewayApplication.java`, `application.yaml` | `ALL :8080/api/**` | — | `ApiGatewayApplicationTests.java`, E2E Flows 1-4 | `VERIFIED` |
+| `api-gateway` | Xác thực JWT & Inject Headers (`AuthFilter`) | `context/AuthContext.jsx` | `AuthFilter.java`, `JwtUtils.java` | Pre-filter trên routes private | — | `AuthFilterTest.java`, E2E Flows 1-4 | `VERIFIED` |
+| `api-gateway` | Chống giả mạo danh tính (Header Stripping) | — | `application.yaml` (RemoveRequestHeader) | Public endpoints | — | Integration Test (Header strip test); live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `api-gateway` | Khả năng chịu lỗi Circuit Breaker (Resilience4j) | `components/ui/Toast.jsx` | `application.yaml` (circuitbreaker) | Tất cả các tuyến microservices | — | Phase 2 Gateway Fallback Test; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `api-gateway` | Actuator Health Routing cho Admin Dashboard | `configurations/env.js` | `application.yaml` | `GET :8080/api/*/actuator/**` | — | Docker stack health probe; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `infrastructure` | Docker Compose Stack (Local & Prod) | `Dockerfile`, `nginx.conf` | 7 Dockerfiles backend | Localhost ports | MySQL, Mongo, Redis, MinIO | Docker smoke test, 11 containers healthy; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
 
 ---
 
@@ -35,21 +35,21 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `identity-service` | Đăng ký tài khoản mới (Username/Password/Role) | `features/auth/pages/AuthPage.jsx` | `AuthenticationController.java`, `UserServiceImpl.java` | `POST /auth/register` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Đăng nhập cục bộ & cấp JWT (Access + Refresh) | `features/auth/pages/AuthPage.jsx`, `services/auth.api.js` | `AuthenticationController.java`, `AuthenticationServiceImpl.java` | `POST /auth/login` | Bảng `users`, `refresh_tokens` | `AuthenticationServiceImplTest.java` | `TESTED` |
-| `identity-service` | Đăng nhập Google OAuth 2.0 (SSO) | `features/auth/pages/SocialCallbackPage.jsx` | `AuthenticationController.java`, `GoogleAuthService.java` | `POST /auth/social-login/{provider}` | Bảng `users`, `refresh_tokens` | `AuthenticationServiceImplTest.java` | `TESTED` |
-| `identity-service` | Gửi & Xác thực mã OTP qua Email | `features/auth/components/VerifyOtpModal.jsx` | `EmailVerificationController.java`, `EmailVerificationServiceImpl.java` | `POST /auth/verify-email/send`, `POST /auth/verify-email` | Bảng `email_verifications` | `EmailVerificationServiceImplTest.java` | `TESTED` |
-| `identity-service` | Làm mới Token (Refresh Token Rotation) | `services/api.client.js` (Interceptors) | `AuthenticationController.java`, `TokenServiceImpl.java` | `POST /auth/refresh` | Bảng `refresh_tokens` | `AuthenticationServiceImplTest.java` | `TESTED` |
-| `identity-service` | Đăng xuất & Thu hồi Refresh Token | `layouts/StudentLayout/components/Header.jsx` | `AuthenticationController.java`, `TokenServiceImpl.java` | `POST /auth/logout` | Bảng `refresh_tokens` | `AuthenticationServiceImplTest.java` | `TESTED` |
-| `identity-service` | Quên mật khẩu & Đặt lại mật khẩu | `features/auth/pages/ForgotPasswordPage.jsx` | `EmailVerificationController.java`, `EmailVerificationServiceImpl.java` | `POST /auth/forgot-password`, `POST /auth/reset-password` | Bảng `email_verifications`, `users` | `IdentityFunctionalTest.java` | `TESTED` |
-| `identity-service` | Xem & Cập nhật Hồ sơ cá nhân | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `GET /users/myinfo`, `PUT /users/myinfo` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Tải lên ảnh đại diện cá nhân (Presigned URL) | `hooks/useFileUpload.js` | `StorageController.java`, `StorageServiceImpl.java` | `POST /storage/presigned-url` | MinIO bucket `lms-identity-bucket` | `StorageServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
-| `identity-service` | Đổi mật khẩu tài khoản | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/password` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Đổi vai trò tài khoản (Role Request) | `features/settings/pages/SettingsPage.jsx` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/role` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Xem hồ sơ công khai của người dùng khác | `features/courses/pages/student/DetailCoursePage.jsx` | `UserController.java`, `UserServiceImpl.java` | `GET /users/{userId}/profile` | Bảng `users` | `UserServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
-| `identity-service` | Quản trị danh sách người dùng & Trạng thái | `features/dashboard/components/admin/Management/UserManagement.jsx` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `GET /admin/users`, `PATCH /admin/users/{id}/active` | Bảng `users` | `UserServiceImplTest.java` | `TESTED` |
-| `identity-service` | Quản trị viên tạo tài khoản Admin mới | `features/dashboard/components/admin/Management/AdminManagement.jsx` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `POST /admin/users/admins` | Bảng `users` | `UserServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
-| `identity-service` | API nội bộ cung cấp thông tin User cho service khác | — | `InternalUserController.java` | `GET /internal/user/{id}`, `POST /internal/users/batch`, `GET /internal/users/{userId}/exists` | Bảng `users` | `IdentityApiIntegrationTest.java` | `TESTED` |
+| `identity-service` | Đăng ký tài khoản mới (Username/Password/Role) | `templates/auth/register.html` | `AuthenticationController.java`, `UserServiceImpl.java` | `POST /auth/register` | Bảng `users` | `UserServiceImplTest.java`, E2E Flow 1 | `VERIFIED` |
+| `identity-service` | Đăng nhập cục bộ & cấp JWT (Access + Refresh) | `templates/auth/login.html` | `AuthenticationController.java`, `AuthenticationServiceImpl.java` | `POST /auth/login` | Bảng `users`, `refresh_tokens` | `AuthenticationServiceImplTest.java`, E2E Flows 1-4 | `VERIFIED` |
+| `identity-service` | Đăng nhập Google OAuth 2.0 (SSO) | `features/auth/pages/SocialCallbackPage.jsx` | `AuthenticationController.java`, `GoogleAuthService.java` | `POST /auth/social-login/{provider}` | Bảng `users`, `refresh_tokens` | `AuthenticationServiceImplTest.java` (Cần Google Client ID/Secret thật từ Cloud Console để nghiệm thu VERIFIED) | `TESTED` |
+| `identity-service` | Gửi & Xác thực mã OTP qua Email | `templates/auth/verify-email.html` | `EmailVerificationController.java`, `EmailVerificationServiceImpl.java` | `POST /auth/verify-email/send`, `POST /auth/verify-email` | Bảng `email_verifications` | `otp-countdown.test.js`, E2E Flow 1 (Mailpit API) | `VERIFIED` |
+| `identity-service` | Làm mới Token (Refresh Token Rotation) | `services/api.client.js` (Interceptors) | `AuthenticationController.java`, `AuthenticationServiceImpl.java` | `POST /auth/refresh` | Bảng `refresh_tokens` | `AuthenticationServiceImplTest.java` (Unit Test backend) | `TESTED` |
+| `identity-service` | Đăng xuất & Thu hồi Refresh Token | `layouts/StudentLayout/components/Header.jsx` | `AuthenticationController.java`, `AuthenticationServiceImpl.java` | `POST /auth/logout` | Bảng `refresh_tokens` | `AuthenticationServiceImplTest.java` (Unit Test backend) | `TESTED` |
+| `identity-service` | Quên mật khẩu & Đặt lại mật khẩu | `templates/auth/forgot-password.html`, `templates/auth/reset-password.html` | `EmailVerificationController.java`, `EmailVerificationServiceImpl.java` | `POST /auth/forgot-password`, `POST /auth/reset-password` | Bảng `email_verifications`, `users` | `IdentityFunctionalTest.java`, `AuthControllerTest.java` (MockMvc) | `TESTED` |
+| `identity-service` | Xem & Cập nhật Hồ sơ cá nhân | `templates/profile/index.html` | `UserController.java`, `UserServiceImpl.java` | `GET /users/myinfo`, `PUT /users/myinfo` | Bảng `users` | `browser-avatar-cors.e2e.test.js`; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `identity-service` | Tải lên ảnh đại diện cá nhân (Presigned URL) | `templates/profile/index.html` | `StorageController.java`, `StorageServiceImpl.java` | `POST /storage/presigned-url` | MinIO bucket `lms-identity-bucket` | `browser-avatar-cors.e2e.test.js` (Playwright upload MinIO) | `VERIFIED` |
+| `identity-service` | Đổi mật khẩu tài khoản | `templates/profile/index.html` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/password` | Bảng `users` | `UserServiceImplTest.java`, `ProfileControllerTest.java` (MockMvc) | `TESTED` |
+| `identity-service` | Đổi vai trò tài khoản (Role Request) | `templates/profile/index.html` | `UserController.java`, `UserServiceImpl.java` | `PATCH /users/myinfo/role` | Bảng `users` | `UserServiceImplTest.java`, `ProfileControllerTest.java` (MockMvc) | `TESTED` |
+| `identity-service` | Xem hồ sơ công khai của người dùng khác | `templates/blog/detail.html`, `templates/courses/student/detail.html` | `UserController.java`, `UserServiceImpl.java` | `GET /users/{userId}/profile` | Bảng `users` | `UserServiceImplTest.java`, `IdentityApiIntegrationTest.java` | `TESTED` |
+| `identity-service` | Quản trị danh sách người dùng & Trạng thái | `templates/admin/users/list.html` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `GET /admin/users`, `PATCH /admin/users/{id}/active` | Bảng `users` | E2E Flow 4 (Khóa tài khoản và chặn đăng nhập) | `VERIFIED` |
+| `identity-service` | Quản trị viên tạo tài khoản Admin mới | `templates/admin/users/list.html` | `AdminUserController.java`, `AdminUserServiceImpl.java` | `POST /admin/users/admins` | Bảng `users` | E2E Flow 4 (Tạo Admin mới & Đăng nhập thành công) | `VERIFIED` |
+| `identity-service` | API nội bộ cung cấp thông tin User cho service khác | — | `InternalUserController.java` | `GET /internal/user/{id}`, `POST /internal/users/batch`, `GET /internal/users/{userId}/exists` | Bảng `users` | Phase 1 Contract Tests (xem biên bản Phase 1; không phải E2E) | `TESTED` |
 
 ---
 
@@ -57,25 +57,28 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `course-service` | Quản lý danh mục khóa học (Category CRUD) | `features/dashboard/components/admin/Management/WebContentMgmt.jsx` | `CategoryController.java`, `CategoryServiceImpl.java` | `GET /categories`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` | Bảng `categories` | `CategoryServiceImplTest.java` | `TESTED` |
-| `course-service` | Danh sách khóa học công khai & Tìm kiếm/Lọc | `features/courses/pages/student/ListCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses` (Pageable, status, categoryId, keyword, level) | Bảng `courses` | `CourseServiceImplTest.java` | `TESTED` |
-| `course-service` | Chi tiết khóa học (Overview & Preview) | `features/courses/pages/student/DetailCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/{id}` | Bảng `courses` | `CourseApiIntegrationTest.java` | `TESTED` |
-| `course-service` | Giảng viên tạo mới khóa học | `features/courses/pages/teacher/CreateCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses` (multipart `CreateCourseRequest`) | Bảng `courses`, MongoDB `CourseStructure` | `CourseServiceImplTest.java` | `TESTED` |
-| `course-service` | Giảng viên chỉnh sửa khóa học & Đổi trạng thái | `features/courses/pages/teacher/EditCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `PUT /courses/{id}`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | `CourseServiceImplTest.java` | `TESTED` |
-| `course-service` | Quản lý cây bài học (Chapters/Lessons Structure) | `features/courses/pages/teacher/CourseManagementCenter.jsx` | `CourseStructureController.java`, `CourseStructureServiceImpl.java` | `GET /courses/{courseId}/structure`, `POST /structure/nodes`, `PUT /structure/reorder` | MongoDB `course_structures`, `lessons` | `CourseStructureServiceImplTest.java` | `TESTED` |
-| `course-service` | Quản lý nội dung bài học (Video & Document) | `features/courses/pages/student/CourseHubPage.jsx` | `LessonController.java`, `LessonServiceImpl.java` | `GET /courses/{cId}/lessons/{lId}`, `PUT /courses/{cId}/lessons/{lId}` | MongoDB `lessons` | `LessonServiceImplTest.java`, `CourseApiIntegrationTest.java` | `TESTED` |
-| `course-service` | Upload thumbnail khóa học & file bài giảng | `hooks/useFileUpload.js` | `StorageController.java`, `StorageServiceImpl.java` | `POST /storage/presigned-url`, `POST /storage/multipart/initiate` | MinIO bucket `lms-course-bucket` | `StorageServiceImplTest.java` | `TESTED` |
-| `course-service` | Học viên đăng ký ghi danh khóa học | `features/courses/pages/student/DetailCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses/{id}/enroll` | Bảng `enrollments` | `EnrollmentConcurrencyTest.java`, `CourseFunctionalTest.java` | `TESTED` |
-| `course-service` | Danh sách khóa học của tôi (Tạo & Ghi danh) | `features/courses/pages/student/MyCoursePage.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my`, `GET /courses/enrolled` | Bảng `enrollments`, `courses` | `CourseServiceImplTest.java` | `TESTED` |
-| `course-service` | Đánh dấu bài học hoàn thành & Theo dõi tiến độ | `features/courses/pages/student/CourseHubPage.jsx` | `LessonProgressController.java`, `LessonProgressServiceImpl.java` | `POST /courses/{courseId}/lessons/{lessonId}/complete`, `GET /courses/{courseId}/progress`, `GET /courses/{courseId}/progress/average` | Bảng `lesson_progress` | `LessonProgressServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
-| `course-service` | Quản lý lịch học trực tuyến & Google Meet | `features/courses/pages/teacher/CourseManagementCenter.jsx` | `ScheduleController.java`, `ScheduleServiceImpl.java` | `GET /courses/{cId}/schedules`, `POST /schedules`, `PUT /schedules/{id}`, `DELETE /schedules/{id}` | Bảng `schedules` | `ScheduleServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
-| `course-service` | Quản lý thông báo trong khóa học | `features/courses/pages/student/DetailMyCoursePage.jsx` | `AnnouncementController.java`, `AnnouncementServiceImpl.java` | `GET /courses/{cId}/announcements`, `POST /announcements`, `DELETE /announcements/{id}` | Bảng `announcements` | `AnnouncementServiceImplTest.java`, `CourseFunctionalTest.java` | `TESTED` |
-| `course-service` | Quản trị viên duyệt và quản lý toàn bộ khóa học | `features/dashboard/components/admin/Management/CourseManagement.jsx` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my/stats`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | `CourseApiIntegrationTest.java` | `TESTED` |
-| `course-service` | API nội bộ cung cấp thông tin khóa học (Feign) | — | `InternalCourseController.java` | `GET /internal/courses/{courseId}`, `GET /internal/courses/{courseId}/enrollments/{userId}`, `GET /internal/courses` | Bảng `courses` | `InternalCourseServiceImplTest.java`, `InternalCourseApiIntegrationTest.java` | `TESTED` |
+| `course-service` | Quản lý danh mục khóa học (Category CRUD) | `templates/admin/categories/list.html` | `CategoryController.java`, `CategoryServiceImpl.java` | `GET /categories`, `POST /categories`, `PUT /categories/{id}`, `DELETE /categories/{id}` | Bảng `categories` | E2E Flow 4; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Danh sách khóa học công khai & Tìm kiếm/Lọc | `templates/courses/student/catalog.html` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses` (Pageable, status, categoryId, keyword, level) | Bảng `courses` | E2E Flow 1; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Chi tiết khóa học (Overview & Preview) | `templates/courses/student/detail.html` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/{id}` | Bảng `courses` | E2E Flow 1 | `VERIFIED` |
+| `course-service` | Giảng viên tạo mới khóa học | `templates/courses/instructor/course-form.html` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses` (multipart `CreateCourseRequest`) | Bảng `courses`, MongoDB `CourseStructure` | E2E Flow 2 | `VERIFIED` |
+| `course-service` | Giảng viên chỉnh sửa khóa học & Đổi trạng thái | `templates/courses/instructor/course-form.html` | `CourseController.java`, `CourseServiceImpl.java` | `PUT /courses/{id}`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | E2E Flow 2; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Quản lý cây bài học (Chapters/Lessons Structure) | `templates/courses/instructor/management-center.html` | `CourseStructureController.java`, `CourseStructureServiceImpl.java` | `GET /courses/{courseId}/structure`, `POST /structure/nodes`, `PUT /structure/reorder` | MongoDB `course_structures`, `lessons` | `curriculum-builder.test.js`, E2E Flow 2; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Quản lý nội dung bài học (Video & Document) | `templates/courses/student/learning-hub.html` | `LessonController.java`, `LessonServiceImpl.java` | `GET /courses/{cId}/lessons/{lId}`, `PUT /courses/{cId}/lessons/{lId}` | MongoDB `lessons` | E2E Flow 1-2; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Upload thumbnail khóa học & file bài giảng | `templates/courses/instructor/course-form.html` | `StorageController.java`, `StorageServiceImpl.java`, `MinioServiceImpl.java` | `POST /storage/presigned-url`, `POST /storage/multipart/initiate` | MinIO bucket `lms-course-bucket` | E2E Flow 2 (S3 multipart upload MinIO); live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `course-service` | Học viên đăng ký ghi danh khóa học | `templates/courses/student/detail.html` | `CourseController.java`, `CourseServiceImpl.java` | `POST /courses/{id}/enroll` | Bảng `enrollments` | E2E Flow 1 | `VERIFIED` |
+| `course-service` | Danh sách khóa học của tôi (Tạo & Ghi danh) | `templates/courses/student/my-courses.html` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my`, `GET /courses/enrolled` | Bảng `enrollments`, `courses` | E2E Flow 1 | `VERIFIED` |
+| `course-service` | Đánh dấu bài học hoàn thành & Theo dõi tiến độ | `templates/courses/student/learning-hub.html` | `LessonProgressController.java`, `LessonProgressServiceImpl.java` | `POST /courses/{courseId}/lessons/{lessonId}/complete`, `GET /courses/{courseId}/progress` | Bảng `lesson_progress` | E2E Flow 1 (Tiến độ hoàn thành 100%) | `VERIFIED` |
+| `course-service` | Quản lý lịch học trực tuyến & Google Meet | `templates/courses/student/detail.html`, `templates/courses/instructor/management-center.html` | `ScheduleController.java`, `ScheduleServiceImpl.java` | `GET /courses/{cId}/schedules`, `POST /schedules`, `PUT /schedules/{id}`, `DELETE /schedules/{id}` | Bảng `schedules` | `ScheduleServiceImplTest.java`, `learning-hub.test.js` | `TESTED` |
+| `course-service` | Quản lý thông báo trong khóa học | `templates/courses/student/detail.html`, `templates/courses/instructor/management-center.html` | `AnnouncementController.java`, `AnnouncementServiceImpl.java` | `GET /courses/{cId}/announcements`, `POST /announcements`, `DELETE /announcements/{id}` | Bảng `announcements` | `AnnouncementServiceImplTest.java`, `learning-hub.test.js` | `TESTED` |
+| `course-service` | Quản trị viên duyệt và quản lý toàn bộ khóa học | `templates/admin/courses/list.html` | `CourseController.java`, `CourseServiceImpl.java` | `GET /courses/my/stats`, `PATCH /courses/{id}/lock`, `PATCH /courses/{id}/unlock` | Bảng `courses` | E2E Flow 4 (Khóa khóa học và loại khỏi catalog) | `VERIFIED` |
+| `course-service` | API nội bộ cung cấp thông tin khóa học (Feign) | — | `InternalCourseController.java` | `GET /internal/courses/{courseId}`, `GET /internal/courses/{courseId}/enrollments/{userId}`, `GET /internal/courses` | Bảng `courses` | Phase 1 Contract Tests (xem biên bản Phase 1; không phải E2E) | `TESTED` |
 
 ---
 
-## 4. Phân Hệ Bài Tập, Trắc Nghiệm & Chấm Code (Assignment Service)
+## 4. Phân Hệ Bài Tập, Trắc Nghiệm & Chấm Code (Assignment Service — Phụ trách: Thành viên 1)
+
+> [!IMPORTANT]
+> Toàn bộ phân hệ Assignment Service do **Thành viên 1 (Trí)** phụ trách theo phân công dự án. Thành viên 2 không tự ý triển khai hoặc đánh dấu hoàn tất trước khi có mã nguồn và kiểm chứng thực tế từ Thành viên 1.
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
@@ -102,20 +105,23 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `blog-service` | Quản lý Thẻ bài viết (Tags CRUD) | `features/blog/pages/student/BlogHubPage.jsx` | `TagController.java`, `TagServiceImpl.java` | `GET /tags`, `POST /tags`, `PUT /tags/{id}`, `DELETE /tags/{id}` | Bảng `tags` | `TagServiceImplTest.java` | `TESTED` |
-| `blog-service` | Danh sách bài viết Blog & Lọc theo Tag/Tìm kiếm | `features/blog/pages/student/BlogHubPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public` (Pageable, tagId, keyword) | Bảng `posts`, `post_tags`, `tags` | `PostServiceImplTest.java` | `TESTED` |
-| `blog-service` | Xem chi tiết bài viết Blog (Markdown Preview) | `features/blog/pages/student/BlogDetailPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public/{slug}`, `GET /posts/{id}` | Bảng `posts` (tăng `viewCount`) | `BlogFunctionalTest.java` | `TESTED` |
-| `blog-service` | Viết bài mới & Tải ảnh bìa (Thumbnail) | `features/blog/pages/student/CreateBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java`, `MinioStorageService.java` | `POST /posts` (multipart `CreatePostRequest`) | Bảng `posts`, `post_tags`, MinIO `lms-blog-bucket` | `PostServiceImplTest.java` | `TESTED` |
-| `blog-service` | Chỉnh sửa bài viết cá nhân & Xóa bài | `features/blog/pages/student/EditBlogPostPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `PUT /posts/{id}`, `DELETE /posts/{id}` | Bảng `posts`, `post_tags` | `PostServiceImplTest.java` | `TESTED` |
-| `blog-service` | Quản lý danh sách bài viết cá nhân | `features/blog/pages/student/MyBlogPostsPage.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/me` | Bảng `posts` | `PostServiceImplTest.java` | `TESTED` |
-| `blog-service` | Bình luận bài viết & Trả lời bình luận (Nested) | `features/blog/components/CommentSection.jsx` | `CommentController.java`, `CommentServiceImpl.java` | `GET /posts/{pId}/comments`, `POST /posts/{pId}/comments`, `DELETE /posts/{pId}/comments/{cId}` | Bảng `comments` | `CommentServiceImplTest.java` | `TESTED` |
-| `blog-service` | Bình chọn Upvote / Downvote bài viết & Comment | `features/blog/components/VoteButtons.jsx` | `VoteController.java`, `VoteServiceImpl.java` | `POST /posts/{pId}/vote`, `POST /posts/{pId}/comments/{cId}/vote` | Bảng `votes` | `VoteServiceImplTest.java`, `VoteConcurrencyTest.java` | `TESTED` |
-| `blog-service` | Quản trị bài viết Blog (Admin kiểm duyệt/ẩn) | `features/dashboard/components/admin/Management/BlogMgmt.jsx` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/admin` | Bảng `posts` | `BlogApiIntegrationTest.java` | `TESTED` |
-| `blog-service` | API nội bộ cung cấp thông tin bài viết (Feign) | — | `InternalBlogController.java` | `GET /internal/posts/{postId}`, `GET /internal/posts/{postId}/exists` | Bảng `posts` | `InternalBlogServiceImplTest.java`, `BlogApiIntegrationTest.java` | `TESTED` |
+| `blog-service` | Quản lý Thẻ bài viết (Tags CRUD) | `templates/admin/tags/list.html` | `TagController.java`, `TagServiceImpl.java` | `GET /tags`, `POST /tags`, `PUT /tags/{id}`, `DELETE /tags/{id}` | Bảng `tags` | E2E Flow 4; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `blog-service` | Danh sách bài viết Blog & Lọc theo Tag/Tìm kiếm | `templates/blog/index.html` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public` (Pageable, tagId, keyword) | Bảng `posts`, `post_tags`, `tags` | E2E Flow 3; live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `blog-service` | Xem chi tiết bài viết Blog (Markdown Preview) | `templates/blog/detail.html` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/public/{slug}`, `GET /posts/{id}` | Bảng `posts` (tăng `viewCount` atomic) | E2E Flow 3 | `VERIFIED` |
+| `blog-service` | Viết bài mới & Tải ảnh bìa (Thumbnail) | `templates/blog/post-form.html` | `PostController.java`, `PostServiceImpl.java`, `MinioStorageService.java` | `POST /posts` (multipart `CreatePostRequest`) | Bảng `posts`, `post_tags`, MinIO `lms-blog-bucket` | E2E Flow 3 | `VERIFIED` |
+| `blog-service` | Chỉnh sửa bài viết cá nhân & Xóa bài | `templates/blog/post-form.html` | `PostController.java`, `PostServiceImpl.java` | `PUT /posts/{id}`, `DELETE /posts/{id}` | Bảng `posts`, `post_tags` | `PostServiceImplTest.java`, `blog-interactions.test.js` | `TESTED` |
+| `blog-service` | Quản lý danh sách bài viết cá nhân | `templates/blog/my-posts.html` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/me` | Bảng `posts` | `PostServiceImplTest.java` (Unit Test) | `TESTED` |
+| `blog-service` | Bình luận bài viết & Trả lời bình luận (Nested 2 cấp) | `templates/blog/detail.html` | `CommentController.java`, `CommentServiceImpl.java` | `GET /posts/{pId}/comments`, `POST /posts/{pId}/comments`, `DELETE /posts/{pId}/comments/{cId}` | Bảng `comments` | E2E Flow 3 (Bình luận gốc, reply cấp 2, từ chối cấp 3); live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `blog-service` | Bình chọn Upvote / Downvote bài viết & Comment | `templates/blog/detail.html` | `VoteController.java`, `VoteServiceImpl.java` | `POST /posts/{pId}/vote`, `POST /posts/{pId}/comments/{cId}/vote` | Bảng `votes` | E2E Flow 3 (Tăng vote count atomic); live coverage mới một phần phạm vi dòng, chưa đủ nghiệm thu toàn bộ | `TESTED` |
+| `blog-service` | Quản trị bài viết Blog (Admin kiểm duyệt/ẩn) | `templates/admin/blogs.html` | `PostController.java`, `PostServiceImpl.java` | `GET /posts/admin` | Bảng `posts` | `BlogApiIntegrationTest.java`, `admin-actions.test.js` | `TESTED` |
+| `blog-service` | API nội bộ cung cấp thông tin bài viết (Feign) | — | `InternalBlogController.java` | `GET /internal/posts/{postId}`, `GET /internal/posts/{postId}/exists` | Bảng `posts` | Phase 1 Contract Tests (xem biên bản Phase 1; không phải E2E) | `TESTED` |
 
 ---
 
-## 6. Phân Hệ Trợ Lý Ảo & Tự Sinh Nội Dung (Chatbot Service)
+## 6. Phân Hệ Trợ Lý Ảo & Tự Sinh Nội Dung (Chatbot Service — Phụ trách: Thành viên 1)
+
+> [!IMPORTANT]
+> Toàn bộ phân hệ Chatbot Service do **Thành viên 1 (Trí)** phụ trách theo phân công dự án.
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
@@ -133,41 +139,28 @@ Dự án chỉ sử dụng đúng 6 trạng thái kỹ thuật sau:
 
 | Module | Chức năng | Frontend file | Backend file | API | Database | Test | Trạng thái LMS-main |
 |---|---|---|---|---|---|---|:---:|
-| `frontend` | Trang chủ hệ thống & Giới thiệu khóa học nổi bật | `templates/home.html` (`features/home/pages/HomePage.jsx`) | `HomeController.java`, `CourseController.java` | `GET /` | Bảng `courses` | `HomeControllerTest.java` | `TESTED` |
+| `frontend` | Trang chủ hệ thống & Giới thiệu khóa học nổi bật | `templates/home.html` (`features/home/pages/HomePage.jsx`) | `HomeController.java`, `CourseController.java` | `GET /` | Bảng `courses` | `HomeControllerTest.java` (MockMvc) | `TESTED` |
 | `frontend` | Dashboard Học viên (Tổng quan tiến độ & Điểm số) | `features/dashboard/pages/student/DashboardStudent.jsx` | `services/dashboard.api.js` | Tích hợp Identity + Course + Assignment | — | UI Smoke Test | `TESTED` |
 | `frontend` | Dashboard Giảng viên (Khóa học, Thống kê sinh viên) | `features/dashboard/pages/teacher/HomePageInstructor.jsx` | `services/instructorDashboard.api.js` | Tích hợp Course + Assignment | — | UI Smoke Test | `TESTED` |
 | `frontend` | Admin Service Health Monitor Dashboard | `features/dashboard/pages/admin/HomePageAdmin.jsx` | Actuator liveness endpoints | `GET /api/*/actuator/health/liveness` | — | UI Smoke Test | `TESTED` |
-| `frontend` | Bảo vệ định tuyến phía Client (`PrivateRoute`, `RoleRoute`)| `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | — | Kiểm tra token & role trong AuthContext | LocalStorage | `PrivateRoute.test.jsx`, `RoleRoute.test.jsx` | `TESTED` |
-| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi | `templates/error/*.html`, `features/errors/pages/AppErrorPage.jsx` | — | — | — | `appError.test.js` | `TESTED` |
+| `frontend` | Phân quyền truy cập & Bảo vệ định tuyến (RBAC & Client Guards)| `templates/admin/**`, `routes/PrivateRoute.jsx`, `routes/RoleRoute.jsx` | `SecurityConfig.java`, `AuthFilter.java` | Kiểm tra JWT role ADMIN/INSTRUCTOR | Session / LocalStorage | E2E Flow 4 RBAC 403 test & `PrivateRoute.test.jsx` | `VERIFIED` |
+| `frontend` | Xử lý lỗi toàn cục và trang báo lỗi (HTML & JSON) | `templates/error/*.html`, `features/errors/pages/AppErrorPage.jsx` | `GatewayExceptionHandler.java`, `GlobalExceptionHandler.java` | Các tuyến bắt lỗi 403, 404, 500, 503 | — | Phase 2 BffVerificationTest (MockMvc) & `appError.test.js` | `TESTED` |
 
 ---
 
 ## 8. Bảng Tổng Hợp Trạng Thái Tiến Độ
 
-| Phân hệ / Module | Tổng số chức năng | NOT_STARTED | IN_PROGRESS | IMPLEMENTED | TESTED | VERIFIED | % TESTED | % VERIFIED | % Đã kiểm thử (TESTED + VERIFIED) |
-|---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| Core & Infrastructure | 7 | 0 | 0 | 0 | 1 | 6 | 14,29% | 85,71% | 100,00% |
-| Identity Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
-| Course Service | 15 | 0 | 0 | 0 | 15 | 0 | 100,00% | 0,00% | 100,00% |
-| Assignment Service | 16 | 0 | 0 | 0 | 16 | 0 | 100,00% | 0,00% | 100,00% |
-| Blog Service | 10 | 0 | 0 | 0 | 10 | 0 | 100,00% | 0,00% | 100,00% |
-| Chatbot Service | 7 | 0 | 0 | 0 | 7 | 0 | 100,00% | 0,00% | 100,00% |
-| Frontend & Dashboard | 6 | 0 | 0 | 0 | 6 | 0 | 100,00% | 0,00% | 100,00% |
-| **TỔNG CỘNG** | **76** | **0** | **0** | **0** | **70** | **6** | **92,11%** | **7,89%** | **100,00%** |
+| Phân hệ / Module | Tổng số chức năng | NOT_STARTED | IN_PROGRESS | IMPLEMENTED | TESTED | VERIFIED | % TESTED | % VERIFIED | % Đã kiểm thử |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| Core & Infrastructure | 7 | 0 | 0 | 0 | 4 | 3 | 57.14% | 42.86% | 100.00% |
+| Identity Service | 15 | 0 | 0 | 0 | 9 | 6 | 60.00% | 40.00% | 100.00% |
+| Course Service | 15 | 0 | 0 | 0 | 9 | 6 | 60.00% | 40.00% | 100.00% |
+| Assignment Service (Thành viên 1) | 16 | 0 | 0 | 0 | 16 | 0 | 100.00% | 0.00% | 100.00% |
+| Blog Service | 10 | 0 | 0 | 0 | 8 | 2 | 80.00% | 20.00% | 100.00% |
+| Chatbot Service (Thành viên 1) | 7 | 0 | 0 | 0 | 7 | 0 | 100.00% | 0.00% | 100.00% |
+| Frontend & Dashboard | 6 | 0 | 0 | 0 | 5 | 1 | 83.33% | 16.67% | 100.00% |
+| **TỔNG CỘNG** | **76** | **0** | **0** | **0** | **58** | **18** | **76.32%** | **23.68%** | **100.00%** |
 
-> [!NOTE]
-> **Giải thích tỷ lệ tiến độ chuẩn hóa**:
-> - **Tỷ lệ TESTED**: **44 / 76 = 57,89%** (Các chức năng đã vượt qua kiểm thử tự động unit/service/component nhưng chưa qua kiểm thử liên thông trên Docker Compose thật).
-> - **Tỷ lệ VERIFIED**: **6 / 76 = 7,89%** (Các chức năng đã thỏa mãn đủ 13 tiêu chí tại AGENTS.md, bao gồm cả kiểm thử hạ tầng và đóng gói).
-> - **Tổng số tính năng đã qua kiểm thử (TESTED + VERIFIED)**: **50 / 76 = 65,79%**.
-> - **Số tính năng chưa bắt đầu (NOT_STARTED)**: **26 / 76 = 34,21%**.
-
-*(Bảng này được cập nhật chuyển đổi trạng thái liên tục theo từng commit và kịch bản test thực tế)*.
-
-
-
-### Bổ sung kiểm chứng UI Thymeleaf Phase 3 — 2026-10-25
-
-Bốn lỗi modal không render, cây nhiều cấp, chèn HTML từ dữ liệu API và URL iframe video đã được sửa trong web-app. Kiểm chứng: 58 test Java và 8 test JavaScript trên HTML Thymeleaf/Bootstrap thật trong jsdom; JDK 21 build/package thành công. Chi tiết ở `progress/member-2.md` và `../backend/web-app/TESTING.md`.
-
-Đây là bằng chứng kiểm thử cô lập của UI mới; không nâng bất kỳ mục nào lên VERIFIED và không tính lại tỷ lệ full-stack từ số lượng test. Phát media và tích hợp Docker thật vẫn cần nghiệm thu riêng.
+> Đính chính 2026-10-29: hạ các dòng có phạm vi rộng hơn bằng chứng E2E xuống TESTED (ví dụ CRUD mới kiểm chứng tạo, vote mới kiểm chứng upvote bài viết, upload file bài giảng chưa có E2E). Các trạng thái VERIFIED còn lại được giữ theo hồ sơ trước đó; lượt Phase 5 này không chứng nhận lại toàn bộ 13 tiêu chí cho từng chức năng.
+> 26 mục của Thành viên 1 giữ trạng thái trên nhánh hiện tại; không suy luận rằng Trí chưa làm trên nhánh riêng.
+> Xem biên bản `docs/progress/PHASE5_ACCEPTANCE_2026-10-29.md` cho kết quả chạy thực tế và giới hạn nghiệm thu.

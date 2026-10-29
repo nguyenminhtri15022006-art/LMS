@@ -44,28 +44,34 @@ URL mặc định: BFF `http://localhost:8088`, Gateway `http://localhost:8080`,
 MinIO public URL do identity trả về phải khớp endpoint host dùng trong test.
 
 ```powershell
-# Test cô lập, Docker có thể tắt:
-mvn clean verify -pl web-app -f backend/pom.xml '-Dspring.profiles.active=test'
+# 1. Test cô lập, Docker có thể tắt:
+mvn clean test -pl web-app -f backend/pom.xml '-Dspring.profiles.active=test'
 
-# Chỉ chạy sau khi stack thật và prerequisites đã sẵn sàng:
+# 2. Test triển khai Docker HTTP Smoke (yêu cầu Docker stack và prerequisites):
 mvn test -pl web-app -f backend/pom.xml -Pdocker-smoke '-Dtest=WebAppDockerDeploymentSmokeTest'
+
+# 3. Test trình duyệt E2E giao diện Thymeleaf (yêu cầu Docker stack + Mailpit + MinIO):
+npm.cmd --prefix backend/web-app run test:e2e
 ```
 
 ## Điều kiện PASS và dọn dữ liệu
 
-- Gateway: tạo danh mục tên duy nhất bằng token ADMIN, yêu cầu ID hợp lệ rồi kiểm tra
+- **Gateway**: tạo danh mục tên duy nhất bằng token ADMIN, yêu cầu ID hợp lệ rồi kiểm tra
   đúng tên xuất hiện trong HTML BFF. Thiếu token/tạo thất bại phải FAIL; không tìm chữ
   `courses` chung chung. Cuối test xóa đúng ID đã tạo và kiểm tra kết quả cleanup.
-- Auth: anonymous bị từ chối, mật khẩu ngẫu nhiên sai bị từ chối, tài khoản cấu hình
-  đăng nhập thành công và profile khớp username. Bộ smoke hiện dùng tài khoản chuẩn bị
-  trước; helper Mailpit không nằm trong luồng này, không dùng kết quả này để nghiệm thu OTP.
-- MinIO: lấy POST policy từ Gateway, upload multipart và đọc lại đúng bytes. Cleanup
-  dùng MinIO SDK ký request DELETE, chỉ chấp nhận key dưới `smoke/<UUID-lần-chạy>/`.
-  Endpoint/bucket/public URL được đối chiếu trước upload. Cleanup lỗi làm test FAIL.
-  Không xóa bucket, không xóa dữ liệu người dùng.
-- Nếu Maven bị dừng đột ngột sau upload, kiểm tra object/danh mục của lần chạy theo prefix
-  hoặc tên duy nhất và dọn bằng quyền hợp lệ; không xóa rộng cả bucket/database.
+- **Auth Session & Chuyển Hướng**: anonymous bị từ chối, mật khẩu ngẫu nhiên sai bị từ chối,
+  tài khoản cấu hình đăng nhập thành công và profile khớp username. Kiểm tra URL chuyển hướng
+  bằng phương thức `isValidLoginRedirect(location, baseUrl)` kiểm tra nghiêm ngặt scheme, host,
+  port và root path, từ chối tuyệt đối open redirect.
+- **MinIO S3 POST Policy & CORS**:
+  - CORS MinIO được cấu hình chặt chẽ trong `docker-compose.yml`: `MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:8088,http://127.0.0.1:8088,http://localhost:3000"`, không dùng wildcard `*`.
+  - Kiểm tra upload multipart nhị phân thật qua Presigned POST Policy (yêu cầu trường `Content-Type: image/png` trước file part) và đọc lại đúng bytes.
+  - Cleanup dùng MinIO SDK ký request DELETE, chỉ chấp nhận key dưới `smoke/<UUID-lần-chạy>/`.
+- **Trình Duyệt E2E (Playwright - `test:e2e`)**:
+  - *Kịch bản 1*: Đăng nhập UI Thymeleaf -> Chọn file ảnh avatar -> Direct Upload MinIO -> Cập nhật CSDL MySQL -> Tải lại trang và xác thực URL ảnh đại diện hiển thị đúng.
+  - *Kịch bản 2*: Trình duyệt gọi trực tiếp tới MinIO từ origin trái phép (`http://127.0.0.1:9876`), kiểm tra trình duyệt tự động chặn kết nối qua cơ chế CORS (`Failed to fetch`).
+  - *Kịch bản 3*: Đăng ký tài khoản mới kèm `fullname` -> Lấy mã OTP 6 số từ Mailpit API (`http://localhost:8025/api/v1/messages`) -> Gửi form xác thực tài khoản -> Đăng nhập bằng tài khoản mới vừa tạo.
+- **Google OAuth 2.0**:
+  - Cần credentials thật từ Google Cloud Console (`lms.google.client-id`, `lms.google.client-secret`) và màn hình tương tác người dùng (Consent Screen).
+  - Không thể tự động hóa headless mà không có credentials; được ghi nhận minh bạch là chưa nghiệm thu E2E do thiếu khóa thật từ nhà cung cấp bên thứ ba (tuân thủ quy định không dùng mock giả mạo).
 
-Thiếu cấu hình hoặc Docker tắt là prerequisite thất bại, không phải test được bỏ qua
-hay PASS. SMTP/OTP thật, Google OAuth và UI upload avatar toàn trình vẫn cần bằng chứng
-riêng; bài MinIO ở đây chỉ kiểm tra upload policy, lưu trữ, đọc lại và cleanup.
