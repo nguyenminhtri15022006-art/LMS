@@ -25,6 +25,8 @@ public interface UserRepository extends JpaRepository<User, String> {
 
     Optional<User> findByEmail(String email);
 
+    List<User> findByVerifiedFalseAndCreatedAtBefore(Instant cutoff);
+
     Optional<User> findByProviderIdAndAuthProvider(String providerId, AuthProvider authProvider);
 
     @Modifying(clearAutomatically = true)

@@ -62,11 +62,12 @@ export const authApi = {
    * @param {string} newPassword - New password
    * @returns {Promise} Response confirming password reset
    */
-  resetPassword: (email, otp, newPassword) =>
+  resetPassword: (email, otp, newPassword, confirmPassword) =>
     apiClient.post(`${ENDPOINTS.AUTH.LOGIN.split('/auth')[0]}/auth/reset-password`, {
       email,
       otp,
-      newPassword
+      newPassword,
+      confirmPassword: confirmPassword || newPassword
     }),
 
   /**

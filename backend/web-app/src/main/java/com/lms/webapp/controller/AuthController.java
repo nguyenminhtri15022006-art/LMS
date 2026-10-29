@@ -160,17 +160,31 @@ public class AuthController {
             }
         } catch (RestClientResponseException e) {
             String errorMsg = "Tên đăng nhập hoặc mật khẩu không chính xác.";
+            boolean isUnverified = false;
+            String unverifiedEmail = null;
             try {
                 JsonNode errNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(e.getResponseBodyAsString());
                 if (errNode != null && errNode.hasNonNull("message")) {
                     int code = errNode.hasNonNull("code") ? errNode.get("code").asInt() : 0;
                     if (code == 1009 || errNode.get("message").asText().toLowerCase().contains("kích hoạt")) {
                         errorMsg = errNode.get("message").asText();
+                        isUnverified = true;
+                        if (errNode.has("data") && errNode.get("data") != null && errNode.get("data").hasNonNull("email")) {
+                            unverifiedEmail = errNode.get("data").get("email").asText();
+                        }
                     }
                 }
             } catch (Exception ignored) {
             }
             model.addAttribute("loginError", errorMsg);
+            if (isUnverified) {
+                model.addAttribute("unverifiedUser", true);
+                if (unverifiedEmail != null && !unverifiedEmail.isBlank()) {
+                    model.addAttribute("unverifiedEmail", unverifiedEmail);
+                } else if (form.getUsername() != null && form.getUsername().contains("@")) {
+                    model.addAttribute("unverifiedEmail", form.getUsername());
+                }
+            }
             return "auth/login";
         } catch (Exception e) {
             model.addAttribute("loginError", "Có lỗi xảy ra trong quá trình đăng nhập. Vui lòng thử lại sau.");
@@ -361,13 +375,22 @@ public class AuthController {
             Map<String, String> payload = Map.of(
                     "email", form.getEmail(),
                     "otp", form.getOtp(),
-                    "newPassword", form.getNewPassword()
+                    "newPassword", form.getNewPassword(),
+                    "confirmPassword", form.getConfirmPassword() != null ? form.getConfirmPassword() : form.getNewPassword()
             );
 
             gatewayClient.post("/identity/auth/reset-password", payload, JsonNode.class);
             return "redirect:/login?reset=true";
         } catch (RestClientResponseException e) {
-            model.addAttribute("error", "Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.");
+            String errorMsg = "Đặt lại mật khẩu thất bại. Mã OTP không đúng hoặc đã hết hạn.";
+            try {
+                JsonNode errNode = new com.fasterxml.jackson.databind.ObjectMapper().readTree(e.getResponseBodyAsString());
+                if (errNode != null && errNode.hasNonNull("message")) {
+                    errorMsg = errNode.get("message").asText();
+                }
+            } catch (Exception ignored) {
+            }
+            model.addAttribute("error", errorMsg);
             return "auth/reset-password";
         } catch (Exception e) {
             model.addAttribute("error", "Có lỗi xảy ra khi đặt lại mật khẩu.");

@@ -119,6 +119,7 @@ try {
     // Đọc file SQL và thay thế placeholder hash động
     let sqlContent = fs.readFileSync(sqlPath, 'utf8');
     sqlContent = sqlContent.replaceAll('__DEMO_PASSWORD_HASH__', demoPasswordHash);
+    sqlContent = 'SET NAMES utf8mb4;\nSET CHARACTER SET utf8mb4;\n' + sqlContent;
 
     const childEnv = { ...((typeof process !== 'undefined' && process.env) || {}), MYSQL_PWD: dbPassword };
     const cmd = 'docker exec -i -e MYSQL_PWD lms-mysql mysql -uroot --default-character-set=utf8mb4';

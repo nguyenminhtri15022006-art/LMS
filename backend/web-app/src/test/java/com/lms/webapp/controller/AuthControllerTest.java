@@ -6,6 +6,7 @@ import org.springframework.boot.test.autoconfigure.web.client.AutoConfigureMockR
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
@@ -19,6 +20,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withBadRequest;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -108,6 +110,24 @@ class AuthControllerTest {
         assertThat(session.getAttribute("accessToken")).isEqualTo("test-access-jwt");
         assertThat(session.getAttribute("refreshToken")).isEqualTo("test-refresh-jwt");
         assertThat(session.getAttribute("username")).isEqualTo("alice");
+    }
+
+    @Test
+    void loginUnverifiedAccountShowsErrorAndActivationLink() throws Exception {
+        mockServer.expect(requestTo("http://localhost:8080/api/identity/auth/login"))
+                .andExpect(method(HttpMethod.POST))
+                .andRespond(withStatus(HttpStatus.FORBIDDEN)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .body("{\"code\":1009,\"message\":\"Tài khoản chưa được kích hoạt qua email\",\"data\":{\"email\":\"alice@example.com\"}}"));
+
+        mockMvc.perform(post("/login")
+                        .with(csrf())
+                        .param("username", "alice")
+                        .param("password", "secret123"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("auth/login"))
+                .andExpect(model().attribute("unverifiedUser", true))
+                .andExpect(model().attribute("unverifiedEmail", "alice@example.com"));
         mockServer.verify();
     }
 

@@ -142,6 +142,63 @@ class AuthenticationServiceImplTest {
     }
 
     @Test
+    void createUserReRegistersExistingUnverifiedUser() {
+        var request = com.lms.identityservice.dto.request.UserCreationRequest.builder()
+                .username("unverified_user")
+                .email("unverified@example.com")
+                .password("newpassword123")
+                .fullname("Updated Name")
+                .build();
+
+        User existingUnverifiedUser = User.builder()
+                .userId("u-unverified")
+                .username("unverified_user")
+                .email("unverified@example.com")
+                .verified(false)
+                .build();
+
+        when(userRepository.findByUsername(request.getUsername())).thenReturn(Optional.of(existingUnverifiedUser));
+        when(userRepository.findByEmail(request.getEmail())).thenReturn(Optional.of(existingUnverifiedUser));
+        when(passwordEncoder.encode("newpassword123")).thenReturn("encoded-new-pwd");
+        when(userMapper.toUserCreationResponse(existingUnverifiedUser)).thenReturn(
+                com.lms.identityservice.dto.response.UserCreationResponse.builder()
+                        .userId("u-unverified")
+                        .username("unverified_user")
+                        .email("unverified@example.com")
+                        .build()
+        );
+
+        var response = authenticationService.createUser(request);
+
+        assertThat(response).isNotNull();
+        assertThat(existingUnverifiedUser.getVerified()).isFalse();
+        assertThat(existingUnverifiedUser.getFullname()).isEqualTo("Updated Name");
+        verify(userRepository).save(existingUnverifiedUser);
+        verify(emailVerificationService).sendVerifyEmail(any());
+    }
+
+    @Test
+    void createUserThrowsWhenUserAlreadyVerified() {
+        var request = com.lms.identityservice.dto.request.UserCreationRequest.builder()
+                .username("verified_student")
+                .email("new@example.com")
+                .password("password123")
+                .build();
+
+        User verifiedUser = User.builder()
+                .userId("u-verified")
+                .username("verified_student")
+                .verified(true)
+                .build();
+
+        when(userRepository.findByUsername("verified_student")).thenReturn(Optional.of(verifiedUser));
+
+        assertThatExceptionOfType(IdentityException.class)
+                .isThrownBy(() -> authenticationService.createUser(request))
+                .satisfies(ex -> assertThat(ex.getErrorCode()).isEqualTo(ErrorCode.USER_EXISTED));
+    }
+
+    @Test
     void authenticateReturnsTokensAndStoresHashedRefreshToken() {
         User user = activeStudent();
         when(userRepository.findByUsername("student")).thenReturn(Optional.of(user));

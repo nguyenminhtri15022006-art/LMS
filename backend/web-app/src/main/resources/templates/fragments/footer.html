@@ -1,17 +1,22 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
-<footer th:fragment="footer" class="bg-dark text-light py-4 mt-auto">
+<footer th:fragment="footer" class="text-light py-4 mt-auto" style="background: #0f172a; border-top: 1px solid rgba(255, 255, 255, 0.08);">
     <div class="container">
         <div class="row align-items-center">
             <div class="col-md-6 text-center text-md-start mb-3 mb-md-0">
-                <span class="fw-bold fs-5"><i class="bi bi-mortarboard-fill me-2 text-primary"></i>EduLearn LMS</span>
-                <p class="text-secondary small mb-0 mt-1">&copy; 2026 EduLearn LMS. Nền tảng học tập trực tuyến thông minh.</p>
+                <span class="fw-bold fs-5 d-inline-flex align-items-center gap-2">
+                    <span class="brand-icon-box" style="width: 30px; height: 30px; font-size: 0.95rem;">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </span>
+                    <span>LMS EduLearn</span>
+                </span>
+                <p class="text-secondary small mb-0 mt-2">&copy; 2026 LMS EduLearn. Nền tảng học tập trực tuyến thông minh & thực chiến.</p>
             </div>
             <div class="col-md-6 text-center text-md-end">
-                <a href="#" class="text-secondary text-decoration-none me-3 hover-light"><i class="bi bi-shield-check me-1"></i>Điều khoản</a>
-                <a href="#" class="text-secondary text-decoration-none me-3 hover-light"><i class="bi bi-lock me-1"></i>Bảo mật</a>
-                <a href="#" class="text-secondary text-decoration-none hover-light"><i class="bi bi-envelope me-1"></i>Liên hệ</a>
+                <a href="#" class="text-secondary text-decoration-none me-3 hover-light small"><i class="bi bi-shield-check me-1"></i>Điều khoản</a>
+                <a href="#" class="text-secondary text-decoration-none me-3 hover-light small"><i class="bi bi-lock me-1"></i>Bảo mật</a>
+                <a href="#" class="text-secondary text-decoration-none hover-light small"><i class="bi bi-envelope me-1"></i>Liên hệ hỗ trợ</a>
             </div>
         </div>
     </div>

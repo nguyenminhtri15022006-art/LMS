@@ -42,12 +42,19 @@ public class ProfileController {
             JsonNode profileData = (response != null && response.has("data")) ? response.get("data") : response;
             model.addAttribute("profile", profileData);
 
+            String displayName = "Người dùng EduLearn";
+            if (profileData != null) {
+                if (profileData.hasNonNull("fullname")) displayName = profileData.get("fullname").asText();
+                else if (profileData.hasNonNull("fullName")) displayName = profileData.get("fullName").asText();
+            }
+            model.addAttribute("displayName", displayName);
+
             if (!model.containsAttribute("profileUpdateForm")) {
                 ProfileUpdateForm form = new ProfileUpdateForm();
                 if (profileData != null) {
                     if (profileData.hasNonNull("fullname")) form.setFullname(profileData.get("fullname").asText());
                     if (profileData.hasNonNull("phone")) form.setPhone(profileData.get("phone").asText());
-                    if (profileData.hasNonNull("dob")) form.setDob(profileData.get("dob").asText());
+                    if (profileData.hasNonNull("dob")) form.setDob(formatDobForDateInput(profileData.get("dob")));
                     if (profileData.hasNonNull("bio")) form.setBio(profileData.get("bio").asText());
                     if (profileData.hasNonNull("avatarUrl")) form.setAvatarUrl(profileData.get("avatarUrl").asText());
                 }
@@ -90,7 +97,7 @@ public class ProfileController {
         Map<String, Object> payload = new HashMap<>();
         payload.put("fullname", form.getFullname());
         payload.put("phone", (form.getPhone() != null && !form.getPhone().isBlank()) ? form.getPhone() : null);
-        payload.put("dob", (form.getDob() != null && !form.getDob().isBlank()) ? form.getDob() : null);
+        payload.put("dob", formatDobForDateInput(form.getDob()));
         payload.put("bio", form.getBio());
         payload.put("avatarUrl", form.getAvatarUrl());
         payload.put("discardedAvatarUrls", form.getDiscardedAvatarUrls() != null ? form.getDiscardedAvatarUrls() : List.of());
@@ -165,6 +172,34 @@ public class ProfileController {
         return ResponseEntity.ok(response);
     }
 
+    private String formatDobForDateInput(JsonNode dobNode) {
+        if (dobNode == null || dobNode.isNull()) {
+            return null;
+        }
+        if (dobNode.isNumber()) {
+            long epochMillis = dobNode.asLong();
+            return java.time.Instant.ofEpochMilli(epochMillis)
+                    .atZone(java.time.ZoneOffset.UTC)
+                    .toLocalDate()
+                    .toString();
+        }
+        return formatDobForDateInput(dobNode.asText());
+    }
+
+    private String formatDobForDateInput(String text) {
+        if (text == null || text.isBlank() || "null".equalsIgnoreCase(text.trim())) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (trimmed.contains("T")) {
+            trimmed = trimmed.substring(0, trimmed.indexOf("T"));
+        }
+        if (trimmed.contains(" ")) {
+            trimmed = trimmed.substring(0, trimmed.indexOf(" "));
+        }
+        return trimmed;
+    }
+
     private void prepareModelForProfileView(Model model) {
         if (!model.containsAttribute("profileUpdateForm")) {
             model.addAttribute("profileUpdateForm", new ProfileUpdateForm());
@@ -174,6 +209,9 @@ public class ProfileController {
         }
         if (!model.containsAttribute("roleUpdateForm")) {
             model.addAttribute("roleUpdateForm", new RoleUpdateForm("STUDENT"));
+        }
+        if (!model.containsAttribute("displayName")) {
+            model.addAttribute("displayName", "Người dùng EduLearn");
         }
     }
 }

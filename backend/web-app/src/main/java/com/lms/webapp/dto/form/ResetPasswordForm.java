@@ -17,6 +17,7 @@ public class ResetPasswordForm {
     @Size(min = 8, message = "Mật khẩu phải từ 8 ký tự trở lên")
     private String newPassword;
 
+    @NotBlank(message = "Xác nhận mật khẩu không được để trống")
     private String confirmPassword;
 
     public ResetPasswordForm() {

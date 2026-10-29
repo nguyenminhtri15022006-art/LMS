@@ -1,3 +1,6 @@
+SET NAMES utf8mb4;
+SET CHARACTER SET utf8mb4;
+
 -- ==============================================================================
 -- LMS Seed Data Script - Đợt 12 Release v1.0.0
 -- Dữ liệu mẫu khởi tạo cho Assignment Service (Quiz, Questions, Coding Problems, Testcases)

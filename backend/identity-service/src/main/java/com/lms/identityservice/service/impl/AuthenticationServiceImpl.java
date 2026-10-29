@@ -47,6 +47,8 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.Date;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -77,18 +79,47 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     @Transactional
     public UserCreationResponse createUser(UserCreationRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
+        Optional<User> userByUsername = userRepository.findByUsername(request.getUsername());
+        Optional<User> userByEmail = userRepository.findByEmail(request.getEmail());
+
+        if (userByUsername.isPresent() && Boolean.TRUE.equals(userByUsername.get().getVerified())) {
             throw new IdentityException(ErrorCode.USER_EXISTED);
         }
 
-        if (userRepository.existsByEmail(request.getEmail())) {
+        if (userByEmail.isPresent() && Boolean.TRUE.equals(userByEmail.get().getVerified())) {
             throw new IdentityException(ErrorCode.EMAIL_EXISTED);
         }
 
-        User user = userMapper.toUser(request);
+        if (userByUsername.isEmpty() && userRepository.existsByUsername(request.getUsername())) {
+            throw new IdentityException(ErrorCode.USER_EXISTED);
+        }
+
+        if (userByEmail.isEmpty() && userRepository.existsByEmail(request.getEmail())) {
+            throw new IdentityException(ErrorCode.EMAIL_EXISTED);
+        }
+
+        User user;
+        if (userByUsername.isPresent() && userByEmail.isPresent()) {
+            if (!userByUsername.get().getUserId().equals(userByEmail.get().getUserId())) {
+                throw new IdentityException(ErrorCode.USER_EXISTED);
+            }
+            user = userByUsername.get();
+        } else if (userByUsername.isPresent()) {
+            user = userByUsername.get();
+            user.setEmail(request.getEmail());
+        } else if (userByEmail.isPresent()) {
+            user = userByEmail.get();
+            user.setUsername(request.getUsername());
+        } else {
+            user = userMapper.toUser(request);
+            user.setAuthProvider(AuthProvider.LOCAL);
+            user.setRoleSelected(true);
+        }
+
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        user.setAuthProvider(AuthProvider.LOCAL);
-        user.setRoleSelected(true);
+        if (request.getFullname() != null && !request.getFullname().isBlank()) {
+            user.setFullname(request.getFullname());
+        }
         user.setActive(true);
         user.setVerified(false);
         userRepository.save(user);
@@ -115,7 +146,8 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         }
 
         if (Boolean.FALSE.equals(user.getVerified())) {
-            throw new IdentityException(ErrorCode.USER_NOT_VERIFIED);
+            Map<String, Object> data = user.getEmail() != null ? Map.of("email", user.getEmail()) : Map.of();
+            throw new IdentityException(ErrorCode.USER_NOT_VERIFIED, data);
         }
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {

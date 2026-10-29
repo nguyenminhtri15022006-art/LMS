@@ -9,10 +9,13 @@
     <!-- Header -->
     <div class="row mb-4 align-items-center">
         <div class="col-md-7">
-            <h1 class="fw-bold mb-1">Khám Phá Khóa Học</h1>
-            <p class="text-muted">Nâng cao kỹ năng chuyên môn với hàng ngàn bài giảng chất lượng cao</p>
+            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1 rounded-pill fw-semibold mb-2">
+                Kho Khóa Học Trực Tuyến
+            </span>
+            <h1 class="fw-bold mb-1 display-6">Khám Phá Khóa Học</h1>
+            <p class="text-muted mb-0 fs-6">Nâng cao kỹ năng chuyên môn với hàng ngàn bài giảng chất lượng cao</p>
         </div>
-        <div class="col-md-5 text-md-end" th:if="${session.username}">
+        <div class="col-md-5 text-md-end mt-3 mt-md-0" th:if="${session.username}">
             <a th:href="@{/my-courses}" class="btn btn-outline-primary shadow-sm">
                 <i class="bi bi-collection-play me-1"></i>Khóa học của tôi
             </a>
@@ -20,11 +23,11 @@
     </div>
 
     <!-- Filters & Search Form -->
-    <div class="card border-0 shadow-sm rounded-4 p-4 mb-5 bg-white">
+    <div class="card border-0 shadow-sm rounded-4 p-4 mb-5 catalog-search-card">
         <form th:action="@{/courses}" method="get" class="row g-3">
             <div class="col-md-5">
                 <div class="input-group">
-                    <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+                    <span class="input-group-text bg-light border-0"><i class="bi bi-search text-muted"></i></span>
                     <input type="text" name="keyword" class="form-control bg-light border-0"
                            placeholder="Tìm kiếm khóa học theo tiêu đề..."
                            th:value="${keyword}">
@@ -58,44 +61,54 @@
 
     <!-- Course Grid -->
     <div th:if="${courses != null and !courses.isEmpty()}" class="row g-4">
-        <div th:each="course : ${courses}" class="col-md-6 col-lg-4">
-            <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden course-card transition-hover">
-                <img th:if="${course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
-                     th:src="${course.get('thumbnailUrl').asText()}"
-                     class="card-img-top object-fit-cover"
-                     style="height: 180px;"
-                     alt="Course Thumbnail"
-                     onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop'">
+        <div th:each="course, iterStat : ${courses}" class="col-md-6 col-lg-4">
+            <div class="card h-100 course-card overflow-hidden">
+                <!-- Thumbnail -->
+                <div th:if="${course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}">
+                    <img th:src="${course.get('thumbnailUrl').asText()}"
+                         class="card-img-top object-fit-cover"
+                         style="height: 190px;"
+                         alt="Course Thumbnail"
+                         onerror="this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=600&auto=format&fit=crop'">
+                </div>
                 <div th:unless="${course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
-                     class="card-img-top bg-light d-flex align-items-center justify-content-center text-primary"
-                     style="height: 180px;">
-                    <i class="bi bi-mortarboard display-3"></i>
+                     th:class="'card-img-top course-thumb-box position-relative ' + (${iterStat.index % 3 == 0} ? 'course-thumb-gradient-1' : (${iterStat.index % 3 == 1} ? 'course-thumb-gradient-2' : 'course-thumb-gradient-3'))">
+                    <div class="position-absolute text-white-50 opacity-25" style="top: -15px; right: -15px; font-size: 6rem;">
+                        <i class="bi bi-code-slash"></i>
+                    </div>
+                    <div class="brand-icon-box" style="width: 52px; height: 52px; font-size: 1.6rem;">
+                        <i class="bi bi-mortarboard-fill"></i>
+                    </div>
                 </div>
 
+                <!-- Body -->
                 <div class="card-body d-flex flex-column p-4">
                     <div class="d-flex justify-content-between align-items-center mb-2">
                         <span th:if="${course.hasNonNull('level')}"
-                              class="badge rounded-pill bg-primary-subtle text-primary border border-primary-subtle px-2 py-1 small"
+                              th:class="'badge course-badge-level ' + (${course.get('level').asText() == 'BEGINNER'} ? 'course-badge-beginner' : (${course.get('level').asText() == 'INTERMEDIATE'} ? 'course-badge-intermediate' : 'course-badge-advanced'))"
                               th:text="${course.get('level').asText() == 'BEGINNER' ? 'Cơ bản' : (course.get('level').asText() == 'INTERMEDIATE' ? 'Trung cấp' : 'Nâng cao')}">
                             Cơ bản
                         </span>
                         <span th:if="${course.hasNonNull('duration') and course.get('duration').asInt() > 0}"
-                              class="text-muted small">
-                            <i class="bi bi-clock me-1"></i><span th:text="${course.get('duration').asText()}"></span> giờ
+                              class="text-muted small fw-medium">
+                            <i class="bi bi-clock me-1 text-primary"></i><span th:text="${course.get('duration').asText()}"></span> giờ
                         </span>
                     </div>
 
-                    <h5 class="card-title fw-bold text-dark text-truncate-2 mb-2" th:text="${course.get('title').asText()}">
+                    <h5 class="card-title fw-bold text-dark text-truncate-2 mb-2 lh-snug" th:text="${course.get('title').asText()}">
                         Tiêu đề khóa học
                     </h5>
-                    <p class="card-text text-muted small text-truncate-3 flex-grow-1"
+                    <p class="card-text text-muted small text-truncate-3 flex-grow-1 mb-3"
                        th:text="${course.hasNonNull('description') ? course.get('description').asText() : 'Khóa học cung cấp kiến thức nền tảng và bài tập thực hành toàn diện.'}">
                         Mô tả khóa học
                     </p>
 
                     <div class="pt-3 border-top mt-auto d-flex justify-content-between align-items-center">
-                        <a th:href="@{'/courses/' + ${course.get('id').asText()}}" class="btn btn-sm btn-primary px-3 fw-semibold">
-                            Xem chi tiết <i class="bi bi-arrow-right ms-1"></i>
+                        <span class="text-primary fw-semibold small">
+                            <i class="bi bi-shield-check me-1"></i>EduLearn
+                        </span>
+                        <a th:href="@{'/courses/' + ${course.get('id').asText()}}" class="btn btn-sm btn-primary px-3 fw-semibold d-inline-flex align-items-center gap-1">
+                            <span>Xem chi tiết</span> <i class="bi bi-arrow-right"></i>
                         </a>
                     </div>
                 </div>
@@ -104,10 +117,10 @@
     </div>
 
     <!-- Empty State -->
-    <div th:if="${courses == null or courses.isEmpty()}" class="card border-0 shadow-sm rounded-4 p-5 text-center my-4">
+    <div th:if="${courses == null or courses.isEmpty()}" class="card border-0 shadow-sm rounded-4 p-5 text-center my-4 bg-white">
         <div class="my-4">
             <i class="bi bi-search text-muted display-3"></i>
-            <h4 class="fw-bold mt-3">Không tìm thấy khóa học nào</h4>
+            <h4 class="fw-bold mt-3 text-dark">Không tìm thấy khóa học nào</h4>
             <p class="text-muted">Hãy thử tìm kiếm với từ khóa khác hoặc điều chỉnh lại bộ lọc danh mục.</p>
             <a th:href="@{/courses}" class="btn btn-outline-primary mt-2">
                 <i class="bi bi-arrow-repeat me-1"></i>Đặt lại bộ lọc

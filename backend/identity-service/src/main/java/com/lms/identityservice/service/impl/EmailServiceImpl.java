@@ -30,6 +30,14 @@ public class EmailServiceImpl implements EmailService {
     @Value("${app.otp.max-attempts:5}")
     int otpMaxAttempts;
 
+    @NonFinal
+    @Value("${spring.mail.username:youremailaddress}")
+    String fromEmail;
+
+    @NonFinal
+    @Value("${app.mail.from-name:EduLearn LMS}")
+    String fromName;
+
     @Override
     @Async
     public void sendVerifyEmail(String to, String fullName, String otp) {
@@ -97,6 +105,8 @@ public class EmailServiceImpl implements EmailService {
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            String sender = (fromEmail != null && !fromEmail.isBlank() && !"youremailaddress".equals(fromEmail)) ? fromEmail : "noreply@lms.edu.vn";
+            helper.setFrom(sender, fromName);
             helper.setTo(to);
             helper.setSubject(subject);
             helper.setText(content, true);
