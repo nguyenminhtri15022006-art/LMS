@@ -1,6 +1,6 @@
 # AGENTS.md — Quy Định Bắt Buộc Dành Cho AI Coding Agent
 
-Tài liệu này xác định các nguyên tắc, ràng buộc kỹ thuật và quy trình chuẩn mà AI Agent (Antigravity / Coding Assistant) phải tuân thủ nghiêm ngặt trong suốt quá trình phát triển dự án `LMS-main`.
+Tài liệu này xác định các nguyên tắc, ràng buộc kỹ thuật và quy trình chuẩn mà AI Agent (Antigravity / Coding Assistant) phải tuân thủ nghiêm ngặt trong suốt quá trình phát triển dự án `DoAnCK`.
 
 ---
 
@@ -9,19 +9,19 @@ Tài liệu này xác định các nguyên tắc, ràng buộc kỹ thuật và 
 Hệ thống có hai phân vùng dự án rõ ràng:
 
 ### 1.1 Thư mục chỉ được đọc (READ-ONLY)
-- **Đường dẫn**: `D:\LMS-main\Learning-Management-System-main`
+- **Đường dẫn**: `D:\UTE\Nam_3_2026_2027_1\nam3\LTW\DACK\Learning-Management-System-main`
 - **Mục đích**: Là nguồn tham chiếu chuẩn duy nhất về mặt kiến trúc, hành vi chức năng, entity, controller, API contracts, cấu hình và luồng xử lý.
 - **Ràng buộc**:
   - **TUYỆT ĐỐI KHÔNG** sửa, thêm, xóa, format hoặc đổi tên bất kỳ file/thư mục nào trong project mẫu.
   - **KHÔNG** chạy các lệnh thay đổi dữ liệu hoặc trạng thái trong project mẫu (như `git checkout`, `git clean`, `npm install`, build modifying files).
-  - Nếu phát hiện lỗi hoặc thiếu sót trong project mẫu: Ghi nhận vào [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) và [docs/DECISIONS.md](docs/DECISIONS.md), **không sao chép lỗi** sang `LMS-main`.
+  - Nếu phát hiện lỗi hoặc thiếu sót trong project mẫu: Ghi nhận vào [docs/OPEN_QUESTIONS.md](docs/OPEN_QUESTIONS.md) và [docs/DECISIONS.md](docs/DECISIONS.md), **không sao chép lỗi** sang `DoAnCK`.
 
 ### 1.2 Thư mục được phép làm việc (READ-WRITE)
-- **Đường dẫn**: `D:\LMS-main`
+- **Đường dẫn**: `D:\UTE\Nam_3_2026_2027_1\nam3\LTW\DACK\DoAnCK`
 - **Mục đích**: Chứa toàn bộ mã nguồn, tài liệu, cấu hình và kiểm thử của dự án cần phát triển.
 - **Ràng buộc**:
-  - Mọi thao tác tạo file, sửa code, xóa file, cấu hình docker, kiểm thử và commit chỉ được thực hiện trong phạm vi `D:\LMS-main`.
-  - Mọi đường dẫn tương đối phải lấy gốc từ `D:\LMS-main`.
+  - Mọi thao tác tạo file, sửa code, xóa file, cấu hình docker, kiểm thử và commit chỉ được thực hiện trong phạm vi `DoAnCK`.
+  - Mọi đường dẫn tương đối phải lấy gốc từ `DoAnCK`.
 
 ---
 
