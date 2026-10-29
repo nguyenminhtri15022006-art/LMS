@@ -400,7 +400,7 @@ gantt
 | **Phase 2** | Gateway Resiliency & Distributed Consistency TDD | Fault / WebTestClient TDD | Phase 1 hoàn tất | `GatewayFallbackController` hoạt động + Cascading rules PASS | **Hoàn thành (21/21 Tests PASS)** |
 | **Phase 3** | Docker Environment Readiness & Isolated Fixtures Setup | Healthcheck Probe & Fixture Lifecycle Test | Docker Engine running, 11 container healthy | Stack Docker sẵn sàng + Fixture cleanup tự động | **Hoàn thành (25/25 Tests PASS)** |
 | **Phase 4** | Comprehensive 4-Flow End-to-End Test Suite (E2E TDD) | Playwright Browser E2E & API E2E (Route Thật) | Phase 3 hoàn tất (Docker stack & Fixtures sẵn sàng) | 4 Luồng E2E nghiệp vụ PASS 100% | **Hoàn thành (4/4 Flows PASS 100%)** |
-| **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | **Hoàn thành (49/76 VERIFIED, Demo Seeded)** |
+| **Phase 5** | Docker Automation, Seeding & Parity Matrix Audit | Full Regression Audit & 13 Tiêu chí AGENTS.md | Phase 4 hoàn tất | Seeding demo chuẩn, Ma trận Parity cập nhật minh bạch | **Nghiệm thu seed/cold-start/hồi quy local PASS — xem biên bản 2026-10-29** |
 
 ---
 
@@ -456,7 +456,7 @@ Mọi thao tác trong quá trình triển khai Đợt 4 phải tuân thủ nghi�
   * Toàn bộ 4/4 luồng E2E chạy thực tế qua Playwright trên stack 11 container Thành viên 2 đều PASS 100% (`four-flows.e2e.test.js`, thời gian: ~28.7 giây).
   * Kiểm chứng đầy đủ từ UI Web-App (:8088), API Gateway (:8080), tới CSDL thực (MySQL :3307, MongoDB :27017, MinIO :9000, Mailpit :8025) và dọn dẹp fixture an toàn trong khối `finally`.
   * Bộ test đơn vị web-app (172/172 Java tests PASS, 61/61 JS tests PASS) và kiểm tra sức khỏe stack 11 container PASS 100%.
-- **Phase 5 (Docker Automation & 13-Criteria VERIFIED Audit)**: **ĐÃ HOÀN THÀNH TOÀN DIỆN**.
-  * Nạp dữ liệu mẫu demo chuẩn hóa (`02-demo-seed-data.sql`, `scripts/seed-demo-data.cjs`) thành công trên MySQL và MongoDB.
-  * Hoàn thành rà soát 13 tiêu chí tại `AGENTS.md`, nâng tỷ lệ VERIFIED lên 49/76 (64.47% toàn dự án, 46/47 = 97.87% phân hệ Thành viên 2).
-  * Toàn bộ 5 Phase Đợt 4 đã hoàn thành và sẵn sàng nghiệm thu bàn giao.
+- **Phase 5 (Docker Automation & Parity Matrix Audit)**: **NGHIỆM THU PHẠM VI LOCAL PASS (2026-10-29)**.
+  * Xem `docs/progress/PHASE5_ACCEPTANCE_2026-10-29.md`: seed hai lần trên volume mới, UI ba vai trò, Java 337/337, E2E 4/4, browser 3/3 PASS.
+  * Ma trận hiện 18 VERIFIED / 32 TESTED / 26 NOT_STARTED; không suy rộng thành 100% parity hoặc phát hành production.
+  * Google OAuth thật và tích hợp phần Thành viên 1 vẫn ngoài phạm vi nghiệm thu này.

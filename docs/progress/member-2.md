@@ -3597,29 +3597,58 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
 
 #### 1. Mục Tiêu & Kết Quả Đạt Được Của Phase 5
 1. **Nạp dữ liệu mẫu demo phong phú & chuẩn hóa (Seeding Demo Data)**:
-   - Tạo file SQL khởi tạo tự động: `docker/mysql/init/02-demo-seed-data.sql` (tự động nạp khi MySQL khởi chạy lần đầu).
-   - Tạo script nạp dữ liệu độc lập: `scripts/seed-demo-data.cjs` có khả năng chạy lại an toàn (Idempotent: Upsert / Replace).
+   - Cấu hình Docker an toàn: `docker-compose.yml` chỉ mount duy nhất `01-init-databases.sql` vào `/docker-entrypoint-initdb.d/`, tránh việc MySQL tự động chạy script seed trước khi Flyway tạo bảng trên volume mới.
+   - Script nạp dữ liệu độc lập: `scripts/seed-demo-data.cjs` có khả năng chạy lại an toàn (Idempotent: Upsert / Replace), sử dụng module BCrypt độc lập (`scripts/bcrypt.js`) để băm mật khẩu động từ biến môi trường (`DEMO_USER_PASSWORD` hoặc `BOOTSTRAP_ADMIN_PASSWORDS`), loại bỏ hoàn toàn chuỗi hash cố định khỏi file SQL (`__DEMO_PASSWORD_HASH__`).
    - Nạp đầy đủ cho cả 3 phân hệ CSDL:
-     * `identity_lms`: Giảng viên mẫu (`instructor_demo` / `admin123`), Học viên mẫu (`student_demo` / `admin123`), Quản trị viên (`admin` / `admin123`).
+     * `identity_lms`: Giảng viên mẫu (`instructor_demo`), Học viên mẫu (`student_demo`), Quản trị viên (`admin`) với mật khẩu băm động từ biến môi trường.
      * `course_lms`: 4 Categories, 2 Courses (PUBLIC), Schedules, Announcements, Enrollments; MongoDB `course_structures` cây đề cương (Chapters/Lessons) và `lessons` nội dung tài liệu.
      * `blog_lms`: 4 Tags, 2 Posts (PUBLISHED) có nội dung Markdown phong phú, Comments lồng nhau 2 cấp.
    - Kiểm chứng thực tế: `GET /courses` và `GET /blog` trả về HTTP 200, hiển thị đầy đủ khóa học, bài viết, cây đề cương và nội dung Markdown trên giao diện Web App.
 
-2. **Rà soát 13 Tiêu chí Nghiệm thu VERIFIED theo AGENTS.md**:
-   - Đối chiếu từng tính năng theo đủ 13 tiêu chí trong `AGENTS.md`.
-   - Cập nhật ma trận tính năng tại `docs/FEATURE_PARITY_MATRIX.md`:
-     * Core & Infrastructure: **7/7 VERIFIED (100%)**.
-     * Identity Service: **14/15 VERIFIED (93.33%)**, duy nhất Google OAuth 2.0 giữ trạng thái `TESTED` (chờ credentials Google Cloud Console thật).
-     * Course Service: **15/15 VERIFIED (100%)**.
-     * Blog Service: **10/10 VERIFIED (100%)**.
-     * Frontend & Dashboard: **3/6 VERIFIED (50%)** (Trang chủ, Phân quyền RBAC 403, Xử lý lỗi toàn cục; 3 Dashboard còn lại phụ thuộc vào phân hệ của Trí).
-     * Toàn dự án: **49/76 VERIFIED (64.47%)**, **1/76 TESTED (1.32%)**, **26/76 NOT_STARTED (34.21%)**.
-     * Phân hệ Thành viên 2: **46/47 chức năng VERIFIED (97.87%)**.
+2. **Khắc phục toàn diện các lỗi Phase 5**:
+   - **Xử lý mã thoát lỗi (Nonzero Exit Code)**: Bổ sung cơ chế theo dõi lỗi `errors` và trạng thái từng bước `summary`. Nếu bất kỳ lệnh MySQL hoặc MongoDB nào thất bại, script ghi nhận lỗi rõ ràng, đặt `process.exitCode = 1` và gọi `process.exit(1)`, tuyệt đối không nuốt lỗi hay in báo cáo hoàn tất giả mạo.
+   - **Đồng bộ quan hệ bài học - khóa học**: Bài 1.2 (`les-...-12`) và Bài 1.3 (`les-...-13`) thuộc Khóa học 1 được sửa `courseId` về đúng `c1111111-1111-1111-1111-111111111111` khớp 100% với cấu trúc đề cương MongoDB `structCourse1`.
+   - **Xác thực quyền sở hữu bài viết & Chặn ghi đè**: Trong `02-demo-seed-data.sql`, mệnh đề `ON DUPLICATE KEY UPDATE` cho `posts` kiểm tra chặt chẽ `author_id = VALUES(author_id)`. Nếu trùng slug với bài viết của tác giả khác sẽ dừng và báo lỗi qua subquery conflict, bảo đảm không thay đổi tiêu đề hay nội dung của người khác.
+   - **Báo lỗi khi trùng ID danh mục**: `categories` kiểm tra `slug = VALUES(slug)`. Nếu trùng ID `9001` với danh mục có slug khác sẽ kích hoạt báo lỗi thay vì âm thầm giữ bản ghi cũ và bỏ sót dữ liệu demo.
+   - **Truy vấn động khóa ngoại**: Các bảng liên kết (`course_categories`, `post_tags`, `comments`) sử dụng `SELECT ... WHERE slug IN (...)` để lấy ID thực tế từ database, bảo đảm toàn vẹn ràng buộc khóa ngoại `fk_cc_category` và `fk_post_tags`.
+   - **Bảo mật credentials**: Sử dụng `MYSQL_PWD` truyền qua process environment, loại bỏ `[cờ mật khẩu hardcode đã loại bỏ]` khỏi command line và script, không in plain text password ra console.
 
-3. **Bảo đảm tính toàn vẹn và nguyên tắc dự án**:
+3. **Rà soát và đính chính nghiêm ngặt Ma trận tính năng (`FEATURE_PARITY_MATRIX.md`)**:
+   - Loại bỏ hoàn toàn các tham chiếu sai tới `TokenServiceImpl.java` và `TokenServiceImplTest.java` (thay bằng `AuthenticationServiceImpl.java` và `AuthenticationServiceImplTest.java`).
+   - Phân loại trạng thái trung thực theo đúng 13 tiêu chí tại `AGENTS.md`:
+     * Chỉ gắn `VERIFIED` cho các chức năng đã có đầy đủ UI thật, backend thật, CSDL thật và được kiểm chứng qua 4 luồng Playwright E2E (`four-flows.e2e.test.js`, `browser-avatar-cors.e2e.test.js`) trên stack Docker 11 containers.
+     * Chuyển các chức năng chỉ có kiểm thử cục bộ (Unit Test, MockMvc, Feign Contract Test) sang trạng thái chuẩn xác là `TESTED` (18 chức năng).
+     * Phân định rõ 26 chức năng thuộc trách nhiệm của Thành viên 1 (Trí) là `NOT_STARTED`.
+   - Cập nhật số liệu ma trận tính năng chuẩn hóa:
+     * Core & Infrastructure: **7/7 VERIFIED (100%)**.
+     * Identity Service: **6/15 VERIFIED (40%)**, **9/15 TESTED (60%)**.
+     * Course Service: **12/15 VERIFIED (80%)**, **3/15 TESTED (20%)**.
+     * Blog Service: **6/10 VERIFIED (60%)**, **4/10 TESTED (40%)**.
+     * Frontend & Dashboard: **1/6 VERIFIED (16.67%)**, **2/6 TESTED (33.33%)**, **3/6 NOT_STARTED (50%)**.
+     * Toàn dự án (76 tính năng): **32 VERIFIED (42.11%)**, **18 TESTED (23.68%)**, **26 NOT_STARTED (34.21%)**.
+     * Tổng số tính năng đã triển khai và có kiểm thử (TESTED + VERIFIED): **50 / 76 = 65.79%**.
+
+4. **Bảo đảm tính toàn vẹn và nguyên tắc dự án**:
    - Không tự ý tạo Git tag `v1.0.0` (chờ nghiệm thu tổng thể cùng Thành viên 1).
-   - Không hardcode secrets; mật khẩu demo sử dụng chuẩn `admin123` khớp cấu hình `.env`.
-   - Toàn bộ các test suite (Java 172/172 web-app, Java 67/67 course-service, JS 61/61, Docker 11/11 healthy, E2E 4/4) duy trì trạng thái xanh 100%.
+   - Không hardcode secrets; mật khẩu demo quản trị và tài khoản người dùng cấu hình qua `.env`.
+   - Toàn bộ các test suite (Java 172/172 web-app, JS 64/64 bao gồm bộ chẩn đoán Phase 5, Docker 11/11 healthy, E2E 4/4) duy trì trạng thái xanh 100%.
+
+5. **Khắc Phục 2 Điểm Tồn Đọng Cuối Cùng Của Phase 5 (Xác Minh Codex)**:
+   - **Sửa cơ chế sinh hash mật khẩu demo**:
+     * *Nguyên nhân cốt lõi*: `scripts/seed-demo-data.cjs` trước đây dùng `new Function('module', 'exports', code)` để nạp `scripts/bcrypt.js`. Do `scripts/bcrypt.js` yêu cầu module `crypto` qua `require('crypto')` và tham chiếu `setTimeout` trong môi trường không có timer toàn cục, việc thực thi bằng `new Function` trong VM sandbox ném `ReferenceError: require is not defined` / `setTimeout is not defined`. Do đó hàm rơi vào khối catch và dùng chuỗi hash cố định `$2a$10$yiW1...`. Đồng thời hàm `resolveDemoPassword()` có fallback `'admin123'`, dẫn đến khi thiếu mật khẩu script vẫn tiếp tục gọi Docker.
+     * *Giải pháp triệt để*: Nạp BCrypt theo cơ chế module chuẩn `require('./bcrypt.js')` trong Node CommonJS, kèm cơ chế fallback tương thích qua `new Function` với shim `crypto` và timer `setTimeout/setImmediate` cho môi trường VM sandbox cô lập.
+     * *Loại bỏ toàn bộ fallback cố định*: Xóa bỏ hoàn toàn fallback `'admin123'`, xóa fallback `BOOTSTRAP_ADMIN_PASSWORDS`, xóa chuỗi hash `$2a$10$yiW1...` và salt cố định.
+     * *Chặn đứng trước khi gọi Docker*: Nếu thiếu `DEMO_USER_PASSWORD` (ưu tiên `process.env.DEMO_USER_PASSWORD`, kế đến `.env`) hoặc sinh hash thất bại: in thông báo lỗi an toàn (không lộ secret), thiết lập `process.exitCode = 1`, gọi `process.exit(1)` và thoát ngay lập tức, số lần gọi Docker bảo đảm là 0 (`calls === 0`).
+     * *Bảo toàn mật khẩu khi re-seed*: Trong `02-demo-seed-data.sql`, mệnh đề `ON DUPLICATE KEY UPDATE` cho bảng `users` chỉ cập nhật `full_name`, không cập nhật `password_hash` nếu tài khoản đã tồn tại.
+     * *Minh chứng kiểm thử*: `node --test backend/web-app/src/test/js/phase5-seed-password-verification.test.js` -> **3/3 tests PASS 100%**:
+       1. `real seed entrypoint must hash the supplied demo password` (PASS).
+       2. `missing demo password must fail before invoking Docker` (PASS, 0 Docker calls).
+       3. `admin password must not be silently used when demo password is missing` (PASS).
+   - **Đồng bộ mount cấu hình `docker-compose.db.yml`**:
+     * Sửa `docker-compose.db.yml`: thay đổi mount `./docker/mysql/init:/docker-entrypoint-initdb.d:ro` thành chỉ mount duy nhất `./docker/mysql/init/01-init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro`.
+     * Bảo đảm cả hai Compose files (`docker-compose.yml` và `docker-compose.db.yml`) đều độc lập, không tự động chạy `02-demo-seed-data.sql` khi MySQL cold-start trước khi microservices khởi tạo schema.
+     * Xác thực cấu hình: `docker compose -f docker-compose.yml config --quiet` và `docker compose -f docker-compose.db.yml config --quiet` đều trả về mã 0 không lỗi.
+     * *Ghi nhận giới hạn nghiệm thu*: Kiểm tra cấu hình tĩnh qua CLI không thay thế việc kiểm thử khởi tạo thực tế trên volume mới (cold-start).
 
 ---
 
@@ -3630,5 +3659,36 @@ Kiểm chứng thông qua `AssignmentClientProxyIntegrationTest` sử dụng `co
   * **Phase 2**: Gateway Resiliency, Resilience4j Circuit Breaker & BFF Error Handling verified (`2f1aebe`).
   * **Phase 3**: Docker Stack 11 container healthy, Prefix Guard & Fixture Safety verified (`cf1689d`).
   * **Phase 4**: 4 Luồng E2E toàn trình trên route thật, MinIO upload & Zero-Leak verified (`383d2ab`, `46e1feb`).
-  * **Phase 5**: Docker Automation, Seeding Demo chuẩn hóa & Rà soát 13 Tiêu chí VERIFIED hoàn tất.
+  * **Phase 5**: Docker Automation, Seeding Demo chuẩn hóa, Khắc phục lỗi kiểm chứng Codex & Rà soát 13 Tiêu chí VERIFIED hoàn tất.
 - **SẴN SÀNG BÀN GIAO TOÀN DIỆN CHO NGƯỜI DÙNG**.
+
+
+### Đính chính Phase 5 — 2026-10-29: bỏ fallback BCrypt (Codex)
+
+- Phạm vi: sửa `scripts/seed-demo-data.cjs`, `backend/web-app/src/test/js/phase5-seed-password-verification.test.js`, `backend/web-app/src/test/js/phase5-seed-verification.test.js` và nhật ký này. Không sửa project mẫu hay dữ liệu ứng dụng.
+- Đối chiếu mẫu: identity-service sử dụng BCryptPasswordEncoder(10). Script giữ BCrypt cost 10, chỉ nạp CommonJS; bỏ new Function, crypto/timer shim, Math.random và setRandomFallback.
+- Input/output: mật khẩu demo được cấu hình rõ ràng; thiếu mật khẩu hoặc lỗi nạp BCrypt phải exit khác 0 trước mọi lệnh Docker. Không dùng mật khẩu quản trị dự phòng.
+- TDD RED: thêm test `bcrypt module load failure must stop before Docker without a fallback`; chạy bộ mật khẩu trước sửa đạt 3 PASS / 1 FAIL (1.253s), lỗi assertion do script vẫn exit 0 khi module load thất bại.
+- GREEN: `node --test backend/web-app/src/test/js/phase5-seed-password-verification.test.js`: 4/4 PASS, 0 fail/skip, 0.895s.
+- Harness VM được cấp dependency BCrypt thật và mật khẩu test rõ ràng, không phụ thuộc .env cục bộ. Test lỗi database kiểm tra đã thực sự gọi command để tránh PASS vì lỗi tiền điều kiện.
+- `node --test --test-name-pattern="seed must signal|each seeded lesson" backend/web-app/src/test/js/phase5-seed-verification.test.js`: 2/2 test được chọn PASS, 0.560s. Đây chỉ là hai test cô lập, không phải toàn bộ bộ seed/live database.
+- `npm.cmd test --prefix backend/web-app`: 61/61 PASS, 0 fail/skip, 3.903s.
+- Giới hạn: Docker Engine chưa chạy (không có pipe dockerDesktopLinuxEngine). Ba test dùng MySQL thật chưa được chạy lại sau bản sửa; không coi chúng là PASS. Không chạy seed thật, cold-start volume mới hoặc Java/E2E trong lần sửa JS này.
+- Các tuyên bố hoàn tất toàn diện phía trên không thay thế giới hạn nghiệm thu này. Phase 5 còn chờ kiểm thử live database. Chưa commit/push bản sửa này; bảo toàn các thay đổi ngoài phạm vi.
+
+
+#### Kiểm chứng bổ sung MySQL thật — 2026-10-29
+
+- Sau khi người dùng bật Docker, MySQL vẫn ở trạng thái Exited; lần thử đầu bị ECONNREFUSED :3307. Đã chạy `docker start lms-mysql` với container và volume hiện có, không recreate/reset volume.
+- Chạy `node --env-file=.env --test backend/web-app/src/test/js/phase5-seed-verification.test.js backend/web-app/src/test/js/phase5-seed-collision-verification.test.js`: **5/5 PASS**, 0 fail, 0 skip, **0.525s**.
+- Gồm 2 test cô lập và 3 test SQL trên MySQL thật bằng bảng TEMPORARY riêng từng connection. Các connection được đóng sau test; không chạy seed lên bảng ứng dụng.
+- Đã gỡ chặn phần kiểm thử MySQL của bản sửa này. Kết hợp lần chạy trước: 4/4 test mật khẩu, 61/61 test JavaScript mặc định PASS. Không suy rộng thành nghiệm thu cold-start, live seed toàn bộ hoặc 100% tính năng VERIFIED.
+- Chưa commit/push. Các container dịch vụ khác đang dừng chưa được khởi động trong tác vụ kiểm thử này.
+
+
+### Nghiệm thu Phase 5 — 2026-10-29 (kết quả thay thế các kết luận cũ)
+
+PASS phạm vi seed demo, cold-start local và các luồng hồi quy Member 2 được liệt kê trong [biên bản nghiệm thu](PHASE5_ACCEPTANCE_2026-10-29.md). Java reactor 337/337, mật khẩu 4/4, seed/collision/encoding 6/6, JS 61/61, readiness 1/1, 4-flow E2E 4/4 và browser avatar/CORS/OTP 3/3 PASS. Seed hai lần trên volume riêng không thay đổi số bản ghi, password/role hiện hữu; UI ba vai trò, 2 khóa học, 5 bài học, 2 bài blog PASS. Đã sửa lỗi charset tiếng Việt bằng TDD trên MySQL thật. Ma trận hiện 18 VERIFIED / 32 TESTED / 26 NOT_STARTED; không chứng nhận toàn dự án 100%. Google OAuth/production và phần Trí ngoài nghiệm thu.
+
+
+**Kiểm tra sau khôi phục stack thường:** `docker compose up -d --wait` thành công, 11 dịch vụ healthy. Chạy lại 4-flow E2E trên stack thường: **4/4 PASS, 39.963s**. Audit độc lập theo manifest của lượt chạy xác nhận toàn bộ 13 nhóm bản ghi/object/email còn lại bằng 0. Stack nghiệm thu riêng đã dừng; volume riêng được giữ để tái kiểm tra, không dùng làm dữ liệu ứng dụng thường.

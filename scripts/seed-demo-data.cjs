@@ -3,7 +3,7 @@
  * LMS Demo Seeding Script (Phase 5 - Dữ liệu Demo Chuẩn Hóa)
  * Nạp dữ liệu mẫu vào cả MySQL và MongoDB (course_structures, lessons)
  * Có thể chạy lặp lại an toàn (Idempotent: Upsert / Replace).
- * 
+ *
  * Cách dùng:
  *   node scripts/seed-demo-data.cjs
  */
@@ -14,26 +14,131 @@ const path = require('node:path');
 
 console.log('=== BẮT ĐẦU NẠP DỮ LIỆU DEMO CHUẨN HÓA (PHASE 5) ===\n');
 
-// 1. Nạp dữ liệu vào MySQL
+// 1. Đọc mật khẩu CSDL an toàn từ biến môi trường hoặc .env
+function resolveDbPassword() {
+    const env = (typeof process !== 'undefined' && process.env) || {};
+    if (env.MYSQL_ROOT_PASSWORD) return env.MYSQL_ROOT_PASSWORD;
+    if (env.MYSQL_PASSWORD) return env.MYSQL_PASSWORD;
+    if (env.SMOKE_DB_PASSWORD) return env.SMOKE_DB_PASSWORD;
+    try {
+        const envPath = path.resolve(__dirname, '../.env');
+        if (fs.existsSync(envPath)) {
+            const raw = fs.readFileSync(envPath, 'utf8');
+            const match = raw.match(/^MYSQL_ROOT_PASSWORD\s*=\s*(.*)$/m);
+            if (match) return match[1].trim();
+        }
+    } catch {
+        // bỏ qua nếu không đọc được file .env
+    }
+    return '';
+}
+
+// 2. Đọc mật khẩu demo an toàn từ biến môi trường (ưu tiên 1) hoặc file .env (ưu tiên 2).
+// Tuyệt đối không fallback sang mật khẩu quản trị (BOOTSTRAP_ADMIN_PASSWORDS) hay mật khẩu mặc định cố định.
+function resolveDemoPassword() {
+    const env = (typeof process !== 'undefined' && process.env) || {};
+    if (env.DEMO_USER_PASSWORD && env.DEMO_USER_PASSWORD.trim()) {
+        return env.DEMO_USER_PASSWORD.trim();
+    }
+    try {
+        const envPath = path.resolve(__dirname, '../.env');
+        if (fs.existsSync(envPath)) {
+            const raw = fs.readFileSync(envPath, 'utf8');
+            const match = raw.match(/^DEMO_USER_PASSWORD\s*=\s*(.*)$/m);
+            if (match && match[1].trim()) {
+                return match[1].trim();
+            }
+        }
+    } catch {
+        // bỏ qua nếu môi trường test cách ly vô hiệu hóa đọc file .env
+    }
+    return '';
+}
+
+// 3. Nạp BCrypt qua CommonJS; lỗi dependency phải dừng seed, không dùng fallback.
+function loadBcrypt() {
+    return require('./bcrypt.js');
+}
+
+// 4. Sinh hash mật khẩu BCrypt động theo mật khẩu được cung cấp.
+// Tuyệt đối không dùng salt cố định hoặc chuỗi hash cố định làm fallback.
+function generatePasswordHash(rawPassword) {
+    if (!rawPassword || typeof rawPassword !== 'string') {
+        return null;
+    }
+    try {
+        const bcrypt = loadBcrypt();
+        if (bcrypt && typeof bcrypt.hashSync === 'function' && typeof bcrypt.genSaltSync === 'function') {
+            const salt = bcrypt.genSaltSync(10);
+            return bcrypt.hashSync(rawPassword, salt);
+        }
+    } catch {
+        // Ghi nhận nếu sinh thất bại, không dùng fallback giả lập
+    }
+    return null;
+}
+
+function runSeed() {
+    const demoPassword = resolveDemoPassword();
+    if (!demoPassword) {
+        console.error('[LỖI BẢO MẬT] Chưa cung cấp mật khẩu demo. Vui lòng đặt biến môi trường DEMO_USER_PASSWORD hoặc cấu hình trong .env.');
+        if (typeof process !== 'undefined') {
+            process.exitCode = 1;
+            if (typeof process.exit === 'function') {
+                process.exit(1);
+            }
+        }
+        return;
+    }
+
+    const demoPasswordHash = generatePasswordHash(demoPassword);
+    if (!demoPasswordHash) {
+        console.error('[LỖI] Không thể sinh hash BCrypt hợp lệ cho mật khẩu demo.');
+        if (typeof process !== 'undefined') {
+            process.exitCode = 1;
+            if (typeof process.exit === 'function') {
+                process.exit(1);
+            }
+        }
+        return;
+    }
+
+    const dbPassword = resolveDbPassword();
+
+const errors = [];
+const summary = { mysql: false, mongodb: false };
+
+// 5. Nạp dữ liệu vào MySQL
 try {
     const sqlPath = path.resolve(__dirname, '../docker/mysql/init/02-demo-seed-data.sql');
-    if (fs.existsSync(sqlPath)) {
-        console.log('[1/2] Nạp MySQL demo data từ 02-demo-seed-data.sql ...');
-        const cmd = 'docker exec -i lms-mysql mysql -uroot -pmysqladmin123';
-        execSync(cmd, { input: fs.readFileSync(sqlPath), stdio: ['pipe', 'inherit', 'inherit'] });
-        console.log('  -> MySQL demo data đã nạp thành công!\n');
-    } else {
-        console.warn('  -> Không tìm thấy file 02-demo-seed-data.sql');
+    if (!fs.existsSync(sqlPath)) {
+        throw new Error(`Không tìm thấy file SQL tại ${sqlPath}`);
     }
+    console.log('[1/2] Nạp MySQL demo data từ 02-demo-seed-data.sql ...');
+
+    // Đọc file SQL và thay thế placeholder hash động
+    let sqlContent = fs.readFileSync(sqlPath, 'utf8');
+    sqlContent = sqlContent.replaceAll('__DEMO_PASSWORD_HASH__', demoPasswordHash);
+
+    const childEnv = { ...((typeof process !== 'undefined' && process.env) || {}), MYSQL_PWD: dbPassword };
+    const cmd = 'docker exec -i -e MYSQL_PWD lms-mysql mysql -uroot --default-character-set=utf8mb4';
+    execSync(cmd, {
+        input: sqlContent,
+        env: childEnv,
+        stdio: ['pipe', 'pipe', 'pipe']
+    });
+    summary.mysql = true;
+    console.log('  -> MySQL demo data đã nạp thành công!\n');
 } catch (err) {
+    errors.push({ step: 'MySQL', error: err.message });
     console.error('  -> Lỗi khi nạp MySQL demo data:', err.message);
 }
 
-// 2. Nạp dữ liệu vào MongoDB (course_structures & lessons)
+// 6. Nạp dữ liệu vào MongoDB (course_structures & lessons)
 try {
     console.log('[2/2] Nạp MongoDB demo data cho course_structures và lessons ...');
-    
-    // Cấu trúc cây đề cương Khóa học 1
+
+    // Cấu trúc cây đề cương Khóa học 1 (courseId: c1111111-1111-1111-1111-111111111111)
     const structCourse1 = {
         _id: 'd1111111-1111-1111-1111-111111111111',
         courseId: 'c1111111-1111-1111-1111-111111111111',
@@ -47,7 +152,7 @@ try {
         updatedAt: new Date()
     };
 
-    // Cấu trúc cây đề cương Khóa học 2
+    // Cấu trúc cây đề cương Khóa học 2 (courseId: c2222222-2222-2222-2222-222222222222)
     const structCourse2 = {
         _id: 'd2222222-2222-2222-2222-222222222222',
         courseId: 'c2222222-2222-2222-2222-222222222222',
@@ -59,6 +164,7 @@ try {
         updatedAt: new Date()
     };
 
+    // Các bài học demo thuộc đúng courseId của cấu trúc cây đề cương
     const lessons = [
         {
             _id: 'les-11111111-1111-1111-1111-111111111111',
@@ -70,14 +176,14 @@ try {
         {
             _id: 'les-11111111-1111-1111-1111-111111111112',
             id: 'les-11111111-1111-1111-1111-111111111112',
-            courseId: 'c1111111-1111-1111-1111-111111111112',
+            courseId: 'c1111111-1111-1111-1111-111111111111',
             lessonType: 'DOCUMENT',
             content: { text: '# Cấu hình Thymeleaf & Bootstrap 5\n\nThymeleaf là template engine server-side hiện đại, hỗ trợ layout fragment tái sử dụng (Header, Footer, Navbar) và render động dữ liệu từ Model Spring MVC.' }
         },
         {
             _id: 'les-11111111-1111-1111-1111-111111111113',
             id: 'les-11111111-1111-1111-1111-111111111113',
-            courseId: 'c1111111-1111-1111-1111-111111111113',
+            courseId: 'c1111111-1111-1111-1111-111111111111',
             lessonType: 'DOCUMENT',
             content: { text: '# Spring Data JPA & Validation\n\nSử dụng Jakarta Validation (`@Valid`, `@NotBlank`, `@Size`) để bảo đảm tính toàn vẹn dữ liệu đầu vào trước khi lưu trữ vào MySQL.' }
         },
@@ -109,15 +215,38 @@ try {
         input: mongoScript,
         encoding: 'utf8'
     });
-    console.log('  -> ' + output.trim());
+    summary.mongodb = true;
+    if (output && output.trim()) {
+        console.log('  -> ' + output.trim());
+    }
     console.log('  -> MongoDB demo data đã nạp thành công!\n');
 } catch (err) {
+    errors.push({ step: 'MongoDB', error: err.message });
     console.error('  -> Lỗi khi nạp MongoDB demo data:', err.message);
 }
 
-console.log('=== HOÀN TẤT NẠP DỮ LIỆU DEMO (PHASE 5) ===');
-console.log('Tài khoản demo sẵn sàng để kiểm thử & thuyết trình:');
-console.log('  1. Quản trị viên (ADMIN):      admin / admin123');
-console.log('  2. Giảng viên (INSTRUCTOR):    instructor_demo / admin123');
-console.log('  3. Học viên (STUDENT):         student_demo / admin123');
-console.log('Trang Web App: http://localhost:8088\n');
+// 7. Báo cáo kết quả và kết thúc tiến trình
+if (errors.length > 0) {
+    console.error('\n[THẤT BẠI] Quá trình nạp dữ liệu demo không hoàn tất do có lỗi:');
+    for (const item of errors) {
+        console.error(` - Bước ${item.step}: THẤT BẠI (${item.error})`);
+    }
+    console.error(`Trạng thái: MySQL = ${summary.mysql ? 'THÀNH CÔNG' : 'THẤT BẠI'}, MongoDB = ${summary.mongodb ? 'THÀNH CÔNG' : 'THẤT BẠI'}`);
+    console.error('Lưu ý: Dữ liệu giữa MySQL và MongoDB không dùng transaction xuyên hệ thống. Vui lòng khắc phục lỗi và chạy lại script.\n');
+    if (typeof process !== 'undefined') {
+        process.exitCode = 1;
+        if (typeof process.exit === 'function') {
+            process.exit(1);
+        }
+    }
+} else {
+    console.log('=== HOÀN TẤT NẠP DỮ LIỆU DEMO (PHASE 5) ===');
+    console.log('Tài khoản demo sẵn sàng để kiểm thử & thuyết trình:');
+    console.log('  1. Quản trị viên (ADMIN):      admin (mật khẩu cấu hình qua BOOTSTRAP_ADMIN_PASSWORDS)');
+    console.log('  2. Giảng viên (INSTRUCTOR):    instructor_demo (mật khẩu băm động từ biến môi trường)');
+    console.log('  3. Học viên (STUDENT):         student_demo (mật khẩu băm động từ biến môi trường)');
+    console.log('Trang Web App: http://localhost:8088\n');
+}
+}
+
+runSeed();

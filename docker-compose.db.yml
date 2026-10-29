@@ -13,7 +13,7 @@ services:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+      - ./docker/mysql/init/01-init-databases.sql:/docker-entrypoint-initdb.d/01-init-databases.sql:ro
       - ./docker/mysql/seed:/docker-seed:ro
     healthcheck:
       test: ["CMD-SHELL", "mysqladmin ping -h localhost -uroot -p$${MYSQL_ROOT_PASSWORD:-mysqladmin123} --silent"]
