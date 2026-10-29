@@ -1,6 +1,6 @@
-# Hệ Thống Tài Liệu Kỹ Thuật — EduLearn LMS
+# Hệ Thống Tài Liệu Kỹ Thuật — EduLearn LMS (DoAnCK)
 
-Thư mục `docs/` chứa toàn bộ tài liệu kiến trúc, yêu cầu nghiệp vụ, thiết kế cơ sở dữ liệu, đặc tả API, kế hoạch phát triển và nhật ký kiểm thử của dự án **EduLearn LMS** (`d:\LMS-main`).
+Thư mục `docs/` chứa toàn bộ tài liệu kiến trúc, yêu cầu nghiệp vụ, thiết kế cơ sở dữ liệu, đặc tả API, kế hoạch phát triển và nhật ký kiểm thử của dự án **EduLearn LMS** (`DoAnCK`).
 
 ---
 
@@ -29,7 +29,7 @@ Thư mục `docs/` chứa toàn bộ tài liệu kiến trúc, yêu cầu nghi�
 
 ### 4. Kiểm Thử & Vận Hành
 - [TESTING_PLAN.md](TESTING_PLAN.md): Kế hoạch kiểm thử toàn diện (Unit Test, Integration Test, Security, Role, E2E, Docker Smoke Test).
-- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md): Sổ tay hướng dẫn cài đặt môi trường, chạy Docker Compose, chạy IDE và xử lý sự cố *(Lưu ý: Chưa khởi tạo trong workspace - CẦN BỔ SUNG)*.
+- [DEPLOYMENT_GUIDE.md](DEPLOYMENT_GUIDE.md): Sổ tay hướng dẫn cài đặt môi trường, chạy Docker Compose, chạy IDE và xử lý sự cố.
 
 ### 5. Nhật Ký Tiến Độ Thực Tế (`docs/progress/`)
 - [progress/README.md](progress/README.md): Hướng dẫn ghi chép nhật ký công việc.

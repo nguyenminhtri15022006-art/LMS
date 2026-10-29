@@ -9,7 +9,7 @@ Tài liệu này mô tả chi tiết kiến trúc phân tán theo mô hình Micr
 Hệ thống được tổ chức theo cấu trúc **Monorepo** nhằm tập trung toàn bộ mã nguồn backend, frontend, cấu hình hạ tầng và tài liệu trong cùng một kho lưu trữ nhưng đảm bảo ranh giới đóng gói độc lập:
 
 ```text
-LMS-main/
+DoAnCK/
 ├── backend/
 │   ├── service-registry/      # Netflix Eureka Server discovery (Port 8761)
 │   ├── api-gateway/           # Spring Cloud Gateway (Port 8080)

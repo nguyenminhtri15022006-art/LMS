@@ -13,7 +13,7 @@ Mọi API thành công hay thất bại đều trả về cấu trúc đối tư
 {
   "code": 1000,
   "message": "Success",
-  "data": { ... }
+  "result": { ... }
 }
 ```
 
@@ -28,192 +28,150 @@ Mã phản hồi lỗi:
 
 ---
 
-## 1. Phân Hệ Xác Thực & Người Dùng (`identity-service` — 24 Endpoints Thông Thường + 4 Endpoints Nội Bộ = 28 Endpoints)
+## 1. Phân Hệ Xác Thực & Người Dùng (`identity-service`)
 
-### 1.1 Quản Lý Xác Thực (`AuthenticationController` — `/auth`)
-- `POST /api/identity/auth/register` (Public)
-  - In: `UserCreationRequest` (`username`, `password`, `email`, `name`, `role`)
-  - Out: `ApiResponse<UserCreationResponse>`
-- `POST /api/identity/auth/login` (Public)
-  - In: `AuthenticationRequest` (`identifier`, `password`)
-  - Out: `ApiResponse<AuthenticationResponse>` (accessToken, refreshToken, authenticated)
-- `POST /api/identity/auth/social-login/{provider}` (Public)
-  - In: `SocialLoginRequest` (`authCode`), Path: `provider` (ví dụ `google`)
-  - Out: `ApiResponse<AuthenticationResponse>`
-- `POST /api/identity/auth/introspect` (Public)
-  - In: `IntrospectRequest` (`token`)
-  - Out: `ApiResponse<IntrospectResponse>` (`valid`)
-- `POST /api/identity/auth/refresh` (Public)
-  - In: `RefreshTokenRequest` (`refreshToken`)
-  - Out: `ApiResponse<AuthenticationResponse>`
-- `POST /api/identity/auth/logout` (Public)
-  - In: `LogoutRequest` (`refreshToken`)
-  - Out: `ApiResponse<Void>`
+### 1.1 `POST /api/identity/auth/register`
+- **Mô tả**: Đăng ký tài khoản người dùng mới.
+- **Vai trò cho phép**: `GUEST` (Public).
+- **Service xử lý**: `identity-service`.
+- **Request Body**:
+  ```json
+  {
+    "username": "student_01",
+    "password": "Password123@",
+    "fullname": "Nguyen Van A",
+    "email": "student01@gmail.com",
+    "phone": "0987654321",
+    "dob": "2002-05-15",
+    "role": "STUDENT"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "code": 1000,
+    "message": "User registered successfully",
+    "result": {
+      "userId": "uuid-string",
+      "username": "student_01",
+      "email": "student01@gmail.com",
+      "role": "STUDENT"
+    }
+  }
+  ```
+- **Mã lỗi thường gặp**: 1003 (Validation failed), 1005 (Username/Email already exists).
 
-### 1.2 Xác Thực Email & Quên/Đặt Lại Mật Khẩu (`EmailVerificationController` — `/auth`)
-- `POST /api/identity/auth/verify-email/send` (Public)
-  - In: `SendEmailVerificationRequest` (`email`)
-  - Out: `ApiResponse<Void>`
-- `POST /api/identity/auth/verify-email` (Public)
-  - In: `VerifyEmailRequest` (`email`, `otp`)
-  - Out: `ApiResponse<Void>`
-- `POST /api/identity/auth/forgot-password` (Public)
-  - In: `ForgotPasswordRequest` (`email`)
-  - Out: `ApiResponse<Void>` (Gửi OTP 6 số qua email nếu tài khoản tồn tại)
-- `POST /api/identity/auth/reset-password` (Public)
-  - In: `ResetPasswordRequest` (`email`, `otp`, `newPassword`)
-  - Out: `ApiResponse<Void>`
+### 1.2 `POST /api/identity/auth/login`
+- **Mô tả**: Đăng nhập hệ thống bằng username và password.
+- **Vai trò cho phép**: `GUEST` (Public).
+- **Service xử lý**: `identity-service`.
+- **Request Body**:
+  ```json
+  {
+    "username": "student_01",
+    "password": "Password123@",
+    "deviceInfo": "Chrome / Windows 11",
+    "ipAddress": "192.168.1.10"
+  }
+  ```
+- **Response (200 OK)**:
+  ```json
+  {
+    "code": 1000,
+    "message": "Login success",
+    "result": {
+      "accessToken": "eyJhbGciOiJIUzI1...",
+      "refreshToken": "7c8e9b...",
+      "accessTokenExpiry": "2026-09-27T17:35:00Z",
+      "isNewUser": false,
+      "user": {
+        "userId": "uuid-string",
+        "username": "student_01",
+        "fullname": "Nguyen Van A",
+        "email": "student01@gmail.com",
+        "role": "STUDENT",
+        "avatarUrl": "https://..."
+      }
+    }
+  }
+  ```
+- **Mã lỗi thường gặp**: 1001 (Sai thông tin đăng nhập hoặc tài khoản bị khóa).
 
-### 1.3 Hồ Sơ Cá Nhân Người Dùng (`UserController` — `/users`)
-- `GET /api/identity/users/myinfo` (Authenticated — Student, Instructor, Admin)
-  - Header: Injected `X-User-Id` bởi Gateway `AuthFilter`
-  - Out: `ApiResponse<UserFullResponse>`
-- `PUT /api/identity/users/myinfo` (Authenticated)
-  - In: `UserUpdateRequest` (`name`, `phone`, `bio`, `avatar`, `dob`)
-  - Out: `ApiResponse<UserFullResponse>`
-- `PATCH /api/identity/users/myinfo/password` (Authenticated)
-  - In: `UserUpdatePasswordRequest` (`oldPassword`, `newPassword`, `confirmPassword`)
-  - Out: `ApiResponse<UserFullResponse>`
-- `PATCH /api/identity/users/myinfo/role` (Authenticated)
-  - In: `UserRoleUpdateRequest` (`role`)
-  - Out: `ApiResponse<UserFullResponse>`
-- `GET /api/identity/users/{userId}/profile` (Public)
-  - Out: `ApiResponse<UserPublicProfileResponse>`
+### 1.3 `POST /api/identity/auth/social-login/{provider}`
+- **Mô tả**: Đăng nhập mạng xã hội (Google OAuth 2.0).
+- **Path Parameter**: `provider`: `google`.
+- **Request Body**: `{ "idToken": "google-oauth-id-token" }`
+- **Response (200 OK)**: Cấu trúc tương tự API đăng nhập.
 
-### 1.4 Quản Trị Người Dùng Admin (`AdminUserController` — `/admin/users`)
-- `GET /api/identity/admin/users` (ADMIN)
-  - Query: `pageable` (size 20), `role` (optional), `keyword` (optional)
-  - Out: `ApiResponse<Page<UserSummaryResponse>>`
-- `GET /api/identity/admin/users/stats` (ADMIN)
-  - Out: `ApiResponse<UserDashboardResponse>` (thống kê tổng user, phân bố role, active)
-- `GET /api/identity/admin/users/{id}` (ADMIN)
-  - Out: `ApiResponse<UserFullResponse>`
-- `PATCH /api/identity/admin/users/{id}/active` (ADMIN)
-  - Out: `ApiResponse<UserFullResponse>` (Toggle khóa/mở khóa tài khoản)
-- `POST /api/identity/admin/users/admins` (ADMIN)
-  - In: `AdminCreateAdminRequest`
-  - Out: `ApiResponse<UserFullResponse>`
-- `PUT /api/identity/admin/users/{id}` (ADMIN)
-  - In: `UserUpdateRequest`
-  - Out: `ApiResponse<UserFullResponse>`
-- `PATCH /api/identity/admin/users/{id}/password` (ADMIN)
-  - In: `AdminResetPasswordRequest`
-  - Out: `ApiResponse<UserFullResponse>`
-- `PATCH /api/identity/admin/users/{id}/admin-active` (ADMIN)
-  - Out: `ApiResponse<UserFullResponse>`
+### 1.4 `POST /api/identity/auth/refresh`
+- **Mô tả**: Cấp lại Access Token mới từ Refresh Token.
+- **Request Body**: `{ "refreshToken": "raw-refresh-token-string" }`
+- **Response (200 OK)**: Trả về cặp Access Token và Refresh Token mới (Token Rotation).
 
-### 1.5 Lưu Trữ Avatar MinIO (`StorageController` — `/storage`)
-- `POST /api/identity/storage/presigned-url` (Authenticated)
-  - In: `PresignedUrlRequest` (`fileName`, `fileType`, `folder`)
-  - Out: `ApiResponse<PresignedUrlResponse>` (`uploadUrl`, `formFields`, `publicUrl`)
-  - **Đặc tả luồng upload tương thích Frontend (`useFileUpload.js`)**:
-    * **Cơ chế**: S3 Post Policy (Browser-based POST Upload qua `FormData`).
-    * **`uploadUrl`**: URL gốc của Bucket MinIO (`${minioPublicUrl}/${bucketName}`, ví dụ: `http://localhost:9000/lms-identity-bucket`).
-    * **`formFields`**: Map chứa chữ ký chính sách S3 PostPolicy (`key`, `policy`, `x-amz-algorithm`, `x-amz-credential`, `x-amz-date`, `x-amz-signature`).
-    * **`publicUrl`**: URL CDN/MinIO công khai để truy cập ảnh đại diện sau khi upload (`${minioPublicUrl}/${bucketName}/${objectName}`).
-    * **Yêu cầu gọi từ Client**:
-      - Client gửi: HTTP `POST` đến `uploadUrl` (Bucket URL).
-      - Header: `Content-Type: multipart/form-data; boundary=...` (trình duyệt tự sinh).
-      - Body: `FormData` đính kèm các trường trong `formFields`, `Content-Type: <fileType>`, và `file: <Blob/File>`.
-    * *(Lưu ý: Không dùng Presigned PUT URL cho Avatar Identity vì frontend `useFileUpload.js` gửi `POST FormData`, chỉ chấp nhận endpoint Bucket S3 PostPolicy).*
+### 1.5 `POST /api/identity/auth/send-otp` & `POST /api/identity/auth/verify-otp`
+- **Mô tả**: Gửi mã xác thực qua Email và kiểm tra tính hợp lệ của mã OTP.
+- **Request Body send-otp**: `{ "email": "user@gmail.com", "type": "VERIFY_EMAIL" }`
+- **Request Body verify-otp**: `{ "email": "user@gmail.com", "otp": "123456", "type": "VERIFY_EMAIL" }`
 
-### 1.6 Giao Tiếp Nội Bộ (`InternalUserController` — `/internal`)
-- `GET /internal/user/{id}` (Internal Feign) -> Out: `UserFullResponse`
-- `POST /internal/users/batch` (Internal Feign) -> In: `Set<String> userIds`, Out: `List<UserFullResponse>`
-- `GET /internal/users/{userId}/exists` (Internal Feign) -> Out: `boolean`
-- `GET /internal/users/search/by-email` (Internal Feign) -> In: `email`, Out: `UserFullResponse`
+### 1.6 `GET /api/identity/users/me` & `PUT /api/identity/users/me`
+- **Mô tả**: Xem và cập nhật thông tin hồ sơ của chính mình.
+- **Header**: `Authorization: Bearer <accessToken>`.
+- **Vai trò cho phép**: `STUDENT`, `INSTRUCTOR`, `ADMIN`.
+
+### 1.7 `GET /api/identity/admin/users`
+- **Mô tả**: Quản trị viên lấy danh sách toàn bộ người dùng phân trang và lọc theo vai trò.
+- **Header**: `Authorization: Bearer <accessToken>`.
+- **Vai trò cho phép**: `ADMIN`.
+- **Query Parameters**: `page` (int), `size` (int), `role` (String), `search` (String).
 
 ---
 
 ## 2. Phân Hệ Quản Lý Khóa Học (`course-service`)
 
-### 2.1 Danh Mục Khóa Học (`CategoryController` — `/categories`)
-- `GET /api/course/categories` (Public) -> Out: `ApiResponse<List<CategoryResponse>>`
-- `POST /api/course/categories` (ADMIN) -> In: `CreateCategoryRequest`, Out: `ApiResponse<CategoryResponse>`
-- `PUT /api/course/categories/{id}` (ADMIN) -> In: `UpdateCategoryRequest`, Out: `ApiResponse<CategoryResponse>`
-- `DELETE /api/course/categories/{id}` (ADMIN) -> Out: `ApiResponse<CategoryResponse>`
+### 2.1 `GET /api/course/categories`
+- **Mô tả**: Lấy danh sách tất cả các danh mục khóa học.
+- **Vai trò cho phép**: Public (`GUEST`, `STUDENT`, `INSTRUCTOR`, `ADMIN`).
 
-### 2.2 Quản Lý Khóa Học & Ghi Danh (`CourseController` — `/courses`)
-- `GET /api/course/courses` (Public)
-  - Query: `pageable`, `status`, `categoryId`, `keyword`, `level`
-  - Out: `ApiResponse<Page<CourseResponse>>`
-- `GET /api/course/courses/{id}` (Public) -> Out: `ApiResponse<CourseResponse>`
-- `POST /api/course/courses` (INSTRUCTOR, ADMIN)
-  - In: `@ModelAttribute @Valid CreateCourseRequest` (multipart/form-data)
-  - Out: `ApiResponse<CourseResponse>`
-- `PUT /api/course/courses/{id}` (INSTRUCTOR, ADMIN)
-  - In: `@ModelAttribute @Valid UpdateCourseRequest`
-  - Out: `ApiResponse<CourseResponse>`
-- `DELETE /api/course/courses/{id}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
-- `GET /api/course/courses/my` (INSTRUCTOR, ADMIN) -> Query: `pageable`, Out: `ApiResponse<Page<CourseResponse>>`
-- `GET /api/course/courses/enrolled` (Authenticated) -> Out: `ApiResponse<List<CourseResponse>>`
-- `POST /api/course/courses/{id}/enroll` (Authenticated) -> Out: `ApiResponse<EnrollmentResponse>`
-- `POST /api/course/courses/{id}/invite` (INSTRUCTOR, ADMIN)
-  - In: `InviteStudentRequest` (`email`), Out: `ApiResponse<InviteResultResponse>`
-- `PATCH /api/course/courses/{id}/lock` (ADMIN)
-  - In: `LockCourseRequest` (`reason`), Out: `ApiResponse<CourseResponse>`
-- `PATCH /api/course/courses/{id}/unlock` (ADMIN) -> Out: `ApiResponse<CourseResponse>`
-- `GET /api/course/courses/my/stats` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<InstructorStatsResponse>`
-- `GET /api/course/courses/my/recent-enrollments` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<List<RecentEnrollmentResponse>>`
-- `GET /api/course/courses/{id}/students/count` (Public) -> Out: `ApiResponse<Long>`
-- `GET /api/course/courses/{id}/lessons/count` (Public) -> Out: `ApiResponse<Long>`
-- `GET /api/course/courses/{id}/students` (INSTRUCTOR, ADMIN) -> Query: `pageable`, Out: `ApiResponse<Page<CourseStudentResponse>>`
-- `DELETE /api/course/courses/{id}/students/{userId}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
-- `GET /api/course/courses/users/search` (INSTRUCTOR, ADMIN) -> Query: `email`, Out: `ApiResponse<UserInfoDto>`
+### 2.2 `GET /api/course/courses`
+- **Mô tả**: Lấy danh sách khóa học công khai có phân trang và bộ lọc.
+- **Query Parameters**: `page` (default 0), `size` (default 10), `categoryId` (optional), `level` (optional), `search` (optional).
 
-### 2.3 Cấu Trúc Khóa Học MongoDB (`CourseStructureController` — `/courses/{courseId}/structure`)
-- `GET /api/course/courses/{courseId}/structure` (Public / Enrolled) -> Out: `ApiResponse<CourseStructureResponse>`
-- `POST /api/course/courses/{courseId}/structure/nodes` (INSTRUCTOR, ADMIN)
-  - In: `AddNodeRequest` (`title`, `parentId`, `type`), Out: `ApiResponse<CourseStructureResponse>`
-- `POST /api/course/courses/{courseId}/structure/nodes/batch` (INSTRUCTOR, ADMIN)
-  - In: `AddMultipleNodesRequest`, Out: `ApiResponse<CourseStructureResponse>`
-- `PUT /api/course/courses/{courseId}/structure/reorder` (INSTRUCTOR, ADMIN)
-  - In: `ReorderNodesRequest` (`nodeIds`), Out: `ApiResponse<CourseStructureResponse>`
-- `GET /api/course/courses/{courseId}/structure/lessons` (Public) -> Out: `ApiResponse<List<StructureNodeResponse>>`
-- `PATCH /api/course/courses/{courseId}/structure/nodes/{nodeId}` (INSTRUCTOR, ADMIN)
-  - In: `UpdateNodeTitleRequest` (`title`), Out: `ApiResponse<CourseStructureResponse>`
-- `DELETE /api/course/courses/{courseId}/structure/nodes/{nodeId}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
+### 2.3 `GET /api/course/courses/{id}` & `GET /api/course/courses/{id}/public`
+- **Mô tả**: Xem thông tin chi tiết của một khóa học.
 
-### 2.4 Bài Học MongoDB (`LessonController` — `/courses/{courseId}/lessons`)
-- `GET /api/course/courses/{courseId}/lessons/{lessonId}` (Authenticated) -> Out: `ApiResponse<LessonResponse>`
-- `PUT /api/course/courses/{courseId}/lessons/{lessonId}` (INSTRUCTOR, ADMIN)
-  - In: `UpdateLessonRequest` (`title`, `content`, `videoUrl`, `durationSeconds`), Out: `ApiResponse<LessonResponse>`
+### 2.4 `POST /api/course/courses`
+- **Mô tả**: Giảng viên tạo mới một khóa học.
+- **Vai trò cho phép**: `INSTRUCTOR`.
+- **Header**: `Authorization: Bearer <accessToken>` (Gateway inject `X-User-Id`).
+- **Request Body**:
+  ```json
+  {
+    "title": "Lập trình Spring Boot Microservices từ cơ bản tới nâng cao",
+    "description": "Khóa học chi tiết về kiến trúc hệ thống phân tán...",
+    "level": "INTERMEDIATE",
+    "duration": 1800,
+    "categoryIds": [1, 3],
+    "learningPoints": ["Hiểu kiến trúc Microservices", "Thành thạo Spring Cloud"],
+    "requirements": ["Đã học Java căn bản"]
+  }
+  ```
 
-### 2.5 Tiến Độ Bài Học (`LessonProgressController` — `/courses/{courseId}`)
-- `POST /api/course/courses/{courseId}/lessons/{lessonId}/complete` (Authenticated)
-  - In: `CompleteLessonRequest` (`lessonType`), Out: `ApiResponse<Void>`
-- `GET /api/course/courses/{courseId}/progress` (Authenticated) -> Out: `ApiResponse<CourseProgressResponse>`
-- `GET /api/course/courses/{courseId}/progress/average` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<Double>`
+### 2.5 `GET /api/course/courses/{id}/structure` & `PUT /api/course/courses/{id}/structure`
+- **Mô tả**: Xem hoặc cập nhật cây chương mục và danh sách bài học của khóa học (lưu trên MongoDB).
+- **Vai trò cho phép**: `STUDENT` (chỉ xem nếu đã ghi danh), `INSTRUCTOR` (sửa nếu là chủ sở hữu), `ADMIN`.
 
-### 2.6 Lịch Học Google Meet (`ScheduleController` — `/courses/{courseId}/schedules`)
-- `GET /api/course/courses/{courseId}/schedules` (Authenticated) -> Out: `ApiResponse<List<ScheduleResponse>>`
-- `POST /api/course/courses/{courseId}/schedules` (INSTRUCTOR, ADMIN)
-  - In: `CreateScheduleRequest` (`title`, `startTime`, `endTime`, `note`), Out: `ApiResponse<ScheduleResponse>`
-- `PUT /api/course/courses/{courseId}/schedules/{scheduleId}` (INSTRUCTOR, ADMIN)
-  - In: `UpdateScheduleRequest` (`title`, `startTime`, `endTime`, `note`), Out: `ApiResponse<ScheduleResponse>`
-- `DELETE /api/course/courses/{courseId}/schedules/{scheduleId}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
+### 2.6 `POST /api/course/courses/{id}/enroll`
+- **Mô tả**: Học viên đăng ký ghi danh vào một khóa học.
+- **Vai trò cho phép**: `STUDENT`.
+- **Response (200 OK)**: Trả về trạng thái ghi danh `ACTIVE`.
 
-### 2.7 Bảng Tin Thông Báo (`AnnouncementController` — `/courses/{courseId}/announcements`)
-- `GET /api/course/courses/{courseId}/announcements` (Authenticated) -> Query: `pageable`, Out: `ApiResponse<Page<AnnouncementResponse>>`
-- `POST /api/course/courses/{courseId}/announcements` (INSTRUCTOR, ADMIN)
-  - In: `CreateAnnouncementRequest` (`title`, `content`), Out: `ApiResponse<AnnouncementResponse>`
-- `DELETE /api/course/courses/{courseId}/announcements/{announcementId}` (INSTRUCTOR, ADMIN) -> Out: `ApiResponse<String>`
+### 2.7 `POST /api/course/courses/{courseId}/lessons/{lessonId}/progress`
+- **Mô tả**: Đánh dấu học viên đã hoàn thành một bài học cụ thể.
+- **Vai trò cho phép**: `STUDENT`.
 
-### 2.8 Lưu Trữ MinIO (`StorageController` — `/storage`)
-- `POST /api/course/storage/presigned-url` (Authenticated) -> In: `PresignedUrlRequest`, Out: `ApiResponse<PresignedUrlResponse>`
-- `DELETE /api/course/storage/file` (Authenticated) -> Query: `url`, Out: `ApiResponse<Void>`
-- `POST /api/course/storage/multipart/initiate` (INSTRUCTOR, ADMIN) -> In: `InitiateMultipartRequest`, Out: `ApiResponse<InitiateMultipartResponse>`
-- `POST /api/course/storage/multipart/complete` (INSTRUCTOR, ADMIN) -> In: `CompleteMultipartRequest`, Out: `ApiResponse<CompleteMultipartResponse>`
-
-### 2.9 Giao Tiếp Nội Bộ (`InternalCourseController` — `/internal`)
-- `GET /internal/courses/{courseId}` -> Out: `InternalCourseResponse`
-- `GET /internal/courses/{courseId}/lessons/{lessonId}` -> Out: `InternalLessonResponse`
-- `GET /internal/courses/{courseId}/enrollments/{userId}` -> Out: `Boolean`
-- `GET /internal/courses/{courseId}/students/count` -> Out: `Long`
-- `GET /internal/courses/{courseId}/exists` -> Out: `Boolean`
-- `GET /internal/courses/{courseId}/lessons/{lessonId}/exists` -> Out: `Boolean`
-- `GET /internal/courses` -> Out: `ApiResponse<List<ChatbotCourseResponse>>`
-- `GET /internal/courses/enrolled?userId={userId}` -> Out: `ApiResponse<List<ChatbotCourseResponse>>`
+### 2.8 `GET /api/course/courses/{courseId}/schedules` & `POST /api/course/courses/{courseId}/schedules`
+- **Mô tả**: Xem và tạo lịch học trực tuyến kèm link Google Meet.
+- **Vai trò tạo lịch**: `INSTRUCTOR`.
 
 ---
 
@@ -321,93 +279,26 @@ Mã phản hồi lỗi:
 
 ---
 
-## 4. Phân Hệ Diễn Đàn & Blog (`blog-service` — 20 Endpoints Thông Thường + 2 Endpoints Nội Bộ = 22 Endpoints)
+## 4. Phân Hệ Diễn Đàn & Blog (`blog-service`)
 
-> **Cơ chế xác thực & Gateway-Service Contract**:  
-> API Gateway chuyển tiếp danh tính người dùng xuống qua các headers:  
-> - `X-User-Id`: ID người dùng (UUID hoặc chuỗi định danh).  
-> - `X-User-Role` & `X-User-Roles`: Vai trò người dùng (`ROLE_STUDENT`, `ROLE_INSTRUCTOR`, `ROLE_ADMIN` hoặc danh sách phân tách bằng dấu phẩy). `blog-service` chấp nhận linh hoạt cả 2 headers và chuẩn hóa quyền với tiền tố `ROLE_`.  
-> - `X-User-Email`: Email của người dùng.  
-> - `X-Gateway-Authenticated`: Đánh dấu cờ `"true"` từ Gateway.  
+### 4.1 `GET /api/blog/posts`
+- **Mô tả**: Xem danh sách bài viết blog công khai có phân trang, lọc theo tag và từ khóa tìm kiếm.
+- **Vai trò cho phép**: Public (`GUEST`, `STUDENT`, `INSTRUCTOR`, `ADMIN`).
 
-### 4.1 Bài Viết Blog (`PostController` — `/posts`: 8 Endpoints)
-- `GET /api/blog/posts/public` (Public)
-  - Query: `page`, `size`, `sort`, `tagId`, `keyword`
-  - Out: `ApiResponse<Page<PostSummaryResponse>>`
-- `GET /api/blog/posts/public/{slug}` (Public)
-  - Path: `slug`
-  - Out: `ApiResponse<PostResponse>` (tự động tăng `viewCount` trong CSDL)
-- `GET /api/blog/posts/admin` (ADMIN)
-  - Query: `page`, `size`, `sort`, `status`, `tagId`, `keyword`
-  - Out: `ApiResponse<Page<PostSummaryResponse>>`
-- `GET /api/blog/posts/{id}` (Authenticated)
-  - Path: `id`
-  - Out: `ApiResponse<PostResponse>`
-- `GET /api/blog/posts/me` (Authenticated)
-  - Query: `page`, `size`, `sort`, `status`
-  - Out: `ApiResponse<Page<PostSummaryResponse>>` (danh sách bài viết của chính tác giả)
-- `POST /api/blog/posts` (Authenticated)
-  - In: `@ModelAttribute @Valid CreatePostRequest` (Content-Type: `multipart/form-data`)
-    * `title` (String, required, max 255)
-    * `content` (String Markdown, required)
-    * `tagIds` (Set<Long>, optional)
-    * `thumbnail` (MultipartFile, optional - tải lên MinIO bucket `lms-blog-bucket`)
-  - Out: `ApiResponse<PostResponse>`
-- `PUT /api/blog/posts/{id}` (Authenticated — Author hoặc ADMIN)
-  - In: `@ModelAttribute @Valid UpdatePostRequest` (Content-Type: `multipart/form-data`)
-    * `title` (String, required, max 255)
-    * `content` (String Markdown, required)
-    * `tagIds` (Set<Long>, optional)
-    * `thumbnail` (MultipartFile, optional)
-    * `status` (PostStatus: `DRAFT`, `PUBLISHED`, `ARCHIVED`)
-  - Out: `ApiResponse<PostResponse>`
-- `DELETE /api/blog/posts/{id}` (Authenticated — Author hoặc ADMIN)
-  - Path: `id`
-  - Out: `ApiResponse<String>`
+### 4.2 `GET /api/blog/posts/{slugOrId}`
+- **Mô tả**: Đọc chi tiết bài viết blog, tự động tăng lượt xem (`view_count`).
 
-### 4.2 Thẻ Gắn Blog (`TagController` — `/tags`: 6 Endpoints)
-- `GET /api/blog/tags` (Public) -> Out: `ApiResponse<List<TagResponse>>`
-- `GET /api/blog/tags/{id}` (Public) -> Out: `ApiResponse<TagResponse>`
-- `GET /api/blog/tags/search` (Public) -> Query: `keyword`, Out: `ApiResponse<List<TagResponse>>`
-- `POST /api/blog/tags` (ADMIN)
-  - In: `CreateTagRequest` (`name`, `slug`)
-  - Out: `ApiResponse<TagResponse>`
-- `PUT /api/blog/tags/{id}` (ADMIN)
-  - In: `UpdateTagRequest` (`name`, `slug`)
-  - Out: `ApiResponse<TagResponse>`
-- `DELETE /api/blog/tags/{id}` (ADMIN)
-  - Path: `id`
-  - Out: `ApiResponse<String>`
+### 4.3 `POST /api/blog/posts`
+- **Mô tả**: Tạo bài viết mới (hỗ trợ Markdown, tải ảnh thumbnail).
+- **Vai trò cho phép**: `STUDENT`, `INSTRUCTOR`.
 
-### 4.3 Bình Luận Bài Viết (`CommentController` — `/posts/{postId}/comments`: 4 Endpoints)
-- `GET /api/blog/posts/{postId}/comments` (Public)
-  - Query: `page`, `size`, `sort`
-  - Out: `ApiResponse<Page<CommentResponse>>` (cấu trúc cây phân cấp với danh sách `replies`)
-- `POST /api/blog/posts/{postId}/comments` (Authenticated)
-  - In: `CreateCommentRequest`
-    * `content` (String, required)
-    * `parentId` (Long, optional — dùng khi trả lời bình luận)
-  - Out: `ApiResponse<CommentResponse>`
-- `PUT /api/blog/posts/{postId}/comments/{commentId}` (Authenticated — Author)
-  - In: `UpdateCommentRequest` (`content`)
-  - Out: `ApiResponse<CommentResponse>`
-- `DELETE /api/blog/posts/{postId}/comments/{commentId}` (Authenticated — Author hoặc ADMIN)
-  - Out: `ApiResponse<String>`
+### 4.4 `POST /api/blog/posts/{postId}/comments`
+- **Mô tả**: Gửi bình luận hoặc trả lời bình luận (Reply) dưới bài viết.
+- **Request Body**: `{ "content": "Bài viết giải thích rất dễ hiểu!", "parentId": null }`
 
-### 4.4 Bình Chọn Bài Viết & Bình Luận (`VoteController`: 2 Endpoints)
-- `POST /api/blog/posts/{postId}/vote` (Authenticated)
-  - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
-  - Out: `ApiResponse<VoteResponse>` (`targetId`, `targetType`, `userVote`, `upvoteCount`, `downvoteCount`)
-  - *Cơ chế*: Bấm cùng loại sẽ hủy vote (toggle); bấm đảo chiều chuyển đổi điểm hợp lệ; chống Lost Updates và Unique Key chống trùng lặp.
-- `POST /api/blog/posts/{postId}/comments/{commentId}/vote` (Authenticated)
-  - In: `VoteRequest` (`voteType`: `UP` hoặc `DOWN`)
-  - Out: `ApiResponse<VoteResponse>`
-
-### 4.5 Giao Tiếp Nội Bộ (`InternalBlogController` — `/internal`: 2 Endpoints)
-- `GET /internal/posts/{postId}` (Internal OpenFeign)
-  - Out: `ApiResponse<InternalPostResponse>` (`id`, `title`, `authorId`, `status`)
-- `GET /internal/posts/{postId}/exists` (Internal OpenFeign)
-  - Out: `ApiResponse<Boolean>`
+### 4.5 `POST /api/blog/posts/{postId}/vote`
+- **Mô tả**: Bình chọn Upvote hoặc Downvote cho bài viết.
+- **Request Body**: `{ "voteType": "UPVOTE" }`
 
 ---
 
