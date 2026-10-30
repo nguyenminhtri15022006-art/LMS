@@ -1,10 +1,14 @@
 package com.lms.webportal.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.lms.webportal.client.GatewayClient;
 import com.lms.webportal.dto.LoginDto;
 import com.lms.webportal.dto.RegisterDto;
 import com.lms.webportal.dto.UserSessionDto;
 import com.lms.webportal.service.AuthService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -13,27 +17,36 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+@Slf4j
 @Controller
 public class AuthWebController {
 
+    private final AuthService authService;
+    private final GatewayClient gatewayClient;
+
     @Autowired
-    private AuthService authService;
+    public AuthWebController(AuthService authService, @Autowired(required = false) GatewayClient gatewayClient) {
+        this.authService = authService;
+        this.gatewayClient = gatewayClient;
+    }
+
+    @GetMapping("/login")
+    public String showLoginPageAlt(@RequestParam(value = "redirectUrl", required = false) String redirectUrl,
+                                   Model model,
+                                   HttpSession session) {
+        return showLoginPage(redirectUrl, model, session);
+    }
 
     @GetMapping("/auth/login")
-    public String showLoginForm(HttpSession session, Model model,
-                                @RequestParam(value = "registered", required = false) Boolean registered,
-                                @RequestParam(value = "logout", required = false) Boolean logout) {
-        if (session.getAttribute("currentUser") != null) {
-            return "redirect:/";
+    public String showLoginPage(@RequestParam(value = "redirectUrl", required = false) String redirectUrl,
+                                Model model,
+                                HttpSession session) {
+        UserSessionDto currentUser = (UserSessionDto) session.getAttribute("currentUser");
+        if (currentUser != null) {
+            return "redirect:" + (redirectUrl != null && !redirectUrl.isBlank() ? redirectUrl : "/");
         }
         if (!model.containsAttribute("loginDto")) {
             model.addAttribute("loginDto", new LoginDto());
-        }
-        if (Boolean.TRUE.equals(registered)) {
-            model.addAttribute("success", "Đăng ký tài khoản thành công! Vui lòng đăng nhập.");
-        }
-        if (Boolean.TRUE.equals(logout)) {
-            model.addAttribute("info", "Bạn đã đăng xuất khỏi hệ thống.");
         }
         return "auth/login";
     }
@@ -41,27 +54,43 @@ public class AuthWebController {
     @PostMapping("/auth/login")
     public String handleLogin(@ModelAttribute("loginDto") LoginDto loginDto,
                               @RequestParam(value = "redirectUrl", required = false) String redirectUrl,
-                              HttpSession session,
+                              HttpServletRequest request,
                               Model model) {
         try {
-            UserSessionDto user = authService.authenticate(loginDto);
-            session.setAttribute("currentUser", user);
-            if (redirectUrl != null && !redirectUrl.isBlank() && redirectUrl.startsWith("/")) {
+            UserSessionDto userSession = authService.authenticate(loginDto);
+
+            HttpSession session = request.getSession(true);
+            session.setAttribute("currentUser", userSession);
+            session.setAttribute("user", userSession);
+            session.setAttribute("accessToken", userSession.getAccessToken());
+            session.setAttribute("username", userSession.getUsername());
+            session.setAttribute("fullname", userSession.getFullname());
+            session.setAttribute("role", userSession.getRole());
+            session.setAttribute("userId", userSession.getUserId());
+
+            if (redirectUrl != null && !redirectUrl.isBlank() && !redirectUrl.contains("login")) {
                 return "redirect:" + redirectUrl;
+            }
+
+            if ("ADMIN".equalsIgnoreCase(userSession.getRole())) {
+                return "redirect:/admin/dashboard";
+            } else if ("INSTRUCTOR".equalsIgnoreCase(userSession.getRole())) {
+                return "redirect:/instructor/courses";
             }
             return "redirect:/";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "auth/login";
         } catch (Exception e) {
-            model.addAttribute("error", "Đăng nhập thất bại: " + e.getMessage());
+            model.addAttribute("error", "Đăng nhập thất bại: Tên đăng nhập hoặc mật khẩu không chính xác.");
             return "auth/login";
         }
     }
 
     @GetMapping("/auth/register")
-    public String showRegisterForm(HttpSession session, Model model) {
-        if (session.getAttribute("currentUser") != null) {
+    public String showRegisterPage(Model model, HttpSession session) {
+        UserSessionDto currentUser = (UserSessionDto) session.getAttribute("currentUser");
+        if (currentUser != null) {
             return "redirect:/";
         }
         if (!model.containsAttribute("registerDto")) {
@@ -80,13 +109,20 @@ public class AuthWebController {
             model.addAttribute("error", e.getMessage());
             return "auth/register";
         } catch (Exception e) {
-            model.addAttribute("error", "Đăng ký không thành công: " + e.getMessage());
+            model.addAttribute("error", "Đăng ký thất bại: " + e.getMessage());
             return "auth/register";
         }
     }
 
     @GetMapping("/auth/logout")
-    public String handleLogout(HttpSession session) {
+    public String logout(HttpSession session) {
+        session.removeAttribute("currentUser");
+        session.removeAttribute("user");
+        session.removeAttribute("accessToken");
+        session.removeAttribute("username");
+        session.removeAttribute("fullname");
+        session.removeAttribute("role");
+        session.removeAttribute("userId");
         session.invalidate();
         return "redirect:/auth/login?logout=true";
     }
@@ -98,6 +134,54 @@ public class AuthWebController {
             return "redirect:/auth/login?redirectUrl=/profile";
         }
         model.addAttribute("user", currentUser);
+        model.addAttribute("activeTab", "courses");
+        loadProfileData(currentUser, model);
         return "user/profile";
+    }
+
+    @GetMapping("/profile/my-courses")
+    public String showMyCourses(HttpSession session, Model model) {
+        UserSessionDto currentUser = (UserSessionDto) session.getAttribute("currentUser");
+        if (currentUser == null) {
+            return "redirect:/auth/login?redirectUrl=/profile/my-courses";
+        }
+        if ("INSTRUCTOR".equalsIgnoreCase(currentUser.getRole())) {
+            return "redirect:/instructor/courses";
+        }
+        model.addAttribute("user", currentUser);
+        model.addAttribute("activeTab", "courses");
+        loadProfileData(currentUser, model);
+        return "user/profile";
+    }
+
+    private void loadProfileData(UserSessionDto currentUser, Model model) {
+        if (gatewayClient == null) {
+            return;
+        }
+        String role = currentUser.getRole() != null ? currentUser.getRole().toUpperCase() : "";
+        try {
+            if ("INSTRUCTOR".equals(role)) {
+                JsonNode statsRes = gatewayClient.get("/course/courses/my/stats", JsonNode.class);
+                if (statsRes != null && statsRes.has("data")) {
+                    model.addAttribute("instructorStats", statsRes.get("data"));
+                }
+                JsonNode coursesRes = gatewayClient.get("/course/courses/my?page=0&size=10", JsonNode.class);
+                if (coursesRes != null && coursesRes.has("data")) {
+                    model.addAttribute("myCourses", coursesRes.get("data"));
+                }
+            } else if ("ADMIN".equals(role)) {
+                JsonNode allCoursesRes = gatewayClient.get("/course/courses?page=0&size=20", JsonNode.class);
+                if (allCoursesRes != null && allCoursesRes.has("data")) {
+                    model.addAttribute("allCourses", allCoursesRes.get("data"));
+                }
+            } else {
+                JsonNode enrolledRes = gatewayClient.get("/course/courses/enrolled", JsonNode.class);
+                if (enrolledRes != null && enrolledRes.has("data")) {
+                    model.addAttribute("enrolledCourses", enrolledRes.get("data"));
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Lỗi tải thông tin profile: {}", e.getMessage());
+        }
     }
 }

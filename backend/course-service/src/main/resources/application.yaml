@@ -34,7 +34,7 @@ spring:
 
   data:
     mongodb:
-      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongoadmin:secret123@localhost:27017/course_lms_mongo?authSource=admin}
+      uri: ${SPRING_DATA_MONGODB_URI:mongodb://mongoadmin:mongoadmin123@localhost:27017/course_lms_mongo?authSource=admin}
 
 eureka:
   client:

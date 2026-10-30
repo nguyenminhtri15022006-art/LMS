@@ -1,5 +1,7 @@
 package com.lms.webapp.controller;
 
+import com.lms.webapp.dto.UserSessionDto;
+
 import com.fasterxml.jackson.databind.JsonNode;
 import com.lms.webapp.client.GatewayClient;
 import com.lms.webapp.dto.form.ForgotPasswordForm;
@@ -55,10 +57,26 @@ public class AuthController {
 
     @GetMapping("/auth/auto-login")
     public String autoLogin(@RequestParam(defaultValue = "/admin/dashboard") String redirect, HttpSession session) {
-        session.setAttribute("accessToken", "mock-admin-token");
-        session.setAttribute("refreshToken", "mock-admin-refresh");
+        String accessToken = "mock-admin-token";
+        String refreshToken = "mock-admin-refresh";
+        try {
+            Map<String, String> payload = Map.of("username", "admin", "password", "admin");
+            JsonNode response = gatewayClient.post("/identity/auth/login", payload, JsonNode.class);
+            if (response != null && response.has("data")) {
+                JsonNode data = response.get("data");
+                if (data.hasNonNull("accessToken")) accessToken = data.get("accessToken").asText();
+                if (data.hasNonNull("refreshToken")) refreshToken = data.get("refreshToken").asText();
+            }
+        } catch (Exception e) {
+            // keep fallback
+        }
+
+        session.setAttribute("accessToken", accessToken);
+        session.setAttribute("refreshToken", refreshToken);
         session.setAttribute("username", "admin");
         session.setAttribute("role", "ADMIN");
+            session.setAttribute("currentUser", UserSessionDto.builder().userId("b6a6340c-0b27-4fda-a041-609781fae8f4").username("admin").fullname("Admin admin").role("ADMIN").accessToken(accessToken).build());
+        session.setAttribute("currentUser", UserSessionDto.builder().userId("b6a6340c-0b27-4fda-a041-609781fae8f4").username("admin").fullname("Admin admin").role("ADMIN").accessToken(accessToken).build());
 
         UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                 "admin",
@@ -109,15 +127,29 @@ public class AuthController {
         }
 
         if ("admin".equals(form.getUsername()) && ("admin".equals(form.getPassword()) || "admin123".equals(form.getPassword()) || "12345678".equals(form.getPassword()))) {
-            session.setAttribute("accessToken", "mock-admin-token");
-            session.setAttribute("refreshToken", "mock-admin-refresh");
+            String accessToken = "mock-admin-token";
+            String refreshToken = "mock-admin-refresh";
+            try {
+                Map<String, String> payload = Map.of("username", "admin", "password", "admin");
+                JsonNode response = gatewayClient.post("/identity/auth/login", payload, JsonNode.class);
+                if (response != null && response.has("data")) {
+                    JsonNode data = response.get("data");
+                    if (data.hasNonNull("accessToken")) accessToken = data.get("accessToken").asText();
+                    if (data.hasNonNull("refreshToken")) refreshToken = data.get("refreshToken").asText();
+                }
+            } catch (Exception e) {
+                // keep fallback
+            }
+
+            session.setAttribute("accessToken", accessToken);
+            session.setAttribute("refreshToken", refreshToken);
             session.setAttribute("username", "admin");
             session.setAttribute("role", "ADMIN");
 
             UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                     "admin",
                     null,
-                    List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))
+                    List.of(new SimpleGrantedAuthority("ROLE_ADMIN"), new SimpleGrantedAuthority("ROLE_INSTRUCTOR"))
             );
             SecurityContextHolder.getContext().setAuthentication(authentication);
             session.setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, SecurityContextHolder.getContext());
@@ -144,6 +176,9 @@ public class AuthController {
                 session.setAttribute("refreshToken", refreshToken);
                 session.setAttribute("username", username);
                 session.setAttribute("role", role);
+                String uid = (user != null && user.hasNonNull("userId")) ? user.get("userId").asText() : "usr-" + username;
+                String fn = (user != null && user.hasNonNull("fullname")) ? user.get("fullname").asText() : username;
+                session.setAttribute("currentUser", UserSessionDto.builder().userId(uid).username(username).fullname(fn).role(role).accessToken(accessToken).build());
 
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
                         username,

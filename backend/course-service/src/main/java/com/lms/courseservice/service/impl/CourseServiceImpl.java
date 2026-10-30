@@ -77,6 +77,7 @@ public class CourseServiceImpl implements CourseService {
 
         Page<CourseResponse> page = courseRepository.findAll(spec, pageable).map(courseMapper::toCourseResponse);
         populateExerciseCounts(page.getContent());
+        page.getContent().forEach(c -> c.setStudentCount(enrollmentRepository.countByCourseId(c.getId())));
         return page;
     }
 
@@ -87,6 +88,7 @@ public class CourseServiceImpl implements CourseService {
                 .orElseThrow(() -> new CourseException(ErrorCode.COURSE_NOT_FOUND));
 
         CourseResponse response = courseMapper.toCourseResponse(course);
+        response.setStudentCount(enrollmentRepository.countByCourseId(id));
         try {
             var countResponse = assignmentClient.getExerciseCount(id);
             if (countResponse != null && countResponse.getData() != null) {
@@ -256,6 +258,7 @@ public class CourseServiceImpl implements CourseService {
         Page<CourseResponse> page = courseRepository.findByInstructorId(instructorId, pageable)
                 .map(courseMapper::toCourseResponse);
         populateExerciseCounts(page.getContent());
+        page.getContent().forEach(c -> c.setStudentCount(enrollmentRepository.countByCourseId(c.getId())));
         return page;
     }
 
@@ -267,6 +270,7 @@ public class CourseServiceImpl implements CourseService {
                 .map(enrollment -> courseMapper.toCourseResponse(enrollment.getCourse()))
                 .collect(Collectors.toList());
         populateExerciseCounts(courses);
+        courses.forEach(c -> c.setStudentCount(enrollmentRepository.countByCourseId(c.getId())));
         return courses;
     }
 

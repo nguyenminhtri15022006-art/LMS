@@ -36,14 +36,19 @@ public class LessonProgressServiceImpl implements LessonProgressService {
             throw new CourseException(ErrorCode.LESSON_NOT_BELONG_TO_COURSE);
         }
 
+        com.lms.courseservice.enums.LessonType lType = (req != null && req.getLessonType() != null)
+                ? req.getLessonType() : com.lms.courseservice.enums.LessonType.VIDEO;
         LessonProgress progress = progressRepo
                 .findByStudentIdAndLessonId(studentId, lessonId)
                 .orElse(LessonProgress.builder()
                         .studentId(studentId)
                         .courseId(courseId)
                         .lessonId(lessonId)
-                        .lessonType(req != null ? req.getLessonType() : null)
+                        .lessonType(lType)
                         .build());
+        if (progress.getLessonType() == null) {
+            progress.setLessonType(lType);
+        }
 
         if (!progress.isCompleted()) {
             progress.setCompleted(true);

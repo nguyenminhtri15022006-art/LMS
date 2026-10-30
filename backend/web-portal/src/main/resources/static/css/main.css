@@ -1,0 +1,406 @@
+/* ==========================================================================
+   EduLearn LMS - Modern UI Global Stylesheet (Bootstrap 5 Enhancements)
+   ========================================================================== */
+
+:root {
+    --lms-primary: #2563eb;
+    --lms-primary-dark: #1d4ed8;
+    --lms-primary-light: #60a5fa;
+    --lms-primary-gradient: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+    --lms-accent: #f59e0b;
+    --lms-accent-gradient: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    --lms-bg-light: #f8fafc;
+    --lms-surface: #ffffff;
+    --lms-text-dark: #0f172a;
+    --lms-text-muted: #64748b;
+    --lms-border: #e2e8f0;
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--lms-text-dark);
+    background-color: var(--lms-bg-light);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+}
+
+h1, h2, h3, h4, h5, h6, .fw-bold {
+    letter-spacing: -0.02em;
+    font-weight: 700;
+}
+
+/* ==========================================================================
+   Navbar Styling (Modern Dark Glassmorphism)
+   ========================================================================== */
+.navbar-custom {
+    background: #0f172a !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    padding-top: 0.85rem;
+    padding-bottom: 0.85rem;
+    transition: all 0.25s ease;
+}
+
+.navbar-custom .navbar-brand {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: #ffffff !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.brand-icon-box {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ffffff;
+    font-size: 1.2rem;
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.navbar-custom .nav-link {
+    color: #94a3b8 !important;
+    font-weight: 500;
+    font-size: 0.95rem;
+    padding: 0.5rem 0.95rem !important;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.navbar-custom .nav-link:hover {
+    color: #ffffff !important;
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.navbar-custom .nav-link.active {
+    color: #ffffff !important;
+    background: rgba(59, 130, 246, 0.16);
+    font-weight: 600;
+}
+
+.navbar-custom .dropdown-menu {
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.12);
+    border-radius: 12px;
+    padding: 0.5rem;
+}
+
+.navbar-custom .dropdown-item {
+    border-radius: 8px;
+    padding: 0.5rem 0.85rem;
+    font-size: 0.925rem;
+    font-weight: 500;
+    transition: all 0.15s ease;
+}
+
+.navbar-custom .dropdown-item:hover {
+    background-color: #f1f5f9;
+}
+
+/* ==========================================================================
+   Buttons (Modern Gradients & Glass Effects)
+   ========================================================================== */
+.btn {
+    border-radius: 10px;
+    font-weight: 600;
+    padding: 0.55rem 1.25rem;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background: linear-gradient(135deg, #1d4ed8 0%, #1e40af 100%) !important;
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-warning {
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+    border: none !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(245, 158, 11, 0.3);
+}
+
+.btn-warning:hover, .btn-warning:focus {
+    background: linear-gradient(135deg, #d97706 0%, #b45309 100%) !important;
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+    transform: translateY(-1px);
+}
+
+.btn-glass {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.25) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(8px);
+}
+
+.btn-glass:hover {
+    background: rgba(255, 255, 255, 0.2) !important;
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    transform: translateY(-1px);
+}
+
+.btn-outline-primary {
+    border: 1.5px solid #2563eb !important;
+    color: #2563eb !important;
+    background: transparent;
+}
+
+.btn-outline-primary:hover {
+    background: #2563eb !important;
+    color: #ffffff !important;
+    box-shadow: 0 4px 14px rgba(37, 99, 235, 0.25);
+    transform: translateY(-1px);
+}
+
+/* ==========================================================================
+   Hero Banner & Visuals
+   ========================================================================== */
+.hero-banner-modern {
+    background: radial-gradient(circle at 80% 20%, rgba(59, 130, 246, 0.28) 0%, transparent 45%),
+                radial-gradient(circle at 15% 75%, rgba(139, 92, 246, 0.22) 0%, transparent 40%),
+                linear-gradient(135deg, #0f172a 0%, #1e1b4b 60%, #0f172a 100%);
+    position: relative;
+    padding-top: 5rem;
+    padding-bottom: 5rem;
+}
+
+.hero-pill-badge {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(10px);
+    color: #fde047;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.02em;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.hero-floating-card {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    backdrop-filter: blur(16px);
+    border-radius: 1.5rem;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    padding: 2.25rem;
+}
+
+.hero-stat-pill {
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 0.75rem 1rem;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* ==========================================================================
+   Feature Cards
+   ========================================================================== */
+.feature-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.25rem !important;
+    padding: 2rem !important;
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.feature-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 35px -8px rgba(15, 23, 42, 0.08) !important;
+    border-color: #cbd5e1;
+}
+
+.feature-icon-wrapper {
+    width: 64px;
+    height: 64px;
+    border-radius: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.85rem;
+    margin-bottom: 1.25rem;
+}
+
+.feature-icon-blue {
+    background: #eff6ff;
+    color: #2563eb;
+}
+
+.feature-icon-green {
+    background: #ecfdf5;
+    color: #059669;
+}
+
+.feature-icon-amber {
+    background: #fffbeb;
+    color: #d97706;
+}
+
+/* ==========================================================================
+   Course Cards & Catalog Toolbar
+   ========================================================================== */
+.course-card {
+    border-radius: 1.25rem !important;
+    border: 1px solid #e2e8f0 !important;
+    background: #ffffff;
+    box-shadow: 0 4px 18px -2px rgba(15, 23, 42, 0.04);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.course-card:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 20px 32px -8px rgba(15, 23, 42, 0.12) !important;
+    border-color: #cbd5e1 !important;
+}
+
+.course-thumb-box {
+    height: 180px;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.course-thumb-gradient-1 {
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+}
+
+.course-thumb-gradient-2 {
+    background: linear-gradient(135deg, #065f46 0%, #059669 100%);
+}
+
+.course-thumb-gradient-3 {
+    background: linear-gradient(135deg, #4c1d95 0%, #8b5cf6 100%);
+}
+
+.course-badge-level {
+    font-weight: 600;
+    font-size: 0.775rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 50rem;
+    letter-spacing: 0.02em;
+}
+
+.course-badge-beginner {
+    background-color: #ecfdf5 !important;
+    color: #059669 !important;
+    border: 1px solid #a7f3d0 !important;
+}
+
+.course-badge-intermediate {
+    background-color: #fffbeb !important;
+    color: #d97706 !important;
+    border: 1px solid #fde68a !important;
+}
+
+.course-badge-advanced {
+    background-color: #f5f3ff !important;
+    color: #7c3aed !important;
+    border: 1px solid #ddd6fe !important;
+}
+
+.catalog-search-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: 1.25rem !important;
+    box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.04);
+}
+
+/* ==========================================================================
+   Auth Cards & OTP Input
+   ========================================================================== */
+.auth-card-modern {
+    background: #ffffff;
+    border: 1px solid #e2e8f0 !important;
+    border-radius: 1.5rem !important;
+    box-shadow: 0 20px 40px -15px rgba(15, 23, 42, 0.08);
+}
+
+.otp-icon-wrapper {
+    width: 72px;
+    height: 72px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #2563eb;
+    margin-bottom: 1.25rem;
+}
+
+.otp-input-modern {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
+    letter-spacing: 0.4em;
+    font-size: 1.6rem !important;
+    font-weight: 700 !important;
+    text-align: center;
+    border-radius: 0.85rem !important;
+    padding: 0.75rem 1rem !important;
+    border: 2px solid #cbd5e1;
+    transition: all 0.2s ease;
+}
+
+.otp-input-modern:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15) !important;
+}
+
+.form-control, .form-select {
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    padding: 0.65rem 0.95rem;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.12);
+}
+
+.input-group-text {
+    border-radius: 10px;
+    border: 1.5px solid #e2e8f0;
+    color: #64748b;
+}
+
+/* ==========================================================================
+   Truncate utilities
+   ========================================================================== */
+.text-truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.text-truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* Links */
+.hover-light:hover {
+    color: #f8fafc !important;
+}

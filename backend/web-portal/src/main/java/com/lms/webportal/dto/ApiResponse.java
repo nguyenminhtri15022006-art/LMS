@@ -15,5 +15,6 @@ public class ApiResponse<T> {
     @Builder.Default
     private int code = 1000;
     private String message;
+    @com.fasterxml.jackson.annotation.JsonAlias({"data", "result"})
     private T result;
 }

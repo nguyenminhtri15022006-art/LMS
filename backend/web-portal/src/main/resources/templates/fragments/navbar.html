@@ -35,6 +35,11 @@
                     </a>
                 </li>
                 <li class="nav-item">
+                    <a class="nav-link text-light" th:href="@{/blog}">
+                        <i class="bi bi-chat-square-quote me-1"></i>Diễn đàn
+                    </a>
+                </li>
+                <li class="nav-item">
                     <a class="nav-link" th:href="@{/leaderboard}">
                         <i class="bi bi-trophy me-1 text-warning"></i>Xếp hạng
                     </a>
@@ -42,6 +47,17 @@
                 <li class="nav-item">
                     <a class="nav-link text-success fw-semibold" th:href="@{/chat}">
                         <i class="bi bi-robot me-1"></i>Trợ lý AI
+                    </a>
+                </li>
+                <!-- Direct Studio / Admin Links for Quick Access -->
+                <li th:if="${session.currentUser != null and session.currentUser.role == 'INSTRUCTOR'}" class="nav-item">
+                    <a class="nav-link text-info fw-semibold" th:href="@{/instructor/courses}">
+                        <i class="bi bi-easel2 me-1"></i>Studio Giảng Viên
+                    </a>
+                </li>
+                <li th:if="${session.currentUser != null and session.currentUser.role == 'ADMIN'}" class="nav-item">
+                    <a class="nav-link text-danger fw-semibold" th:href="@{/admin/dashboard}">
+                        <i class="bi bi-shield-lock me-1"></i>Quản Trị
                     </a>
                 </li>
             </ul>
@@ -64,42 +80,91 @@
                             <span th:text="${#strings.substring(session.currentUser.fullname != null ? session.currentUser.fullname : session.currentUser.username, 0, 1)}">U</span>
                         </div>
                         <span class="small fw-semibold" th:text="${session.currentUser.fullname != null ? session.currentUser.fullname : session.currentUser.username}">Nguyễn Văn A</span>
-                        <span class="badge bg-info text-dark" style="font-size: 10px;" th:text="${session.currentUser.role}">STUDENT</span>
+                        <span class="badge" th:classappend="${session.currentUser.role == 'ADMIN' ? 'bg-danger text-white' : (session.currentUser.role == 'INSTRUCTOR' ? 'bg-success text-white' : 'bg-info text-dark')}" style="font-size: 10px;" th:text="${session.currentUser.role}">STUDENT</span>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="userMenuButton">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" aria-labelledby="userMenuButton" style="min-width: 250px;">
                         <li class="dropdown-header">
                             <div class="fw-bold text-dark" th:text="${session.currentUser.fullname}">User Fullname</div>
                             <small class="text-muted" th:text="${session.currentUser.email}">user@ute.edu.vn</small>
                         </li>
                         <li><hr class="dropdown-divider"></li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/profile}">
-                                <i class="bi bi-person text-primary"></i>Hồ sơ cá nhân
-                            </a>
-                        </li>
-                        <li>
-                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/profile/my-courses}">
-                                <i class="bi bi-book text-success"></i>Khóa học của tôi
-                            </a>
-                        </li>
-                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}"><hr class="dropdown-divider"></li>
-                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}" class="dropdown-header text-uppercase fs-7 text-secondary">
-                            Giảng viên
-                        </li>
-                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}">
-                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/questions}">
-                                <i class="bi bi-bank text-warning"></i>Ngân hàng câu hỏi
-                            </a>
-                        </li>
-                        <li th:if="${session.currentUser.role == 'INSTRUCTOR' or session.currentUser.role == 'ADMIN'}">
-                            <a class="dropdown-item d-flex align-items-center gap-2" th:href="@{/problems}">
-                                <i class="bi bi-code-square text-danger"></i>Quản lý bài tập code
-                            </a>
-                        </li>
+
+                        <!-- DÀNH CHO HỌC VIÊN (STUDENT) -->
+                        <th:block th:if="${session.currentUser.role != 'INSTRUCTOR' and session.currentUser.role != 'ADMIN'}">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/profile}">
+                                    <i class="bi bi-person text-primary fs-6"></i>Hồ sơ học tập
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/profile/my-courses}">
+                                    <i class="bi bi-book text-success fs-6"></i>Khóa học của tôi
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/problems}">
+                                    <i class="bi bi-code-square text-warning fs-6"></i>Luyện tập thuật toán
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/quizzes}">
+                                    <i class="bi bi-patch-question text-info fs-6"></i>Bài thi trắc nghiệm
+                                </a>
+                            </li>
+                        </th:block>
+
+                        <!-- DÀNH CHO GIẢNG VIÊN (INSTRUCTOR) -->
+                        <th:block th:if="${session.currentUser.role == 'INSTRUCTOR'}">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/profile}">
+                                    <i class="bi bi-person-badge text-primary fs-6"></i>Hồ sơ giảng viên
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-primary fw-semibold" th:href="@{/instructor/courses}">
+                                    <i class="bi bi-easel2-fill fs-6"></i>Studio Giảng Viên (Khóa học)
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/quizzes}">
+                                    <i class="bi bi-patch-question text-info fs-6"></i>Ngân hàng đề thi Quiz
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/problems}">
+                                    <i class="bi bi-code-square text-danger fs-6"></i>Ngân hàng bài tập Code
+                                </a>
+                            </li>
+                        </th:block>
+
+                        <!-- DÀNH CHO QUẢN TRỊ VIÊN (ADMIN) -->
+                        <th:block th:if="${session.currentUser.role == 'ADMIN'}">
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" th:href="@{/profile}">
+                                    <i class="bi bi-shield-check text-primary fs-6"></i>Hồ sơ quản trị
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger fw-semibold" th:href="@{/admin/dashboard}">
+                                    <i class="bi bi-shield-lock-fill fs-6"></i>Trung Tâm Quản Trị Hệ Thống
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="http://localhost:8761" target="_blank">
+                                    <i class="bi bi-hdd-network text-info fs-6"></i>Eureka Service Registry
+                                </a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item d-flex align-items-center gap-2 py-2" href="http://localhost:8025" target="_blank">
+                                    <i class="bi bi-envelope-paper text-secondary fs-6"></i>Hộp thư Mailpit (OTP)
+                                </a>
+                            </li>
+                        </th:block>
+
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item d-flex align-items-center gap-2 text-danger" th:href="@{/auth/logout}">
-                                <i class="bi bi-box-arrow-right"></i>Đăng xuất
+                            <a class="dropdown-item d-flex align-items-center gap-2 py-2 text-danger" th:href="@{/auth/logout}">
+                                <i class="bi bi-box-arrow-right fs-6"></i>Đăng xuất
                             </a>
                         </li>
                     </ul>

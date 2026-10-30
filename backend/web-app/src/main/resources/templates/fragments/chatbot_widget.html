@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+<div th:fragment="chatbotWidget">
+    <!-- Floating Button Toggle -->
+    <div class="position-fixed bottom-0 end-0 m-4" style="z-index: 1060;">
+        <button id="chatbotToggleBtn" class="btn btn-primary rounded-circle shadow-lg p-3 d-flex align-items-center justify-content-center hover-lift"
+                style="width: 60px; height: 60px; border: 2px solid #ffffff;"
+                onclick="toggleChatbotPopup()">
+            <i class="bi bi-robot fs-3 text-white"></i>
+        </button>
+    </div>
+
+    <!-- Chatbot Window Popup -->
+    <div id="chatbotPopup" class="card position-fixed bottom-0 end-0 m-4 shadow-lg border-0 rounded-4 overflow-hidden d-none"
+         style="width: 380px; max-width: 90vw; height: 520px; z-index: 1070;">
+        <!-- Header -->
+        <div class="card-header bg-primary text-white py-3 px-3 d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-2">
+                <span class="badge bg-white text-primary p-2 rounded-circle"><i class="bi bi-robot"></i></span>
+                <div>
+                    <h6 class="mb-0 fw-bold">EduLearn AI Assistant</h6>
+                    <small class="text-white-50" style="font-size: 11px;"><i class="bi bi-circle-fill text-success me-1"></i>Trực tuyến 24/7</small>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm text-white" onclick="toggleChatbotPopup()">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages Container -->
+        <div id="chatMessages" class="card-body p-3 overflow-auto bg-light d-flex flex-column gap-2" style="font-size: 13px;">
+            <div class="d-flex gap-2">
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px; font-size: 12px;">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div class="bg-white p-2 rounded-3 shadow-sm border text-secondary" style="max-width: 85%;">
+                    Xin chào! Tôi là Trợ lý AI EduLearn. Bạn cần hỗ trợ gợi ý thuật toán, giải bài tập hay giải thích kiến thức nào hôm nay?
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Bar -->
+        <div class="card-footer bg-white p-2 border-top">
+            <form id="chatForm" onsubmit="sendChatMessage(event)" class="d-flex gap-2">
+                <input type="text" id="chatInput" class="form-control form-control-sm border-0 bg-light rounded-pill px-3"
+                       placeholder="Nhập câu hỏi (ví dụ: two sum, microservices)..." autocomplete="off" required>
+                <button type="submit" class="btn btn-primary btn-sm rounded-circle p-2 d-flex align-items-center justify-content-center" style="width: 34px; height: 34px;">
+                    <i class="bi bi-send-fill text-white" style="font-size: 12px;"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script Chatbot Logic -->
+    <script>
+        function toggleChatbotPopup() {
+            const popup = document.getElementById('chatbotPopup');
+            popup.classList.toggle('d-none');
+            if (!popup.classList.contains('d-none')) {
+                document.getElementById('chatInput').focus();
+            }
+        }
+
+        async function sendChatMessage(e) {
+            e.preventDefault();
+            const input = document.getElementById('chatInput');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+
+            const container = document.getElementById('chatMessages');
+
+            // User Message
+            const userMsg = document.createElement('div');
+            userMsg.className = 'd-flex justify-content-end mb-2';
+            userMsg.innerHTML = `<div class="bg-primary text-white p-2 rounded-3 shadow-sm" style="max-width: 85%;">${escapeHtml(prompt)}</div>`;
+            container.appendChild(userMsg);
+            input.value = '';
+            container.scrollTop = container.scrollHeight;
+
+            // Typing indicator
+            const typingIndicator = document.createElement('div');
+            typingIndicator.id = 'typingIndicator';
+            typingIndicator.className = 'd-flex gap-2';
+            typingIndicator.innerHTML = `
+                <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px; font-size: 12px;">
+                    <i class="bi bi-robot"></i>
+                </div>
+                <div class="bg-white p-2 rounded-3 shadow-sm border text-muted fst-italic">Đang suy nghĩ...</div>
+            `;
+            container.appendChild(typingIndicator);
+            container.scrollTop = container.scrollHeight;
+
+            try {
+                const res = await fetch('/api/portal/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: prompt, sessionId: 'portal-session' })
+                });
+                const data = await res.json();
+
+                typingIndicator.remove();
+
+                const aiMsg = document.createElement('div');
+                aiMsg.className = 'd-flex gap-2';
+                aiMsg.innerHTML = `
+                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center flex-shrink-0" style="width: 28px; height: 28px; font-size: 12px;">
+                        <i class="bi bi-robot"></i>
+                    </div>
+                    <div class="bg-white p-2 rounded-3 shadow-sm border text-secondary" style="max-width: 85%;">
+                        ${data.reply ? data.reply.replace(/\\n/g, '<br>') : 'Không có phản hồi từ máy chủ.'}
+                    </div>
+                `;
+                container.appendChild(aiMsg);
+                container.scrollTop = container.scrollHeight;
+            } catch (err) {
+                typingIndicator.remove();
+                const errDiv = document.createElement('div');
+                errDiv.className = 'text-center small text-danger my-1';
+                errDiv.textContent = 'Lỗi kết nối tới trợ lý AI.';
+                container.appendChild(errDiv);
+            }
+        }
+
+        function escapeHtml(text) {
+            var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+        }
+    </script>
+</div>
+</body>
+</html>

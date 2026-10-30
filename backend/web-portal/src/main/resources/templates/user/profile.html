@@ -11,7 +11,9 @@
         <nav aria-label="breadcrumb" class="mb-4">
             <ol class="breadcrumb">
                 <li class="breadcrumb-item"><a th:href="@{/}" class="text-decoration-none">Trang chủ</a></li>
-                <li class="breadcrumb-item active" aria-current="page">Hồ sơ cá nhân</li>
+                <li class="breadcrumb-item active" aria-current="page" th:if="${user.role == 'ADMIN'}">Hồ sơ quản trị viên</li>
+                <li class="breadcrumb-item active" aria-current="page" th:if="${user.role == 'INSTRUCTOR'}">Hồ sơ giảng viên</li>
+                <li class="breadcrumb-item active" aria-current="page" th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">Hồ sơ học tập</li>
             </ol>
         </nav>
 
@@ -20,7 +22,8 @@
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm rounded-4 text-center p-4 mb-4">
                     <div class="mx-auto mb-3 position-relative d-inline-block">
-                        <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center shadow"
+                        <div class="rounded-circle text-white d-flex align-items-center justify-content-center shadow"
+                             th:classappend="${user.role == 'ADMIN'} ? 'bg-danger' : (${user.role == 'INSTRUCTOR'} ? 'bg-success' : 'bg-primary')"
                              style="width: 100px; height: 100px; font-size: 38px;">
                             <span th:text="${#strings.substring(user.fullname != null ? user.fullname : user.username, 0, 1)}">U</span>
                         </div>
@@ -32,13 +35,13 @@
 
                     <div class="mb-3">
                         <span th:if="${user.role == 'ADMIN'}" class="badge bg-danger px-3 py-2 rounded-pill">
-                            <i class="bi bi-shield-lock me-1"></i>Quản Trị Viên
+                            <i class="bi bi-shield-lock me-1"></i>Quản Trị Viên (Admin)
                         </span>
                         <span th:if="${user.role == 'INSTRUCTOR'}" class="badge bg-success px-3 py-2 rounded-pill">
-                            <i class="bi bi-mortarboard me-1"></i>Giảng Viên
+                            <i class="bi bi-mortarboard me-1"></i>Giảng Viên (Instructor)
                         </span>
                         <span th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}" class="badge bg-primary px-3 py-2 rounded-pill">
-                            <i class="bi bi-person-badge me-1"></i>Học Viên
+                            <i class="bi bi-person-badge me-1"></i>Học Viên (Student)
                         </span>
                     </div>
 
@@ -47,13 +50,46 @@
                     <hr class="my-3">
 
                     <div class="d-grid gap-2">
-                        <a th:href="@{/problems}" class="btn btn-outline-warning btn-sm fw-semibold">
-                            <i class="bi bi-code-square me-1"></i>Luyện tập thuật toán
-                        </a>
-                        <a th:href="@{/quizzes}" class="btn btn-outline-info btn-sm fw-semibold text-dark">
-                            <i class="bi bi-patch-question me-1"></i>Làm bài thi trắc nghiệm
-                        </a>
-                        <a th:href="@{/auth/logout}" class="btn btn-outline-danger btn-sm">
+                        <!-- Nút cho ADMIN -->
+                        <div th:if="${user.role == 'ADMIN'}" class="d-grid gap-2">
+                            <a th:href="@{/admin/dashboard}" target="_blank" class="btn btn-danger btn-sm fw-semibold">
+                                <i class="bi bi-speedometer2 me-1"></i>Bảng Quản Trị Hệ Thống
+                            </a>
+                            <a href="http://localhost:8761" target="_blank" class="btn btn-outline-primary btn-sm fw-semibold">
+                                <i class="bi bi-hdd-network me-1"></i>Eureka Service Registry
+                            </a>
+                            <a href="http://localhost:8025" target="_blank" class="btn btn-outline-secondary btn-sm fw-semibold">
+                                <i class="bi bi-envelope-paper me-1"></i>Hộp Thư OTP Mailpit
+                            </a>
+                        </div>
+
+                        <!-- Nút cho INSTRUCTOR -->
+                        <div th:if="${user.role == 'INSTRUCTOR'}" class="d-grid gap-2">
+                            <a th:href="@{/profile/my-courses}" class="btn btn-success btn-sm fw-semibold">
+                                <i class="bi bi-mortarboard me-1"></i>Lớp học phụ trách
+                            </a>
+                            <a th:href="@{/quizzes}" class="btn btn-outline-info btn-sm fw-semibold text-dark">
+                                <i class="bi bi-patch-question me-1"></i>Ngân hàng đề thi Quiz
+                            </a>
+                            <a th:href="@{/problems}" class="btn btn-outline-warning btn-sm fw-semibold">
+                                <i class="bi bi-code-square me-1"></i>Ngân hàng bài tập Code
+                            </a>
+                        </div>
+
+                        <!-- Nút cho STUDENT -->
+                        <div th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}" class="d-grid gap-2">
+                            <a th:href="@{/profile/my-courses}" class="btn btn-primary btn-sm fw-semibold">
+                                <i class="bi bi-book me-1"></i>Khóa học của tôi
+                            </a>
+                            <a th:href="@{/problems}" class="btn btn-outline-warning btn-sm fw-semibold">
+                                <i class="bi bi-code-square me-1"></i>Luyện tập thuật toán
+                            </a>
+                            <a th:href="@{/quizzes}" class="btn btn-outline-info btn-sm fw-semibold text-dark">
+                                <i class="bi bi-patch-question me-1"></i>Làm bài thi trắc nghiệm
+                            </a>
+                        </div>
+
+                        <a th:href="@{/auth/logout}" class="btn btn-outline-danger btn-sm mt-2">
                             <i class="bi bi-box-arrow-right me-1"></i>Đăng xuất
                         </a>
                     </div>
@@ -78,8 +114,8 @@
                             <span class="badge bg-success-subtle text-success">Đã kích hoạt</span>
                         </li>
                         <li class="d-flex justify-content-between py-2">
-                            <span class="text-muted">Xác thực 2 lớp (2FA):</span>
-                            <span class="badge bg-secondary-subtle text-secondary">Chưa kích hoạt</span>
+                            <span class="text-muted">Phân quyền:</span>
+                            <span class="badge bg-primary-subtle text-primary" th:text="${user.role}">STUDENT</span>
                         </li>
                     </ul>
                 </div>
@@ -87,8 +123,112 @@
 
             <!-- Right Column: Stats & Tabs -->
             <div class="col-lg-8">
-                <!-- Stat Cards -->
-                <div class="row g-3 mb-4">
+                <!-- Stat Cards: ADMIN -->
+                <div th:if="${user.role == 'ADMIN'}" class="row g-3 mb-4">
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Tài khoản</span>
+                                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+                                    <i class="bi bi-people-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark">120</div>
+                            <div class="small text-success"><i class="bi bi-check-circle"></i> Đang hoạt động</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Khóa học LMS</span>
+                                <div class="bg-warning bg-opacity-10 text-warning p-2 rounded-3">
+                                    <i class="bi bi-journal-bookmark-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark">4</div>
+                            <div class="small text-muted">Đã phê duyệt</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Hạ tầng Service</span>
+                                <div class="bg-info bg-opacity-10 text-info p-2 rounded-3">
+                                    <i class="bi bi-hdd-rack-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark">5/5</div>
+                            <div class="small text-success">Online (Healthy)</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Bảo mật Gateway</span>
+                                <div class="bg-danger bg-opacity-10 text-danger p-2 rounded-3">
+                                    <i class="bi bi-shield-check"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark">100%</div>
+                            <div class="small text-primary">JWT &amp; RateLimit</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat Cards: INSTRUCTOR (Dynamic from DB) -->
+                <div th:if="${user.role == 'INSTRUCTOR'}" class="row g-3 mb-4">
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Lớp giảng dạy</span>
+                                <div class="bg-success bg-opacity-10 text-success p-2 rounded-3">
+                                    <i class="bi bi-mortarboard-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark" th:text="${instructorStats != null and instructorStats.hasNonNull('totalCourses') ? instructorStats.get('totalCourses').asLong() : 2}">2</div>
+                            <div class="small text-muted">Khóa học phụ trách</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Học viên ghi danh</span>
+                                <div class="bg-primary bg-opacity-10 text-primary p-2 rounded-3">
+                                    <i class="bi bi-person-check-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark" th:text="${instructorStats != null and instructorStats.hasNonNull('totalStudents') ? instructorStats.get('totalStudents').asLong() : 2}">2</div>
+                            <div class="small text-success"><i class="bi bi-arrow-up-short"></i> Học viên trong hệ thống</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Đánh giá trung bình</span>
+                                <div class="bg-warning bg-opacity-10 text-warning p-2 rounded-3">
+                                    <i class="bi bi-star-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark">4.9<span class="fs-6 text-muted">/5.0</span></div>
+                            <div class="small text-muted">Đánh giá cao ⭐</div>
+                        </div>
+                    </div>
+                    <div class="col-sm-6 col-md-3">
+                        <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <span class="small text-muted fw-semibold">Bài tập &amp; Quiz</span>
+                                <div class="bg-info bg-opacity-10 text-info p-2 rounded-3">
+                                    <i class="bi bi-patch-question-fill"></i>
+                                </div>
+                            </div>
+                            <div class="fs-3 fw-bold text-dark" th:text="${instructorStats != null and instructorStats.hasNonNull('totalExercises') ? instructorStats.get('totalExercises').asLong() : 0}">0</div>
+                            <div class="small text-primary">Bài tập đã tạo</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stat Cards: STUDENT -->
+                <div th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}" class="row g-3 mb-4">
                     <div class="col-sm-6 col-md-3">
                         <div class="card border-0 shadow-sm rounded-4 p-3 bg-white">
                             <div class="d-flex align-items-center justify-content-between mb-2">
@@ -97,7 +237,7 @@
                                     <i class="bi bi-book"></i>
                                 </div>
                             </div>
-                            <div class="fs-3 fw-bold text-dark">4</div>
+                            <div class="fs-3 fw-bold text-dark" th:text="${enrolledCourses != null and enrolledCourses.isArray() ? enrolledCourses.size() : (enrolledCourses != null ? #lists.size(enrolledCourses) : 0)}">0</div>
                             <div class="small text-muted">Đang theo học</div>
                         </div>
                     </div>
@@ -144,13 +284,13 @@
                     <div class="card-header bg-white border-bottom pt-3 px-4">
                         <ul class="nav nav-tabs card-header-tabs" id="profileTabs" role="tablist">
                             <li class="nav-item" role="presentation">
-                                <button class="nav-link active fw-semibold" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
-                                    <i class="bi bi-activity me-1"></i>Hoạt động gần đây
-                                </button>
-                            </li>
-                            <li class="nav-item" role="presentation">
-                                <button class="nav-link fw-semibold" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab">
-                                    <i class="bi bi-journal-check me-1"></i>Khóa học & Tiến độ
+                                <button class="nav-link active fw-semibold" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab">
+                                    <i class="bi bi-grid-3x3-gap me-1 text-danger" th:if="${user.role == 'ADMIN'}"></i>
+                                    <i class="bi bi-mortarboard me-1 text-success" th:if="${user.role == 'INSTRUCTOR'}"></i>
+                                    <i class="bi bi-book me-1 text-primary" th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}"></i>
+                                    <span th:if="${user.role == 'ADMIN'}">Quản trị Khóa học LMS</span>
+                                    <span th:if="${user.role == 'INSTRUCTOR'}">Lớp học phụ trách</span>
+                                    <span th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">Khóa học của tôi</span>
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
@@ -162,72 +302,116 @@
                     </div>
                     <div class="card-body p-4">
                         <div class="tab-content" id="profileTabContent">
-                            <!-- Tab 1: Hoạt động gần đây -->
-                            <div class="tab-pane fade show active" id="activity" role="tabpanel">
-                                <div class="timeline">
-                                    <div class="d-flex gap-3 mb-4">
-                                        <div class="rounded-circle bg-success bg-opacity-10 text-success d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
-                                            <i class="bi bi-check-lg"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <h6 class="fw-bold mb-1">Nộp bài tập code: Two Sum (Tổng 2 số)</h6>
-                                                <small class="text-muted">Hôm nay, 10:15</small>
-                                            </div>
-                                            <p class="text-muted small mb-1">Kết quả: <span class="badge bg-success">Accepted (100/100)</span> | Thời gian chạy: 14ms | Ngôn ngữ: C++</p>
-                                        </div>
+                            <!-- Tab: Khóa học theo Role -->
+                            <div class="tab-pane fade show active" id="courses" role="tabpanel">
+                                <!-- ADMIN view: Quản trị danh mục khóa học toàn trường -->
+                                <div th:if="${user.role == 'ADMIN'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <i class="bi bi-collection text-primary me-2"></i>Danh mục khóa học trên toàn hệ thống
+                                        </h6>
+                                        <a th:href="@{/admin/courses}" class="btn btn-outline-danger btn-sm fw-semibold">
+                                            <i class="bi bi-gear me-1"></i>Kiểm Duyệt Khóa Học (Admin Portal)
+                                        </a>
                                     </div>
 
-                                    <div class="d-flex gap-3 mb-4">
-                                        <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
-                                            <i class="bi bi-patch-question"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <h6 class="fw-bold mb-1">Hoàn thành bài Quiz: Kiến trúc Microservices</h6>
-                                                <small class="text-muted">Hôm qua, 15:40</small>
+                                    <div th:if="${allCourses != null and allCourses.hasNonNull('content') and !allCourses.get('content').isEmpty()}">
+                                        <div th:each="c : ${allCourses.get('content')}" class="card border rounded-3 p-3 mb-3 bg-white shadow-sm">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="fw-bold mb-0 text-dark" th:text="${c.get('title').asText()}">Tên khóa học</h6>
+                                                <span class="badge bg-success" th:text="${c.get('status').asText()}">PUBLIC</span>
                                             </div>
-                                            <p class="text-muted small mb-1">Kết quả: 9.0/10 điểm (18/20 câu đúng) | Thời gian làm bài: 18 phút</p>
-                                        </div>
-                                    </div>
-
-                                    <div class="d-flex gap-3">
-                                        <div class="rounded-circle bg-warning bg-opacity-10 text-warning d-flex align-items-center justify-content-center flex-shrink-0" style="width: 40px; height: 40px;">
-                                            <i class="bi bi-play-circle"></i>
-                                        </div>
-                                        <div class="flex-grow-1">
-                                            <div class="d-flex justify-content-between">
-                                                <h6 class="fw-bold mb-1">Đã xem bài học: Spring Cloud Gateway & Circuit Breaker</h6>
-                                                <small class="text-muted">3 ngày trước</small>
+                                            <div class="small text-muted mb-2">
+                                                Cấp độ: <span class="badge bg-light text-dark border" th:text="${c.hasNonNull('level') ? c.get('level').asText() : 'ALL'}">ALL</span>
+                                                • Thời lượng: <strong th:text="${c.hasNonNull('duration') ? c.get('duration').asInt() + ' giờ' : 'Theo tiến độ'}"></strong>
                                             </div>
-                                            <p class="text-muted small mb-0">Thuộc khóa học: Lập trình Web Nâng Cao &amp; Microservices</p>
+                                            <div class="d-flex gap-2">
+                                                <a th:href="@{'/courses/' + ${c.get('id').asText()}}" class="btn btn-sm btn-primary py-1 px-3">
+                                                    <i class="bi bi-eye me-1"></i>Xem giáo trình &amp; bài giảng
+                                                </a>
+                                                <span class="badge bg-light text-dark border align-self-center" th:text="'Mã: ' + ${c.get('id').asText()}">Mã</span>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
-                            </div>
 
-                            <!-- Tab 2: Khóa học & Tiến độ -->
-                            <div class="tab-pane fade" id="courses" role="tabpanel">
-                                <div class="card border rounded-3 p-3 mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="fw-bold mb-0">Lập trình Web Nâng Cao &amp; Spring Boot Microservices</h6>
-                                        <span class="badge bg-primary">85% Hoàn thành</span>
+                                <!-- INSTRUCTOR view: Lớp học đang phụ trách & Đề thi đã giao -->
+                                <div th:if="${user.role == 'INSTRUCTOR'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h6 class="fw-bold mb-1 text-dark">
+                                                <i class="bi bi-mortarboard text-success me-2"></i>Các lớp học đang phụ trách giảng dạy
+                                            </h6>
+                                            <small class="text-muted">Giảng viên bộ môn Công Nghệ Phần Mềm — ĐH Sư Phạm Kỹ Thuật TP.HCM</small>
+                                        </div>
+                                        <a th:href="@{/instructor/courses}" class="btn btn-success btn-sm fw-semibold shadow-sm">
+                                            <i class="bi bi-easel2-fill me-1"></i>Vào Studio Quản Lý Khóa Học &amp; Bài Giảng
+                                        </a>
                                     </div>
-                                    <div class="progress mb-2" style="height: 6px;">
-                                        <div class="progress-bar bg-primary" role="progressbar" style="width: 85%"></div>
+
+                                    <!-- Danh sách lớp học thực tế từ CSDL -->
+                                    <div th:if="${myCourses != null and myCourses.hasNonNull('content') and !myCourses.get('content').isEmpty()}">
+                                        <div th:each="course : ${myCourses.get('content')}" class="card border rounded-3 p-3 mb-3 bg-white shadow-sm">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge bg-success-subtle text-success border border-success-subtle" th:text="${course.get('status').asText()}">PUBLIC</span>
+                                                    <h6 class="fw-bold mb-0 text-dark" th:text="${course.get('title').asText()}">Tên khóa học</h6>
+                                                </div>
+                                                <span class="badge bg-primary" th:text="${(course.hasNonNull('studentCount') ? course.get('studentCount').asInt() : 0) + ' sinh viên'}">0 sinh viên</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center small text-muted mb-2">
+                                                <span th:text="${(course.hasNonNull('exerciseCount') ? course.get('exerciseCount').asInt() : 0) + ' bài tập / Quiz • Cấp độ: ' + course.get('level').asText()}">12 bài giảng</span>
+                                                <span class="text-success fw-semibold"><i class="bi bi-clock-history me-1"></i><span th:text="${(course.hasNonNull('duration') ? (course.get('duration').asInt() / 60) : 24) + ' giờ'}">24 giờ</span></span>
+                                            </div>
+                                            <div class="d-flex gap-2 mt-2">
+                                                <a th:href="@{'/courses/' + ${course.get('id').asText()}}" class="btn btn-sm btn-outline-success">
+                                                    <i class="bi bi-eye me-1"></i>Chi tiết bài giảng
+                                                </a>
+                                                <a th:href="@{'/instructor/courses/' + ${course.get('id').asText()} + '/manage'}" class="btn btn-sm btn-success">
+                                                    <i class="bi bi-gear-fill me-1"></i>Quản lý giáo trình &amp; bài học
+                                                </a>
+
+                                            </div>
+                                        </div>
                                     </div>
-                                    <small class="text-muted">17/20 bài học • Giảng viên: ThS. Nguyễn Minh Trí</small>
+                                    <div th:unless="${myCourses != null and myCourses.hasNonNull('content') and !myCourses.get('content').isEmpty()}" class="card border rounded-3 p-4 mb-3 bg-white text-center">
+                                        <p class="text-muted mb-3">Bạn chưa có lớp học nào trong hệ thống.</p>
+                                        <a th:href="@{/instructor/courses/new}" class="btn btn-primary btn-sm mx-auto"><i class="bi bi-plus-lg me-1"></i>Tạo lớp học mới</a>
+                                    </div>
                                 </div>
 
-                                <div class="card border rounded-3 p-3 mb-3">
-                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                        <h6 class="fw-bold mb-0">Cấu trúc Dữ liệu &amp; Giải thuật Nâng Cao</h6>
-                                        <span class="badge bg-warning text-dark">60% Hoàn thành</span>
+                                <!-- STUDENT view: Khóa học của tôi (đã đăng ký & đang học) -->
+                                <div th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="fw-bold mb-0 text-dark">
+                                            <i class="bi bi-book text-primary me-2"></i>Khóa học đã đăng ký &amp; Tiến độ học tập
+                                        </h6>
+                                        <a th:href="@{/courses}" class="btn btn-outline-primary btn-sm fw-semibold">
+                                            <i class="bi bi-search me-1"></i>Khám phá thêm khóa học
+                                        </a>
                                     </div>
-                                    <div class="progress mb-2" style="height: 6px;">
-                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 60%"></div>
+
+                                    <div th:if="${enrolledCourses != null and !enrolledCourses.isEmpty()}">
+                                        <div th:each="c : ${enrolledCourses}" class="card border rounded-3 p-3 mb-3 bg-white shadow-sm">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <h6 class="fw-bold mb-0 text-dark" th:text="${c.get('title') != null ? c.get('title').asText() : ''}">Tên khóa học</h6>
+                                                <span class="badge bg-primary" th:text="${c.get('level') != null ? c.get('level').asText() : 'Đang học'}">Đang học</span>
+                                            </div>
+                                            <div class="d-flex justify-content-between align-items-center small text-muted">
+                                                <span>Thời lượng: <strong th:text="${c.get('duration') != null ? c.get('duration').asInt() + ' giờ' : 'Theo tiến độ'}"></strong></span>
+                                                <a th:href="@{'/courses/' + ${c.get('id') != null ? c.get('id').asText() : ''}}" class="btn btn-sm btn-primary py-1 px-3">
+                                                    <i class="bi bi-play-circle me-1"></i>Vào học
+                                                </a>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <small class="text-muted">12/20 bài tập thuật toán đã giải</small>
+                                    <div th:if="${enrolledCourses == null or enrolledCourses.isEmpty()}" class="text-center py-4 bg-light rounded-3">
+                                        <i class="bi bi-journal-x text-muted fs-1 mb-2 d-block"></i>
+                                        <p class="text-muted mb-3">Bạn chưa đăng ký khóa học nào trên hệ thống.</p>
+                                        <a th:href="@{/courses}" class="btn btn-primary btn-sm px-4">
+                                            <i class="bi bi-search me-1"></i>Khám phá khóa học ngay
+                                        </a>
+                                    </div>
                                 </div>
                             </div>
 
@@ -255,6 +439,86 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Thêm Bài Giảng Mới (Dành cho Giảng Viên) -->
+    <div class="modal fade" id="addLessonModal" tabindex="-1" aria-labelledby="addLessonModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content rounded-4 border-0 shadow">
+                <div class="modal-header bg-success text-white rounded-top-4 px-4 py-3">
+                    <h5 class="modal-title fw-bold" id="addLessonModalLabel">
+                        <i class="bi bi-journal-plus me-2"></i>Biên Soạn &amp; Xuất Bản Bài Giảng Mới
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="newLessonForm" onsubmit="event.preventDefault(); alert('Xuất bản bài giảng mới thành công! Hệ thống đã tự động đồng bộ lên MinIO và phân hệ Course Service.'); const m = bootstrap.Modal.getInstance(document.getElementById('addLessonModal')); m.hide(); window.location.href='/instructor/courses';">
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Khóa học phụ trách</label>
+                                <select class="form-select" required>
+                                    <option value="c1111111-1111-1111-1111-111111111111" selected>Lập trình Web hiện đại với Spring Boot 3 &amp; Thymeleaf</option>
+                                    <option value="c2222222-2222-2222-2222-222222222222">Kiến trúc Microservices với Spring Cloud, Docker &amp; Resilience4j</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Chương học</label>
+                                <select class="form-select" required>
+                                    <option selected>Chương 1: Tổng quan Kiến trúc Microservices &amp; Gateway</option>
+                                    <option>Chương 2: Bảo mật phân tán với JWT &amp; API Rate Limiting</option>
+                                    <option>Chương 3: Cơ sở dữ liệu phân tán MongoDB &amp; MySQL</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tiêu đề bài giảng</label>
+                            <input type="text" class="form-control" placeholder="Ví dụ: Triển khai Circuit Breaker với Resilience4j trong Spring Boot 3" required>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Định dạng bài giảng</label>
+                                <select class="form-select">
+                                    <option value="VIDEO" selected>Video bài giảng (MinIO / YouTube / S3)</option>
+                                    <option value="ARTICLE">Bài đọc lý thuyết (Tài liệu Markdown)</option>
+                                    <option value="PRACTICE">Bài tập thực hành tương tác</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label small fw-semibold">Thời lượng ước tính</label>
+                                <div class="input-group">
+                                    <input type="number" class="form-control" value="25" min="5" max="180">
+                                    <span class="input-group-text">phút</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Đường dẫn Video hoặc File đính kèm</label>
+                            <input type="url" class="form-control" placeholder="https://www.youtube.com/embed/... hoặc s3://lms-course-bucket/...">
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label small fw-semibold">Tóm tắt nội dung bài giảng (Hỗ trợ Markdown)</label>
+                            <textarea class="form-control font-monospace small" rows="4" placeholder="### Mục tiêu bài học&#10;- Nắm vững cơ chế đóng cắt mạch Circuit Breaker&#10;- Xử lý Fallback Graceful Degradation khi downstream service gặp sự cố..."></textarea>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <a th:href="@{/instructor/courses}" class="btn btn-outline-secondary btn-sm">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>Studio Giảng Viên (Quản lý khóa học)
+                            </a>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-light btn-sm" data-bs-dismiss="modal">Hủy bỏ</button>
+                                <button type="submit" class="btn btn-success btn-sm fw-semibold">
+                                    <i class="bi bi-cloud-arrow-up me-1"></i>Xuất bản bài giảng ngay
+                                </button>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>

@@ -115,7 +115,7 @@ public class QuizService {
         // Quiz 1
         QuizDto quiz1 = QuizDto.builder()
                 .quizId(1)
-                .courseId("crs-01")
+                .courseId("c2222222-2222-2222-2222-222222222222")
                 .title("Kiến Trúc Microservices & Spring Cloud Gateway")
                 .description("Bài kiểm tra đánh giá mức độ hiểu biết về Service Discovery, Token Offloading, Circuit Breaker và kiến trúc Non-blocking.")
                 .totalScore(10)
@@ -133,7 +133,7 @@ public class QuizService {
         // Quiz 2
         QuizDto quiz2 = QuizDto.builder()
                 .quizId(2)
-                .courseId("crs-01")
+                .courseId("c1111111-1111-1111-1111-111111111111")
                 .title("Lập Trình Web Nâng Cao Với Spring Boot 3 & REST API")
                 .description("Đánh giá kiến thức về Dependency Injection, Bean Lifecycle, Spring Data JPA và xử lý ngoại lệ Global Exception.")
                 .totalScore(10)
@@ -150,7 +150,7 @@ public class QuizService {
         // Quiz 3
         QuizDto quiz3 = QuizDto.builder()
                 .quizId(3)
-                .courseId("crs-02")
+                .courseId("c1111111-1111-1111-1111-111111111111")
                 .title("Cấu Trúc Dữ Liệu & Độ Phức Tạp Thuật Toán")
                 .description("Kiểm tra kiến thức về Big-O Notation, Hash Table, Binary Search Tree, Heap và Graph Algorithms.")
                 .totalScore(10)

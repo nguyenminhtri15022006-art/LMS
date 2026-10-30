@@ -82,8 +82,14 @@ public class LessonServiceImpl implements LessonService {
     }
 
     private void checkAccessPermission(Course course) {
-        String userId = GatewayAuthentication.currentUserId();
-        String role = GatewayAuthentication.currentRole();
+        String userId = null;
+        String role = null;
+        try {
+            userId = GatewayAuthentication.currentUserId();
+            role = GatewayAuthentication.currentRole();
+        } catch (Exception ignored) {
+            // Unauthenticated public access
+        }
 
         if ("ROLE_ADMIN".equals(role) || "ADMIN".equals(role)
                 || ("ROLE_INSTRUCTOR".equals(role) && course.getInstructorId().equals(userId))
@@ -91,7 +97,7 @@ public class LessonServiceImpl implements LessonService {
             return;
         }
 
-        if (!enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) {
+        if (userId != null && !userId.isBlank() && !enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId())) {
             throw new CourseException(ErrorCode.ACCESS_DENIED);
         }
     }

@@ -1,5 +1,7 @@
 package com.lms.webportal.controller;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.lms.webportal.client.GatewayClient;
 import com.lms.webportal.dto.ChapterDto;
 import com.lms.webportal.dto.CourseDto;
 import com.lms.webportal.dto.CourseFilterDto;
@@ -8,6 +10,8 @@ import com.lms.webportal.dto.UserSessionDto;
 import com.lms.webportal.service.CourseService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -15,15 +19,21 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 @Controller
 public class CourseWebController {
 
     @Autowired
     private CourseService courseService;
+
+    @Autowired
+    private GatewayClient gatewayClient;
 
     @GetMapping("/courses")
     public String listCourses(@ModelAttribute("filter") CourseFilterDto filter,
@@ -40,6 +50,7 @@ public class CourseWebController {
     @GetMapping("/courses/{id}")
     public String showCourseDetail(@PathVariable("id") String id,
                                    @RequestParam(value = "enrolled", required = false) Boolean enrolled,
+                                   HttpSession session,
                                    Model model) {
         CourseDto course = courseService.getCourseById(id);
         if (course == null) {
@@ -47,7 +58,12 @@ public class CourseWebController {
         }
 
         if (Boolean.TRUE.equals(enrolled)) {
+            course.setEnrolled(true);
             model.addAttribute("success", "Chúc mừng bạn đã đăng ký tham gia khóa học thành công!");
+        } else if (session != null && session.getAttribute("currentUser") != null) {
+            if (courseService.isUserEnrolled(id)) {
+                course.setEnrolled(true);
+            }
         }
 
         model.addAttribute("course", course);
@@ -70,6 +86,7 @@ public class CourseWebController {
     @GetMapping("/courses/{id}/lessons/{lessonId}")
     public String viewLesson(@PathVariable("id") String id,
                              @PathVariable("lessonId") String lessonId,
+                             HttpSession session,
                              Model model) {
         CourseDto course = courseService.getCourseById(id);
         if (course == null) {
@@ -111,11 +128,66 @@ public class CourseWebController {
             }
         }
 
+        // Thống kê tiến độ học tập cho học viên đã đăng nhập
+        int totalLessonCount = flatLessons.size();
+        long completedLessonCount = 0;
+        int percentComplete = 0;
+        List<String> completedLessonIds = new ArrayList<>();
+        boolean isCurrentLessonCompleted = false;
+
+        if (session != null && session.getAttribute("currentUser") != null) {
+            try {
+                JsonNode progressRes = gatewayClient.get("/course/courses/" + id + "/progress", JsonNode.class);
+                if (progressRes != null && progressRes.has("data")) {
+                    JsonNode progressData = progressRes.get("data");
+                    if (progressData.has("totalLessons") && progressData.get("totalLessons").asInt() > 0) {
+                        totalLessonCount = progressData.get("totalLessons").asInt();
+                    }
+                    completedLessonCount = progressData.path("completedLessons").asLong(0);
+                    percentComplete = (int) Math.round(progressData.path("percentComplete").asDouble(0.0));
+                    if (progressData.has("completedLessonIds") && progressData.get("completedLessonIds").isArray()) {
+                        for (JsonNode n : progressData.get("completedLessonIds")) {
+                            completedLessonIds.add(n.asText());
+                        }
+                    }
+                    isCurrentLessonCompleted = completedLessonIds.contains(currentLesson.getId());
+                }
+            } catch (Exception e) {
+                // If progress API fails or user not enrolled, keep defaults
+            }
+        }
+
         model.addAttribute("course", course);
         model.addAttribute("currentLesson", currentLesson);
         model.addAttribute("prevLesson", prevLesson);
         model.addAttribute("nextLesson", nextLesson);
+        model.addAttribute("totalLessonCount", totalLessonCount);
+        model.addAttribute("completedLessonCount", completedLessonCount);
+        model.addAttribute("percentComplete", percentComplete);
+        model.addAttribute("completedLessonIds", completedLessonIds);
+        model.addAttribute("isCurrentLessonCompleted", isCurrentLessonCompleted);
         model.addAttribute("pageTitle", currentLesson.getTitle() + " - " + course.getTitle());
         return "courses/lesson";
+    }
+
+    @PostMapping("/courses/{courseId}/lessons/{lessonId}/complete")
+    @ResponseBody
+    public ResponseEntity<?> completeLesson(@PathVariable("courseId") String courseId,
+                                            @PathVariable("lessonId") String lessonId,
+                                            HttpSession session) {
+        if (session == null || session.getAttribute("currentUser") == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(Map.of("message", "Vui lòng đăng nhập để lưu tiến độ học tập."));
+        }
+        try {
+            gatewayClient.post("/course/courses/" + courseId + "/lessons/" + lessonId + "/complete",
+                    Map.of("lessonType", "VIDEO"), JsonNode.class);
+
+            JsonNode progressRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
+            return ResponseEntity.ok(progressRes != null ? progressRes.get("data") : Map.of("success", true));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest()
+                    .body(Map.of("message", "Lỗi cập nhật tiến độ: " + e.getMessage()));
+        }
     }
 }

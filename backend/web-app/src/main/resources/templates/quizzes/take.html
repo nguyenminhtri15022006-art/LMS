@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{::extraJs})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Đang Thi - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="bg-light min-vh-100 py-3">
+    <div class="container">
+        <!-- Top Sticky Header with Timer -->
+        <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white sticky-top" style="top: 70px; z-index: 1020;">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="badge bg-primary p-2 rounded-3"><i class="bi bi-mortarboard-fill"></i></span>
+                    <div>
+                        <h6 class="fw-bold mb-0 text-dark" th:text="${quiz.title}">Kiến Trúc Microservices</h6>
+                        <small class="text-muted" th:text="${quiz.questionCount + ' câu hỏi • Điểm tối đa: ' + quiz.totalScore}">5 câu hỏi</small>
+                    </div>
+                </div>
+
+                <!-- Countdown Timer -->
+                <div class="d-flex align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2 bg-danger bg-opacity-10 text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill font-monospace fw-bold fs-5">
+                        <i class="bi bi-stopwatch"></i>
+                        <span id="countdownTimer" th:data-minutes="${quiz.durationMinutes != null ? quiz.durationMinutes : 15}">15:00</span>
+                    </div>
+
+                    <button type="button" class="btn btn-success fw-bold rounded-pill px-4 shadow-sm" onclick="confirmSubmit()">
+                        <i class="bi bi-check2-circle me-1"></i>Nộp Bài Thi
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <form th:action="@{/quizzes/{id}/submit(id=${quiz.quizId})}" th:object="${quizSubmitDto}" method="post" id="examForm">
+            <input type="hidden" name="timeSpentSeconds" id="timeSpentInput" value="0">
+
+            <div class="row g-4">
+                <!-- Left Column: Questions List -->
+                <div class="col-lg-8">
+                    <div class="d-flex flex-column gap-4">
+                        <div class="card border-0 shadow-sm rounded-4 p-4 bg-white question-card"
+                             th:each="q, iterStat : ${quiz.questions}"
+                             th:id="${'question-' + q.questionId}">
+                            <!-- Question Header -->
+                            <div class="d-flex justify-content-between align-items-center pb-3 mb-3 border-bottom">
+                                <span class="badge bg-primary rounded-pill px-3 py-2 fw-semibold"
+                                      th:text="${'Câu ' + (iterStat.index + 1)}">Câu 1</span>
+                                <span class="small text-muted font-monospace" th:text="${q.score + ' điểm'}">2 điểm</span>
+                            </div>
+
+                            <!-- Question Content -->
+                            <h5 class="fw-semibold text-dark mb-4 leading-relaxed" th:text="${q.content}">
+                                Nội dung câu hỏi trắc nghiệm...
+                            </h5>
+
+                            <!-- Options List -->
+                            <div class="d-flex flex-column gap-3">
+                                <div class="form-check p-0" th:each="opt : ${q.options}">
+                                    <label class="option-label w-100 p-3 border rounded-3 d-flex align-items-center gap-3 cursor-pointer transition"
+                                           th:for="${'opt-' + q.questionId + '-' + opt.key}">
+                                        <input class="form-check-input ms-0 mt-0 flex-shrink-0" type="radio"
+                                               th:name="${'answers[' + q.questionId + ']'}"
+                                               th:id="${'opt-' + q.questionId + '-' + opt.key}"
+                                               th:value="${opt.key}"
+                                               th:onchange="'markAnswered(' + ${iterStat.index + 1} + ')'">
+                                        <span class="badge bg-light text-dark border px-2 py-1 font-monospace" th:text="${opt.key}">A</span>
+                                        <span class="text-secondary small fw-medium" th:text="${opt.content}">Phương án lựa chọn</span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column: Navigation Palette -->
+                <div class="col-lg-4">
+                    <div class="card border-0 shadow-sm rounded-4 p-4 bg-white sticky-top" style="top: 170px;">
+                        <h6 class="fw-bold text-dark mb-3">
+                            <i class="bi bi-grid me-2 text-primary"></i>Danh Sách Câu Hỏi
+                        </h6>
+
+                        <!-- Number Buttons Grid -->
+                        <div class="d-flex flex-wrap gap-2 mb-4">
+                            <button type="button" th:each="q, iterStat : ${quiz.questions}"
+                                    th:id="${'nav-btn-' + (iterStat.index + 1)}"
+                                    class="btn btn-outline-secondary rounded-3 font-monospace fw-semibold"
+                                    style="width: 44px; height: 44px;"
+                                    th:onclick="'scrollToQuestion(' + ${q.questionId} + ')'"
+                                    th:text="${iterStat.index + 1}">1</button>
+                        </div>
+
+                        <hr class="my-3">
+
+                        <!-- Status Legend -->
+                        <div class="small text-muted d-flex flex-column gap-2 mb-4">
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="rounded bg-primary d-inline-block" style="width: 14px; height: 14px;"></span>
+                                <span>Đã chọn đáp án</span>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="rounded border d-inline-block" style="width: 14px; height: 14px;"></span>
+                                <span>Chưa trả lời</span>
+                            </div>
+                        </div>
+
+                        <!-- Submit Final Button -->
+                        <button type="button" class="btn btn-primary w-100 py-3 fw-bold rounded-pill shadow-sm" onclick="confirmSubmit()">
+                            <i class="bi bi-send-check me-2"></i>Hoàn Tất &amp; Nộp Bài
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<th:block th:fragment="extraJs">
+    <style>
+        .cursor-pointer { cursor: pointer; }
+        .option-label:hover {
+            background-color: #f8f9fa;
+            border-color: #0d6efd !important;
+        }
+        .option-label:has(input:checked) {
+            background-color: #e7f1ff;
+            border-color: #0d6efd !important;
+            color: #0d6efd;
+            font-weight: 600;
+        }
+    </style>
+    <script>
+        // Đồng hồ đếm ngược
+        const timerElem = document.getElementById('countdownTimer');
+        const durationMinutes = parseInt(timerElem.getAttribute('data-minutes') || 15);
+        let remainingSeconds = durationMinutes * 60;
+        let timeSpent = 0;
+
+        const interval = setInterval(() => {
+            timeSpent++;
+            document.getElementById('timeSpentInput').value = timeSpent;
+
+            if (remainingSeconds <= 0) {
+                clearInterval(interval);
+                alert("Đã hết thời gian làm bài! Hệ thống tự động nộp bài thi của bạn.");
+                document.getElementById('examForm').submit();
+                return;
+            }
+            remainingSeconds--;
+            const mins = Math.floor(remainingSeconds / 60);
+            const secs = remainingSeconds % 60;
+            timerElem.textContent = `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        }, 1000);
+
+        function markAnswered(index) {
+            const btn = document.getElementById('nav-btn-' + index);
+            if (btn) {
+                btn.classList.remove('btn-outline-secondary');
+                btn.classList.add('btn-primary');
+            }
+        }
+
+        function scrollToQuestion(qid) {
+            const elem = document.getElementById('question-' + qid);
+            if (elem) {
+                elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        function confirmSubmit() {
+            if (confirm("Bạn có chắc chắn muốn nộp bài thi bây giờ?")) {
+                document.getElementById('examForm').submit();
+            }
+        }
+    </script>
+</th:block>
+</body>
+</html>

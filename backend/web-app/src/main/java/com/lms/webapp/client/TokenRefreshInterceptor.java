@@ -109,8 +109,12 @@ public class TokenRefreshInterceptor implements ClientHttpRequestInterceptor {
                 }
             }
         } catch (Exception e) {
-            log.error("Token refresh failed: {}", e.getMessage());
-            session.invalidate();
+            log.warn("Token refresh failed: {}", e.getMessage());
+            try {
+                session.removeAttribute("accessToken");
+                session.removeAttribute("refreshToken");
+            } catch (Exception ignored) {
+            }
         }
         return null;
     }

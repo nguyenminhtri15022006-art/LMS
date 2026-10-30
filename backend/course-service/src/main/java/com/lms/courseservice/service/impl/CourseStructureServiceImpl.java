@@ -45,15 +45,7 @@ public class CourseStructureServiceImpl implements CourseStructureService {
         Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseException(ErrorCode.COURSE_NOT_FOUND));
 
-        CourseStructure courseStructure = courseStructureRepository
-                .findByCourseId(course.getId())
-                .orElseGet(() -> {
-                    if (course.getMongoStructureId() != null) {
-                        return courseStructureRepository.findById(course.getMongoStructureId())
-                                .orElseThrow(() -> new CourseException(ErrorCode.COURSE_STRUCTURE_ERROR));
-                    }
-                    throw new CourseException(ErrorCode.COURSE_STRUCTURE_ERROR);
-                });
+        CourseStructure courseStructure = findStructureByCourse(course);
 
         CourseStructureResponse response = courseStructureMapper.toCourseStructureResponse(courseStructure);
 
@@ -258,8 +250,9 @@ public class CourseStructureServiceImpl implements CourseStructureService {
 
     @Override
     public int countLessons(String courseId) {
-        CourseStructure structure = courseStructureRepository.findByCourseId(courseId)
-                .orElseThrow(() -> new CourseException(ErrorCode.COURSE_STRUCTURE_ERROR));
+        Course course = courseRepository.findById(courseId).orElse(null);
+        if (course == null) return 0;
+        CourseStructure structure = findStructureByCourse(course);
         if (structure.getNodes() == null) return 0;
         return (int) structure.getNodes().stream()
                 .filter(node -> NodeType.LESSON.equals(node.getType()))
@@ -268,20 +261,21 @@ public class CourseStructureServiceImpl implements CourseStructureService {
 
     @Override
     public boolean isLessonInCourse(String courseId, String lessonId) {
-        return courseStructureRepository.findByCourseId(courseId)
-                .map(structure -> structure.getNodes() != null && structure.getNodes().stream()
-                        .anyMatch(node -> NodeType.LESSON.equals(node.getType())
-                                && lessonId.equals(node.getLessonId())))
-                .orElse(false);
+        Course course = courseRepository.findById(courseId).orElse(null);
+        if (course == null) return false;
+        CourseStructure structure = findStructureByCourse(course);
+        if (structure.getNodes() == null) return false;
+        return structure.getNodes().stream()
+                .anyMatch(node -> NodeType.LESSON.equals(node.getType())
+                        && (lessonId.equals(node.getLessonId()) || lessonId.equals(node.getId())));
     }
 
     @Override
     public List<StructureNodeResponse> getLessonNodes(String courseId) {
-        courseRepository.findById(courseId)
+        Course course = courseRepository.findById(courseId)
                 .orElseThrow(() -> new CourseException(ErrorCode.COURSE_NOT_FOUND));
 
-        CourseStructure structure = courseStructureRepository.findByCourseId(courseId)
-                .orElseThrow(() -> new CourseException(ErrorCode.COURSE_STRUCTURE_ERROR));
+        CourseStructure structure = findStructureByCourse(course);
 
         if (structure.getNodes() == null) return Collections.emptyList();
 
@@ -302,7 +296,16 @@ public class CourseStructureServiceImpl implements CourseStructureService {
                     }
                     return Optional.empty();
                 })
-                .orElseThrow(() -> new CourseException(ErrorCode.COURSE_STRUCTURE_ERROR));
+                .orElseGet(() -> {
+                    CourseStructure structure = CourseStructure.builder()
+                            .courseId(course.getId())
+                            .nodes(new java.util.ArrayList<>())
+                            .build();
+                    structure = courseStructureRepository.save(structure);
+                    course.setMongoStructureId(structure.getId());
+                    courseRepository.save(course);
+                    return structure;
+                });
     }
 
     private void checkCourseOwner(Course course) {

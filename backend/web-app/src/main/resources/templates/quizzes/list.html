@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Thi Trắc Nghiệm - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Header -->
+        <div class="row align-items-center mb-4">
+            <div class="col-lg-7">
+                <span class="badge bg-info bg-opacity-25 border border-info border-opacity-50 text-dark px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-patch-question-fill me-1"></i>Hệ Thống Khảo Thí Trực Tuyến
+                </span>
+                <h1 class="fw-bold mb-2">Bộ Đề Thi Trắc Nghiệm Kiến Thức</h1>
+                <p class="text-muted mb-0">Luyện tập trắc nghiệm khách quan với đồng hồ đếm ngược, tự động chấm điểm và giải thích chi tiết đáp án.</p>
+            </div>
+            <div class="col-lg-5 mt-3 mt-lg-0 text-lg-end">
+                <a th:href="@{/questions}" class="btn btn-outline-primary rounded-pill px-4 fw-semibold">
+                    <i class="bi bi-bank me-2"></i>Xem Ngân Hàng Câu Hỏi
+                </a>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="card border-0 shadow-sm rounded-4 p-3 mb-4 bg-white">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+                <div class="d-flex flex-wrap gap-2 align-items-center">
+                    <span class="small text-muted fw-semibold me-2"><i class="bi bi-funnel me-1"></i>Chuyên đề:</span>
+                    <a th:href="@{/quizzes(category='ALL', difficulty=${selectedDifficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${selectedCategory == 'ALL'} ? 'btn-primary' : 'btn-outline-secondary'">Tất cả</a>
+                    <a th:href="@{/quizzes(category='Microservices', difficulty=${selectedDifficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${selectedCategory == 'Microservices'} ? 'btn-primary' : 'btn-outline-secondary'">Microservices</a>
+                    <a th:href="@{/quizzes(category='Web Development', difficulty=${selectedDifficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${selectedCategory == 'Web Development'} ? 'btn-primary' : 'btn-outline-secondary'">Web Development</a>
+                    <a th:href="@{/quizzes(category='Algorithms', difficulty=${selectedDifficulty})}"
+                       class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${selectedCategory == 'Algorithms'} ? 'btn-primary' : 'btn-outline-secondary'">Algorithms</a>
+                </div>
+
+                <div class="d-flex align-items-center gap-2">
+                    <span class="small text-muted fw-semibold">Độ khó:</span>
+                    <div class="btn-group btn-group-sm">
+                        <a th:href="@{/quizzes(difficulty='ALL', category=${selectedCategory})}"
+                           class="btn"
+                           th:classappend="${selectedDifficulty == 'ALL'} ? 'btn-dark' : 'btn-outline-secondary'">Tất cả</a>
+                        <a th:href="@{/quizzes(difficulty='EASY', category=${selectedCategory})}"
+                           class="btn"
+                           th:classappend="${selectedDifficulty == 'EASY'} ? 'btn-success' : 'btn-outline-secondary'">Dễ</a>
+                        <a th:href="@{/quizzes(difficulty='MEDIUM', category=${selectedCategory})}"
+                           class="btn"
+                           th:classappend="${selectedDifficulty == 'MEDIUM'} ? 'btn-warning' : 'btn-outline-secondary'">Trung bình</a>
+                        <a th:href="@{/quizzes(difficulty='HARD', category=${selectedCategory})}"
+                           class="btn"
+                           th:classappend="${selectedDifficulty == 'HARD'} ? 'btn-danger' : 'btn-outline-secondary'">Khó</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Quiz Cards Grid -->
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4" th:each="q : ${quizzes}">
+                <div class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden hover-lift transition bg-white">
+                    <div class="card-body p-4 d-flex flex-column">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span class="badge bg-primary-subtle text-primary rounded-pill px-3 py-2" th:text="${q.category}">Microservices</span>
+                            <span th:if="${q.difficulty == 'EASY'}" class="badge bg-success-subtle text-success rounded-pill">Dễ</span>
+                            <span th:if="${q.difficulty == 'MEDIUM'}" class="badge bg-warning-subtle text-warning rounded-pill">Trung bình</span>
+                            <span th:if="${q.difficulty == 'HARD'}" class="badge bg-danger-subtle text-danger rounded-pill">Khó</span>
+                        </div>
+
+                        <h5 class="fw-bold mb-2">
+                            <a th:href="@{/quizzes/{id}(id=${q.quizId})}" class="text-dark text-decoration-none hover-primary" th:text="${q.title}">
+                                Tiêu đề bộ đề Quiz
+                            </a>
+                        </h5>
+
+                        <p class="text-muted small flex-grow-1" th:text="${q.description}">
+                            Mô tả bài kiểm tra trắc nghiệm...
+                        </p>
+
+                        <!-- Quiz Meta Info -->
+                        <div class="bg-light rounded-3 p-3 mb-3 small d-flex justify-content-between text-secondary">
+                            <div><i class="bi bi-clock me-1 text-primary"></i><span th:text="${q.durationMinutes + ' phút'}">15 phút</span></div>
+                            <div><i class="bi bi-list-check me-1 text-success"></i><span th:text="${q.questionCount + ' câu hỏi'}">10 câu</span></div>
+                            <div><i class="bi bi-award me-1 text-warning"></i><span th:text="${q.totalScore + ' điểm'}">10 điểm</span></div>
+                        </div>
+
+                        <!-- Status / Action -->
+                        <div class="d-flex justify-content-between align-items-center pt-2 border-top">
+                            <div>
+                                <span th:if="${q.completed}" class="badge bg-success-subtle text-success">
+                                    <i class="bi bi-check-circle me-1"></i>Đã thi: <strong th:text="${q.bestScore + '/10'}">9/10</strong>
+                                </span>
+                                <span th:if="${!q.completed}" class="badge bg-secondary-subtle text-secondary">
+                                    Chưa tham gia
+                                </span>
+                            </div>
+
+                            <a th:href="@{/quizzes/{id}(id=${q.quizId})}" class="btn btn-primary btn-sm rounded-pill px-3 fw-semibold">
+                                Vào thi <i class="bi bi-arrow-right ms-1"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

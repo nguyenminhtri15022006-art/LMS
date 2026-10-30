@@ -1,5 +1,10 @@
 server:
   port: ${PORT:8086}
+  servlet:
+    session:
+      tracking-modes: cookie
+      cookie:
+        name: PORTAL_SESSIONID
 
 spring:
   application:
@@ -22,3 +27,7 @@ eureka:
 
 app:
   gateway-url: ${GATEWAY_URL:http://localhost:8080}
+
+lms:
+  gateway:
+    base-url: ${GATEWAY_API_URL:http://localhost:8080/api}

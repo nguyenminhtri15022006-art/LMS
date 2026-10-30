@@ -32,6 +32,7 @@ public class CourseResponse {
     String meetingUrl;
     List<CategoryResponse> categories;
     Long exerciseCount;
+    Long studentCount;
     List<String> learningPoints;
     List<String> requirements;
     LocalDateTime createdAt;

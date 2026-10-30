@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{::scripts})}">
 <head>
     <title th:fragment="title" th:text="${pageTitle}">Học Bài - EduLearn LMS</title>
 </head>
@@ -48,7 +48,7 @@
             <!-- Main Content Area: Video & Lecture Notes -->
             <div class="col-lg-8">
                 <!-- Video Player Container (if Video type) -->
-                <div th:if="${currentLesson.type == 'VIDEO'}" class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-black">
+                <div th:if="${currentLesson.type != null and #strings.equalsIgnoreCase(currentLesson.type, 'VIDEO')}" class="card border-0 shadow-sm rounded-4 overflow-hidden mb-4 bg-black">
                     <div class="ratio ratio-16x9">
                         <iframe th:src="${currentLesson.videoUrl != null ? currentLesson.videoUrl : 'https://www.youtube.com/embed/dQw4w9WgXcQ'}"
                                 title="Lesson Video"
@@ -63,8 +63,14 @@
                             <span class="badge bg-primary-subtle text-primary" th:text="${currentLesson.type}">VIDEO</span>
                             <span class="text-muted small"><i class="bi bi-clock me-1"></i><span th:text="${currentLesson.durationMinutes + ' phút'}">25 phút</span></span>
                         </div>
-                        <button class="btn btn-outline-success btn-sm rounded-pill px-3" onclick="alert('Đã đánh dấu hoàn thành bài học!')">
-                            <i class="bi bi-check-circle me-1"></i>Đánh dấu hoàn thành
+                        <!-- Dynamic Complete Button -->
+                        <button id="btnCompleteLesson"
+                                class="btn btn-sm rounded-pill px-3 shadow-sm d-flex align-items-center gap-1"
+                                th:classappend="${isCurrentLessonCompleted} ? 'btn-success text-white' : 'btn-outline-success'"
+                                th:attr="data-course-id=${course.id}, data-lesson-id=${currentLesson.id}, data-completed=${isCurrentLessonCompleted}"
+                                onclick="handleToggleComplete(this)">
+                            <i id="btnCompleteIcon" class="bi" th:classappend="${isCurrentLessonCompleted} ? 'bi-check-circle-fill' : 'bi-check-circle'"></i>
+                            <span id="btnCompleteText" th:text="${isCurrentLessonCompleted} ? 'Đã hoàn thành' : 'Đánh dấu hoàn thành'">Đánh dấu hoàn thành</span>
                         </button>
                     </div>
 
@@ -95,13 +101,23 @@
                 </div>
             </div>
 
-            <!-- Sidebar: Lesson Syllabus Navigation -->
+            <!-- Sidebar: Lesson Syllabus Navigation & Progress -->
             <div class="col-lg-4">
                 <div class="card border-0 shadow-sm rounded-4 overflow-hidden sticky-top" style="top: 90px;">
                     <div class="card-header bg-white py-3 px-4 border-bottom">
-                        <h6 class="fw-bold mb-0">
-                            <i class="bi bi-list-task text-primary me-2"></i>Đề Cương Bài Học
-                        </h6>
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0">
+                                <i class="bi bi-list-task text-primary me-2"></i>Đề Cương Bài Học
+                            </h6>
+                            <span class="badge bg-success-subtle text-success fw-bold px-2 py-1 rounded-pill" id="progressPercentBadge" th:text="${percentComplete != null ? percentComplete + '%' : '0%'}">0%</span>
+                        </div>
+                        <div class="progress rounded-pill bg-light" style="height: 7px;">
+                            <div id="courseProgressBar" class="progress-bar bg-success progress-bar-striped progress-bar-animated" role="progressbar" th:style="'width: ' + ${percentComplete != null ? percentComplete : 0} + '%;'" th:aria-valuenow="${percentComplete != null ? percentComplete : 0}" aria-valuemin="0" aria-valuemax="100"></div>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted small mt-1" style="font-size: 0.78rem;">
+                            <span>Tiến độ học tập</span>
+                            <span id="progressSummaryText" class="fw-semibold text-secondary" th:text="${completedLessonCount != null ? completedLessonCount + '/' + totalLessonCount + ' bài' : '0/' + totalLessonCount + ' bài'}">0/6 bài</span>
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="list-group list-group-flush" th:each="chapter : ${course.chapters}">
@@ -113,6 +129,9 @@
                                class="list-group-item list-group-item-action d-flex align-items-center justify-content-between py-3 px-3"
                                th:classappend="${lesson.id == currentLesson.id} ? 'bg-primary-subtle text-primary border-start border-primary border-4 fw-bold' : ''">
                                 <div class="d-flex align-items-center gap-2">
+                                    <i th:id="'check-' + ${lesson.id}"
+                                       class="bi bi-check-circle-fill text-success fs-6"
+                                       th:style="${completedLessonIds != null and completedLessonIds.contains(lesson.id)} ? '' : 'display: none;'"></i>
                                     <i th:if="${lesson.type == 'VIDEO'}" class="bi bi-play-circle" th:classappend="${lesson.id == currentLesson.id} ? 'text-primary' : 'text-muted'"></i>
                                     <i th:if="${lesson.type == 'ARTICLE'}" class="bi bi-file-earmark-text" th:classappend="${lesson.id == currentLesson.id} ? 'text-primary' : 'text-muted'"></i>
                                     <i th:if="${lesson.type == 'CODE_LAB'}" class="bi bi-code-square" th:classappend="${lesson.id == currentLesson.id} ? 'text-primary' : 'text-muted'"></i>
@@ -127,5 +146,78 @@
         </div>
     </div>
 </div>
+
+<th:block th:fragment="scripts">
+<script>
+function handleToggleComplete(btn) {
+    const courseId = btn.getAttribute('data-course-id');
+    const lessonId = btn.getAttribute('data-lesson-id');
+
+    // Button loading animation
+    btn.disabled = true;
+    const originalText = document.getElementById('btnCompleteText').innerText;
+    document.getElementById('btnCompleteText').innerText = 'Đang lưu...';
+
+    fetch('/courses/' + courseId + '/lessons/' + lessonId + '/complete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    .then(res => {
+        if (!res.ok) {
+            return res.json().then(data => { throw new Error(data.message || 'Lỗi khi cập nhật tiến độ'); });
+        }
+        return res.json();
+    })
+    .then(data => {
+        // Toggle button styling to Completed
+        btn.setAttribute('data-completed', 'true');
+        btn.classList.remove('btn-outline-success');
+        btn.classList.add('btn-success', 'text-white');
+
+        const icon = document.getElementById('btnCompleteIcon');
+        if (icon) {
+            icon.className = 'bi bi-check-circle-fill';
+        }
+        document.getElementById('btnCompleteText').innerText = 'Đã hoàn thành';
+
+        // Show checkmark on sidebar
+        const checkIcon = document.getElementById('check-' + lessonId);
+        if (checkIcon) {
+            checkIcon.style.display = 'inline-block';
+        }
+
+        // Update progress bar & percent
+        if (data) {
+            const percent = Math.round(data.percentComplete || 0);
+            const total = data.totalLessons || 0;
+            const completed = data.completedLessons || 0;
+
+            const badge = document.getElementById('progressPercentBadge');
+            if (badge) badge.innerText = percent + '%';
+
+            const bar = document.getElementById('courseProgressBar');
+            if (bar) {
+                bar.style.width = percent + '%';
+                bar.setAttribute('aria-valuenow', percent);
+            }
+
+            const summary = document.getElementById('progressSummaryText');
+            if (summary) {
+                summary.innerText = completed + '/' + total + ' bài';
+            }
+        }
+    })
+    .catch(err => {
+        alert(err.message || 'Không thể lưu tiến độ học tập. Vui lòng thử lại!');
+        document.getElementById('btnCompleteText').innerText = originalText;
+    })
+    .finally(() => {
+        btn.disabled = false;
+    });
+}
+</script>
+</th:block>
 </body>
 </html>

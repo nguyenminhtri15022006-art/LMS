@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+<head>
+    <title th:fragment="title" th:text="${pageTitle}">Bảng Xếp Hạng - EduLearn LMS</title>
+</head>
+<body>
+<div th:fragment="content" class="py-5 bg-light min-vh-100">
+    <div class="container">
+        <!-- Page Header -->
+        <div class="row align-items-center mb-5">
+            <div class="col-lg-7">
+                <span class="badge bg-warning bg-opacity-25 border border-warning border-opacity-50 text-dark px-3 py-2 rounded-pill fw-semibold mb-2">
+                    <i class="bi bi-trophy-fill me-1 text-warning"></i>Bảng Vinh Danh Học Tập
+                </span>
+                <h1 class="fw-bold mb-2">Bảng Xếp Hạng Toàn Hệ Thống</h1>
+                <p class="text-muted mb-0">Tuyên dương các sinh viên xuất sắc nhất dựa trên số lượng bài tập code đã giải và kết quả thi trắc nghiệm Quiz.</p>
+            </div>
+            <div class="col-lg-5 mt-3 mt-lg-0 text-lg-end">
+                <div class="btn-group rounded-pill shadow-sm bg-white p-1">
+                    <a th:href="@{/leaderboard(period='ALL_TIME')}" class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${period == 'ALL_TIME'} ? 'btn-primary' : 'btn-light'">Tất cả</a>
+                    <a th:href="@{/leaderboard(period='MONTH')}" class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${period == 'MONTH'} ? 'btn-primary' : 'btn-light'">Tháng này</a>
+                    <a th:href="@{/leaderboard(period='WEEK')}" class="btn btn-sm rounded-pill px-3"
+                       th:classappend="${period == 'WEEK'} ? 'btn-primary' : 'btn-light'">Tuần này</a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top 3 Podium Cards -->
+        <div class="row g-4 justify-content-center align-items-end mb-5">
+            <!-- Rank 2: Silver -->
+            <div class="col-md-4 col-lg-3 order-2 order-md-1" th:if="${top2 != null}">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4 bg-white hover-lift transition">
+                    <div class="fs-1 text-secondary mb-2"><i class="bi bi-award-fill"></i></div>
+                    <div class="rounded-circle bg-secondary text-white mx-auto d-flex align-items-center justify-content-center mb-3 shadow" style="width: 72px; height: 72px; font-size: 26px;">
+                        <span th:text="${#strings.substring(top2.fullname, 0, 1)}">C</span>
+                    </div>
+                    <span class="badge bg-secondary rounded-pill px-3 py-1 mb-2">HẠNG 2 • BẠC</span>
+                    <h6 class="fw-bold text-dark mb-1" th:text="${top2.fullname}">Lê Hoàng Cường</h6>
+                    <small class="text-muted mb-2 d-block">@<span th:text="${top2.username}">hoangcuong</span></small>
+                    <div class="fs-4 fw-extrabold text-primary" th:text="${top2.totalScore + ' pts'}">2,180 pts</div>
+                    <small class="text-muted" th:text="${top2.problemsSolved + ' bài code • ' + top2.quizAverage + 'đ Quiz'}">22 bài code</small>
+                </div>
+            </div>
+
+            <!-- Rank 1: Gold (Center & Taller) -->
+            <div class="col-md-4 col-lg-4 order-1 order-md-2" th:if="${top1 != null}">
+                <div class="card border-0 shadow rounded-4 text-center p-4 bg-white border-top border-warning border-4 hover-lift transition" style="transform: translateY(-10px);">
+                    <div class="display-5 text-warning mb-2"><i class="bi bi-crown-fill"></i></div>
+                    <div class="rounded-circle bg-warning text-dark mx-auto d-flex align-items-center justify-content-center mb-3 shadow-lg" style="width: 90px; height: 90px; font-size: 36px; border: 3px solid #ffc107;">
+                        <span th:text="${#strings.substring(top1.fullname, 0, 1)}">T</span>
+                    </div>
+                    <span class="badge bg-warning text-dark rounded-pill px-4 py-2 mb-2 fw-bold">QUÁN QUÂN • VÀNG</span>
+                    <h5 class="fw-bold text-dark mb-1" th:text="${top1.fullname}">Nguyễn Minh Trí</h5>
+                    <small class="text-muted mb-3 d-block">@<span th:text="${top1.username}">minhtri</span></small>
+                    <div class="display-6 fw-extrabold text-primary mb-1" th:text="${top1.totalScore + ' pts'}">2,450 pts</div>
+                    <small class="text-muted" th:text="${top1.problemsSolved + ' bài code • ' + top1.quizAverage + 'đ Quiz'}">25 bài code</small>
+                </div>
+            </div>
+
+            <!-- Rank 3: Bronze -->
+            <div class="col-md-4 col-lg-3 order-3" th:if="${top3 != null}">
+                <div class="card border-0 shadow-sm rounded-4 text-center p-4 bg-white hover-lift transition">
+                    <div class="fs-1 text-danger mb-2"><i class="bi bi-award-fill"></i></div>
+                    <div class="rounded-circle bg-danger bg-opacity-75 text-white mx-auto d-flex align-items-center justify-content-center mb-3 shadow" style="width: 72px; height: 72px; font-size: 26px;">
+                        <span th:text="${#strings.substring(top3.fullname, 0, 1)}">B</span>
+                    </div>
+                    <span class="badge bg-danger rounded-pill px-3 py-1 mb-2">HẠNG 3 • ĐỒNG</span>
+                    <h6 class="fw-bold text-dark mb-1" th:text="${top3.fullname}">Trần Quốc Bảo</h6>
+                    <small class="text-muted mb-2 d-block">@<span th:text="${top3.username}">quocbao</span></small>
+                    <div class="fs-4 fw-extrabold text-primary" th:text="${top3.totalScore + ' pts'}">1,950 pts</div>
+                    <small class="text-muted" th:text="${top3.problemsSolved + ' bài code • ' + top3.quizAverage + 'đ Quiz'}">20 bài code</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Full Leaderboard Table -->
+        <div class="card border-0 shadow-sm rounded-4 overflow-hidden bg-white">
+            <div class="card-header bg-white py-3 px-4 border-bottom">
+                <h6 class="fw-bold mb-0 text-dark">
+                    <i class="bi bi-list-ol text-primary me-2"></i>Bảng Tổng Sắp Thành Tích Sinh Viên
+                </h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light small text-uppercase text-secondary">
+                        <tr>
+                            <th class="ps-4 py-3" style="width: 80px;">Thứ hạng</th>
+                            <th class="py-3">Sinh viên</th>
+                            <th class="py-3 text-center" style="width: 170px;">Bài code đã giải</th>
+                            <th class="py-3 text-center" style="width: 170px;">Điểm Quiz trung bình</th>
+                            <th class="py-3 text-end" style="width: 150px;">Tổng điểm</th>
+                            <th class="text-center pe-4 py-3" style="width: 150px;">Danh hiệu</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="entry : ${leaderboard}">
+                            <td class="ps-4 font-monospace fw-bold">
+                                <span th:if="${entry.rank == 1}" class="badge bg-warning text-dark rounded-circle p-2" style="width: 28px; height: 28px;">1</span>
+                                <span th:if="${entry.rank == 2}" class="badge bg-secondary rounded-circle p-2" style="width: 28px; height: 28px;">2</span>
+                                <span th:if="${entry.rank == 3}" class="badge bg-danger rounded-circle p-2" style="width: 28px; height: 28px;">3</span>
+                                <span th:if="${entry.rank > 3}" class="text-muted ms-2" th:text="${'#' + entry.rank}">#4</span>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-3">
+                                    <div class="rounded-circle bg-primary bg-opacity-10 text-primary d-flex align-items-center justify-content-center fw-bold" style="width: 40px; height: 40px;">
+                                        <span th:text="${#strings.substring(entry.fullname, 0, 1)}">U</span>
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold text-dark" th:text="${entry.fullname}">Tên sinh viên</div>
+                                        <small class="text-muted">@<span th:text="${entry.username}">username</span></small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-success-subtle text-success fs-6 px-3 py-1 font-monospace" th:text="${entry.problemsSolved + ' bài'}">20 bài</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-info-subtle text-info fs-6 px-3 py-1 font-monospace" th:text="${entry.quizAverage + ' / 10'}">9.0 / 10</span>
+                            </td>
+                            <td class="text-end font-monospace fw-bold fs-6 text-primary" th:text="${entry.totalScore}">
+                                2,450
+                            </td>
+                            <td class="text-center pe-4">
+                                <span th:if="${entry.badge == 'GOLD'}" class="badge bg-warning text-dark"><i class="bi bi-trophy-fill me-1"></i>Huy Hiệu Vàng</span>
+                                <span th:if="${entry.badge == 'SILVER'}" class="badge bg-secondary"><i class="bi bi-award-fill me-1"></i>Huy Hiệu Bạc</span>
+                                <span th:if="${entry.badge == 'BRONZE'}" class="badge bg-danger"><i class="bi bi-award-fill me-1"></i>Huy Hiệu Đồng</span>
+                                <span th:if="${entry.badge == 'TOP_CODER'}" class="badge bg-primary-subtle text-primary"><i class="bi bi-star-fill me-1"></i>Top Coder</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -68,7 +68,7 @@ services:
 
   # 4. MINIO (Object Storage)
   minio:
-    image: minio/minio:latest
+    image: cgr.dev/chainguard/minio:latest
     container_name: lms-minio
     restart: always
     command: [ "server", "/data", "--console-address", ":9001" ]
@@ -81,7 +81,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:9000/minio/health/live" ]
+      test: [ "CMD-SHELL", "mc ready local || exit 1" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -108,3 +108,4 @@ volumes:
   mongo_data:
   redis_data:
   minio_data:
+
