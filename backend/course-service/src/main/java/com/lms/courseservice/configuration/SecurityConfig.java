@@ -90,21 +90,13 @@ public class SecurityConfig {
 
     private static final String[] PUBLIC_GET_ENDPOINTS = {
 
-            "/categories",
+            "/categories/**",
 
             "/courses",
 
             "/courses/*",
 
-            "/courses/*/students/count",
-
-            "/courses/*/lessons/count",
-
-            "/courses/*/structure",
-
-            "/courses/*/structure/lessons",
-
-            "/courses/*/lessons/*"
+            "/courses/*/**"
 
     };
 
@@ -256,18 +248,11 @@ public class SecurityConfig {
 
                 String path = normalizedPath(request);
 
-                return path.equals("/categories")
+                if (path.equals("/courses/my") || path.equals("/courses/enrolled") || path.contains("/progress")) {
+                    return false;
+                }
 
-                        || path.equals("/courses")
-
-                        || path.matches("^/courses/(?!my$|enrolled$|users$)[^/]+$")
-
-                        || path.matches("^/courses/[^/]+/(students|lessons)/count$")
-
-                        || path.matches("^/courses/[^/]+/structure$")
-
-                        || path.matches("^/courses/[^/]+/structure/lessons$")
-                        || path.matches("^/courses/[^/]+/lessons/[^/]+$");
+                return path.startsWith("/categories") || path.startsWith("/courses");
 
             }
 

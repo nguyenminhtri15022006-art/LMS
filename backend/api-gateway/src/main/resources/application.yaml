@@ -186,7 +186,7 @@ spring:
           uri: lb://course-service
           order: -20
           predicates:
-            - Path=${app.prefix-api}/course/categories,${app.prefix-api}/course/courses,${app.prefix-api}/course/courses/*,${app.prefix-api}/course/courses/*/students/count,${app.prefix-api}/course/courses/*/lessons/count,${app.prefix-api}/course/courses/*/structure,${app.prefix-api}/course/courses/*/structure/lessons
+            - Path=${app.prefix-api}/course/categories,${app.prefix-api}/course/courses,${app.prefix-api}/course/courses/*,${app.prefix-api}/course/courses/*/students/count,${app.prefix-api}/course/courses/*/lessons/count,${app.prefix-api}/course/courses/*/structure,${app.prefix-api}/course/courses/*/structure/lessons,${app.prefix-api}/course/courses/*/announcements,${app.prefix-api}/course/courses/*/schedules
             - Method=GET
           filters:
             - StripPrefix=1

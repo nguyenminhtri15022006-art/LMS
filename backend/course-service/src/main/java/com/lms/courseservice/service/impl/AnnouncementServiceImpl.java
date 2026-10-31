@@ -90,6 +90,9 @@ public class AnnouncementServiceImpl implements AnnouncementService {
     }
 
     private void checkAccessPermission(Course course) {
+        if (CourseStatus.PUBLIC.equals(course.getStatus())) {
+            return;
+        }
         String userId = GatewayAuthentication.currentUserId();
         String currentRole = GatewayAuthentication.currentRole();
         if ("ROLE_ADMIN".equals(currentRole) || "ADMIN".equals(currentRole) ||

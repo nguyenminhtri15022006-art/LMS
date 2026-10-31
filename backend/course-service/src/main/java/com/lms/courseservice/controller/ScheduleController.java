@@ -23,7 +23,6 @@ public class ScheduleController {
     ScheduleService scheduleService;
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ApiResponse<List<ScheduleResponse>> getSchedules(
             @PathVariable String courseId) {
         return ApiResponse.<List<ScheduleResponse>>builder()

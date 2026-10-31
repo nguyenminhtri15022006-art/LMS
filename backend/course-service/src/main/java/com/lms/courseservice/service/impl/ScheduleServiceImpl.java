@@ -128,6 +128,7 @@ public class ScheduleServiceImpl implements ScheduleService {
     }
 
     private void checkAccessPermission(Course course) {
+        if (CourseStatus.PUBLIC.equals(course.getStatus())) return;
         String userId = GatewayAuthentication.currentUserId();
         String role = GatewayAuthentication.currentRole();
 

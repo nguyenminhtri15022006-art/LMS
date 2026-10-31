@@ -4,7 +4,7 @@ Tài liệu này xác định chi tiết sự phân công công việc, ranh gi�
 
 ---
 
-## 1. Thành Viên 1 — Nguyễn Minh Trí (MSSV: 23110340)
+## 1. Thành Viên 1 — Nguyễn Minh Trí (MSSV: 24110359)
 
 **Vai trò**: Trưởng nhóm / Fullstack Developer
 
@@ -49,7 +49,7 @@ Tài liệu này xác định chi tiết sự phân công công việc, ranh gi�
 
 ---
 
-## 2. Thành Viên 2 — NVCuong3112
+## 2. Thành Viên 2 — Nông Văn Cường (24110176)
 
 **Vai trò**: Thành viên cốt lõi / Fullstack Developer
 
@@ -110,7 +110,7 @@ Cả hai thành viên cùng phối hợp thực hiện và rà soát:
 ## 4. Đánh Giá Độ Cân Bằng Khối Lượng Công Việc
 
 Qua khảo sát chi tiết project mẫu:
-- **Thành viên 2 (NVCuong3112)**: 3 microservices nghiệp vụ (`identity`, `course`, `blog`), 14 bảng MySQL, 2 MongoDB Collections, 12 màn hình giao diện. Khối lượng tập trung vào luồng xác thực bảo mật, quản lý cây phân cấp bài học và diễn đàn thảo luận.
+- **Thành viên 2 (Nông Văn Cường (24110176))**: 3 microservices nghiệp vụ (`identity`, `course`, `blog`), 14 bảng MySQL, 2 MongoDB Collections, 12 màn hình giao diện. Khối lượng tập trung vào luồng xác thực bảo mật, quản lý cây phân cấp bài học và diễn đàn thảo luận.
 - **Nguyễn Minh Trí**: 2 microservices nghiệp vụ nặng về thuật toán (`assignment`, `chatbot`), 11 bảng MySQL, 3 MongoDB Collections, 12 màn hình giao diện. Khối lượng tập trung vào bộ máy chấm code tự động (Judge0 Sandbox), tính năng thi trắc nghiệm chống gian lận và tích hợp Trí tuệ nhân tạo LLM.
 
 **Kết luận**: Phân công đạt độ cân bằng cao cả về số dòng code (LOC), độ phức tạp nghiệp vụ và công nghệ áp dụng.

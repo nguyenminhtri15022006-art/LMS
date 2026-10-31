@@ -23,7 +23,6 @@ public class AnnouncementController {
     AnnouncementService announcementService;
 
     @GetMapping
-    @PreAuthorize("isAuthenticated()")
     public ApiResponse<Page<AnnouncementResponse>> getAnnouncements(
             @PathVariable String courseId,
             @PageableDefault(size = 10) Pageable pageable) {
