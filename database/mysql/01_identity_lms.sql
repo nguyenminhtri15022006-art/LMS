@@ -63,12 +63,12 @@ CREATE INDEX `idx_email_verif_user_type_expires` ON `email_verifications` (`user
 
 -- Dữ liệu mẫu Users (Mật khẩu mặc định: Password123@)
 INSERT INTO `users` (`user_id`, `user_name`, `email`, `password_hash`, `full_name`, `role`, `role_selected`, `is_active`, `is_verified`, `auth_provider`, `created_at`, `updated_at`) VALUES
-('00000000-0000-0000-0000-000000000000', 'admin', 'admin@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Quản Trị Viên Hệ Thống', 'ADMIN', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('11111111-1111-1111-1111-111111111111', 'instructor_demo', 'instructor_demo@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'TS. Nguyễn Văn Hướng', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('33333333-3333-3333-3333-333333333333', 'nguyenminhtri', 'nguyenminhtri@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'ThS. Nguyễn Minh Trí', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('55555555-5555-5555-5555-555555555555', 'cuongnv', 'cuongnv@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Nông Văn Cường', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('44444444-4444-4444-4444-444444444444', 'lethimailinh', 'mailinh@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'TS. Lê Thị Mai Linh', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('22222222-2222-2222-2222-222222222222', 'student_demo', 'student_demo@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Lê Hoàng Nam', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('22222222-2222-2222-2222-222222222223', 'tranvantuan', 'tuan.tran@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Trần Văn Tuấn', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('22222222-2222-2222-2222-222222222224', 'hoangthimai', 'mai.hoang@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Hoàng Thị Mai', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
-('22222222-2222-2222-2222-222222222225', 'nguyenvanan', 'an.nguyen@lms.edu.vn', '$2a$10$MID31l2qtrnyKUi.kqctwepMx5h5L8L7laiUNqt125BF2WGLAr0qi', 'Nguyễn Văn An', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW());
+('00000000-0000-0000-0000-000000000000', 'admin', 'admin@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Quản Trị Viên Hệ Thống', 'ADMIN', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('11111111-1111-1111-1111-111111111111', 'instructor_demo', 'instructor_demo@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'TS. Nguyễn Văn Hướng', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('33333333-3333-3333-3333-333333333333', 'nguyenminhtri', 'nguyenminhtri@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'ThS. Nguyễn Minh Trí', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('55555555-5555-5555-5555-555555555555', 'cuongnv', 'cuongnv@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Nông Văn Cường', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('44444444-4444-4444-4444-444444444444', 'lethimailinh', 'mailinh@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'TS. Lê Thị Mai Linh', 'INSTRUCTOR', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('22222222-2222-2222-2222-222222222222', 'student_demo', 'student_demo@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Lê Hoàng Nam', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('22222222-2222-2222-2222-222222222223', 'tranvantuan', 'tuan.tran@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Trần Văn Tuấn', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('22222222-2222-2222-2222-222222222224', 'hoangthimai', 'mai.hoang@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Hoàng Thị Mai', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW()),
+('22222222-2222-2222-2222-222222222225', 'nguyenvanan', 'an.nguyen@lms.edu.vn', '$2a$10$g4/75S9E1HK.Z2mh3BuG3O01RFOajKnhRqEL7pto2ROSgid0P6XOa', 'Nguyễn Văn An', 'STUDENT', 1, 1, 1, 'LOCAL', NOW(), NOW());
