@@ -25,6 +25,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 
 
@@ -124,68 +125,85 @@ public class CourseService {
 
 
 
-    public List<CourseDto> getCourses(CourseFilterDto filter) {
+    public Long resolveCategoryId(String catNameOrSlug) {
+        if (catNameOrSlug == null || catNameOrSlug.isBlank() || "ALL".equalsIgnoreCase(catNameOrSlug)) {
+            return null;
+        }
+        try {
+            return Long.parseLong(catNameOrSlug.trim());
+        } catch (NumberFormatException ignored) {}
 
         try {
+            JsonNode res = gatewayClient.get("/course/categories", JsonNode.class);
+            if (res != null && res.has("data") && res.get("data").isArray()) {
+                for (JsonNode c : res.get("data")) {
+                    String name = c.path("name").asText();
+                    String slug = c.path("slug").asText();
+                    if (catNameOrSlug.equalsIgnoreCase(name) || catNameOrSlug.equalsIgnoreCase(slug)) {
+                        return c.path("id").asLong();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Không thể phân giải categoryId từ {}: {}", catNameOrSlug, e.getMessage());
+        }
+        if ("Công nghệ Thông tin".equalsIgnoreCase(catNameOrSlug) || "cong-nghe-thong-tin".equalsIgnoreCase(catNameOrSlug)) return 9001L;
+        if ("Lập trình Web".equalsIgnoreCase(catNameOrSlug) || "lap-trinh-web".equalsIgnoreCase(catNameOrSlug)) return 9002L;
+        if ("Kiến trúc Microservices".equalsIgnoreCase(catNameOrSlug) || "kien-truc-microservices".equalsIgnoreCase(catNameOrSlug)) return 9003L;
+        if ("Cơ sở Dữ liệu & Cloud".equalsIgnoreCase(catNameOrSlug) || "co-so-du-lieu-va-cloud".equalsIgnoreCase(catNameOrSlug)) return 9004L;
+        return null;
+    }
 
+    public List<CourseDto> getCourses(CourseFilterDto filter) {
+        try {
             StringBuilder uri = new StringBuilder("/course/courses?page=0&size=50");
-
+            Long categoryId = null;
             if (filter != null) {
-
                 if (filter.getKeyword() != null && !filter.getKeyword().isBlank()) {
-
-                    uri.append("&search=").append(URLEncoder.encode(filter.getKeyword().trim(), StandardCharsets.UTF_8));
-
+                    uri.append("&keyword=").append(URLEncoder.encode(filter.getKeyword().trim(), StandardCharsets.UTF_8));
                 }
-
                 if (filter.getCategory() != null && !filter.getCategory().isBlank() && !"ALL".equalsIgnoreCase(filter.getCategory())) {
-
-                    uri.append("&categoryName=").append(URLEncoder.encode(filter.getCategory().trim(), StandardCharsets.UTF_8));
-
+                    categoryId = resolveCategoryId(filter.getCategory());
+                    if (categoryId != null) {
+                        uri.append("&categoryId=").append(categoryId);
+                    }
                 }
-
                 if (filter.getDifficulty() != null && !filter.getDifficulty().isBlank() && !"ALL".equalsIgnoreCase(filter.getDifficulty())) {
-
                     uri.append("&level=").append(URLEncoder.encode(filter.getDifficulty().trim(), StandardCharsets.UTF_8));
-
                 }
-
             }
 
-
-
             JsonNode response = gatewayClient.get(uri.toString(), JsonNode.class);
-
             if (response != null && response.has("data")) {
-
                 JsonNode data = response.get("data");
-
                 JsonNode content = data.has("content") ? data.get("content") : data;
-
                 if (content.isArray()) {
-
                     List<CourseDto> list = new ArrayList<>();
-
                     for (JsonNode item : content) {
-
                         list.add(mapJsonToCourseDto(item));
+                    }
 
+                    // Bộ lọc bổ trợ chính xác 100% theo tên danh mục và tags
+                    if (filter != null && filter.getCategory() != null && !filter.getCategory().isBlank() && !"ALL".equalsIgnoreCase(filter.getCategory())) {
+                        final String selectedCat = filter.getCategory().trim();
+                        list = list.stream().filter(c -> {
+                            if (selectedCat.equalsIgnoreCase(c.getCategory())) return true;
+                            if (c.getTags() != null) {
+                                for (String tag : c.getTags()) {
+                                    if (selectedCat.equalsIgnoreCase(tag)) return true;
+                                }
+                            }
+                            return false;
+                        }).collect(Collectors.toList());
                     }
 
                     return list;
-
                 }
-
             }
-
         } catch (Exception e) {
-
             log.error("Lỗi khi tải danh sách khóa học từ Gateway: {}", e.getMessage());
-
         }
-
         return Collections.emptyList();
-
     }
 
 
