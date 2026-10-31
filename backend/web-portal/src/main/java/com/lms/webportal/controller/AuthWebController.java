@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @Controller
 public class AuthWebController {
@@ -177,7 +180,25 @@ public class AuthWebController {
             } else {
                 JsonNode enrolledRes = gatewayClient.get("/course/courses/enrolled", JsonNode.class);
                 if (enrolledRes != null && enrolledRes.has("data")) {
-                    model.addAttribute("enrolledCourses", enrolledRes.get("data"));
+                    JsonNode enrolledData = enrolledRes.get("data");
+                    model.addAttribute("enrolledCourses", enrolledData);
+
+                    Map<String, JsonNode> courseProgressMap = new HashMap<>();
+                    if (enrolledData.isArray()) {
+                        for (JsonNode courseNode : enrolledData) {
+                            String courseId = courseNode.path("id").asText();
+                            if (!courseId.isBlank()) {
+                                try {
+                                    JsonNode pRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
+                                    if (pRes != null && pRes.has("data")) {
+                                        courseProgressMap.put(courseId, pRes.get("data"));
+                                    }
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+                    }
+                    model.addAttribute("courseProgressMap", courseProgressMap);
                 }
             }
         } catch (Exception e) {
