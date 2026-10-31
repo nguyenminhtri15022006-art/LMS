@@ -24,7 +24,7 @@ Thư mục `docs/` chứa toàn bộ tài liệu kiến trúc, yêu cầu nghi�
 - [ROADMAP.md](ROADMAP.md): Lộ trình phát triển tổng thể theo các mốc thời gian từ 27/09 đến 29/10.
 - [COMMIT_PLAN.md](COMMIT_PLAN.md): Kế hoạch commit chi tiết theo từng ngày, thành viên, phạm vi mã nguồn và thông điệp chuẩn.
 - [GIT_WORKFLOW.md](GIT_WORKFLOW.md): Quy định phân nhánh, quy trình tạo Pull Request và checklist kiểm duyệt.
-- [CODING_RULES.md](CODING_RULES.md): Chuẩn mực viết code Java 21, Spring Boot, React 18, đặt tên biến, DTO, Entity, Exception và CSS.
+- [CODING_RULES.md](CODING_RULES.md): Chuẩn mực viết code Java 21, Spring Boot, Web Portal (Thymeleaf), đặt tên biến, DTO, Entity, Exception và CSS.
 - [RUBRIC_MAPPING.md](RUBRIC_MAPPING.md): Bảng đối chiếu minh chứng đồ án với thang điểm Rubric môn học (100%).
 
 ### 4. Kiểm Thử & Vận Hành

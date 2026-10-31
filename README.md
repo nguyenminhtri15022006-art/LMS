@@ -9,7 +9,7 @@ EduLearn LMS là nền tảng quản lý học tập và thực hành lập trì
 - **Môn học**: Lập trình Web / Đồ án Cuối kỳ
 - **Học kỳ**: Học kỳ 1 (2026 - 2027)
 - **Đơn vị đào tạo**: Trường Đại học Sư phạm Kỹ thuật TP.HCM (HCMUTE)
-- **Đề tài**: Xây dựng hệ thống EduLearn LMS theo kiến trúc Microservices với React & Spring Boot
+- **Đề tài**: Xây dựng hệ thống EduLearn LMS theo kiến trúc Microservices với Spring Boot & Thymeleaf Web Portal
 
 ### Thành viên nhóm
 
@@ -41,15 +41,15 @@ Hệ thống được tổ chức theo mô hình **Monorepo**:
 
 ```text
 LMS-main/
-├── backend/                       # Backend Microservices (Spring Boot 3.3.5, Java 21)
+├── backend/                       # Backend Microservices & Web Portal (Spring Boot 3.3.6, Java 21)
 │   ├── service-registry/          # Eureka Server (Port 8761)
 │   ├── api-gateway/               # Spring Cloud Gateway (Port 8080)
 │   ├── identity-service/          # Auth, RBAC, OAuth, OTP, User Management (Port 8081)
 │   ├── course-service/            # Course, Category, Lesson, Schedule (Port 8082)
 │   ├── assignment-service/        # Quiz, Code Judge, Submission, Leaderboard (Port 8083)
 │   ├── blog-service/              # Post, Comment, Tag, Vote (Port 8084)
-│   └── chatbot-service/           # AI Assistant, Chat Session, AI Generation (Port 8085)
-├── frontend/                      # Frontend Application (React 18, Vite 5, Port 5173)
+│   ├── chatbot-service/           # AI Assistant, Chat Session, AI Generation (Port 8085)
+│   └── web-portal/                # Web Portal UI Full-Stack (Thymeleaf, Bootstrap 5, Port 8086)
 ├── docker/                        # Cấu hình container hạ tầng & DB init scripts
 ├── docs/                          # Hệ thống tài liệu kỹ thuật toàn diện
 ├── docker-compose.yml             # Triển khai toàn bộ hệ thống (Full stack)
@@ -62,7 +62,7 @@ LMS-main/
 
 | Service | Host Port | Database / Storage | Mô tả chức năng |
 |---|:---:|---|---|
-| `frontend` | `5173` | — | Giao diện người dùng React 18 SPA (Nginx serve trong Docker) |
+| `web-portal` | `8086` | — | Giao diện Web Portal người dùng (Spring Boot 3, Thymeleaf, Bootstrap 5) |
 | `api-gateway` | `8080` | — | Single Entry Point, JWT verification, Rate limiting, Routing, Circuit Breaker |
 | `service-registry` | `8761` | — | Eureka Service Discovery quản lý định danh và liveness của service |
 | `identity-service` | `8081` | MySQL (`identity_lms`), MinIO | Quản lý người dùng, hồ sơ cá nhân, đăng nhập/đăng ký, OTP, Refresh Token |
@@ -89,12 +89,13 @@ LMS-main/
 - **Khả năng chịu lỗi**: Resilience4j (Circuit Breaker, TimeLimiter)
 - **Tiện ích**: Lombok, MapStruct 1.5.5.Final
 
-### Frontend
-- **Framework**: React 18, Vite 5
-- **Định tuyến & Gọi API**: React Router DOM 6, Axios Interceptors
-- **Trình soạn thảo Code**: CodeMirror 6 (hỗ trợ C++, Java, Python, JavaScript, Go, Rust)
-- **Giao diện & Hiệu ứng**: Framer Motion, FontAwesome Icons, Pure CSS Modules
-- **Markdown & Code Highlight**: React Markdown
+### Frontend & Web Portal
+- **Framework**: Spring Boot 3.3.6, Thymeleaf Template Engine 3.1
+- **Giao diện & Styling**: Bootstrap 5.3, Bootstrap Icons, Animate.css, Responsive Layout
+- **Trình soạn thảo Code**: CodeMirror 5 (hỗ trợ C++, Java, Python với Theme Dracula)
+- **Định tuyến & Gọi API**: Spring MVC Controllers, OpenFeign Client, RestClient
+- **Markdown & Code Highlight**: Flexmark / CommonMark Renderer, KaTeX Math, Code Prettify
+- **Giao tiếp Real-time**: WebSocket STOMP, SockJS Client (Thông báo, Chatbot & Bảng xếp hạng)
 
 ### Cơ sở dữ liệu & Hạ tầng
 - **Database**: MySQL 8.4, MongoDB 7.0
@@ -193,11 +194,13 @@ Dành cho quá trình phát triển (development) từng service:
      mvn spring-boot:run -f backend/pom.xml -pl chatbot-service
      ```
 
-3. **Khởi chạy Frontend**:
+3. **Khởi chạy Web Portal**:
    ```bash
-   cd frontend
-   npm install
-   npm run dev
+   # Cách 1: Chạy qua Maven
+   mvn spring-boot:run -f backend/pom.xml -pl web-portal
+
+   # Cách 2: Chạy trực tiếp file JAR đã build
+   java -jar backend/web-portal/target/web-portal-0.0.1-SNAPSHOT.jar
    ```
 
 ---
@@ -206,7 +209,7 @@ Dành cho quá trình phát triển (development) từng service:
 
 | Thành phần | Địa chỉ truy cập | Tài khoản mặc định |
 |---|---|---|
-| **Frontend Web App** | [http://localhost:5173](http://localhost:5173) | Đăng ký hoặc dùng Admin |
+| **Web Portal (LMS Web)** | [http://localhost:8086](http://localhost:8086) | Đăng ký hoặc dùng tài khoản demo / admin |
 | **API Gateway** | [http://localhost:8080](http://localhost:8080) | Cổng API chung |
 | **Eureka Discovery** | [http://localhost:8761](http://localhost:8761) | Xem danh sách service đăng ký |
 | **MinIO Console** | [http://localhost:9001](http://localhost:9001) | `minioadmin` / `minioadmin123` |
@@ -220,6 +223,7 @@ Dành cho quá trình phát triển (development) từng service:
 - **Assignment Service**: `http://localhost:8083/assignment/actuator/health/liveness`
 - **Blog Service**: `http://localhost:8084/blog/actuator/health/liveness`
 - **Chatbot Service**: `http://localhost:8085/chatbot/actuator/health/liveness`
+- **Web Portal**: `http://localhost:8086/actuator/health`
 
 ---
 
