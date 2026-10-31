@@ -190,4 +190,28 @@ public class CourseWebController {
                     .body(Map.of("message", "Lỗi cập nhật tiến độ: " + e.getMessage()));
         }
     }
+
+    @GetMapping("/courses/{courseId}/announcements")
+    @ResponseBody
+    public ResponseEntity<?> getCourseAnnouncements(@PathVariable("courseId") String courseId,
+                                                    @RequestParam(value = "page", defaultValue = "0") int page,
+                                                    @RequestParam(value = "size", defaultValue = "10") int size) {
+        try {
+            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/announcements?page=" + page + "&size=" + size, JsonNode.class);
+            return ResponseEntity.ok(res != null ? res : Map.of("code", 1000));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("data", Map.of("content", List.of(), "totalPages", 1)));
+        }
+    }
+
+    @GetMapping("/courses/{courseId}/schedules")
+    @ResponseBody
+    public ResponseEntity<?> getCourseSchedules(@PathVariable("courseId") String courseId) {
+        try {
+            JsonNode res = gatewayClient.get("/course/courses/" + courseId + "/schedules", JsonNode.class);
+            return ResponseEntity.ok(res != null ? res : Map.of("code", 1000));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of("data", List.of()));
+        }
+    }
 }

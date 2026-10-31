@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
-      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{})}">
+      th:replace="~{layouts/base :: layout(~{::content}, ~{::title}, ~{}, ~{::scripts})}">
 <head>
     <title th:fragment="title" th:text="${pageTitle}">Chi Tiết Khóa Học - EduLearn LMS</title>
 </head>
 <body>
 <div th:fragment="content" class="bg-light min-vh-100">
+    <input type="hidden" id="courseId" th:value="${course.id}">
     <!-- Header Banner -->
     <section class="bg-dark text-white py-5">
         <div class="container">
@@ -208,6 +209,14 @@
                                class="btn btn-success w-100 py-3 fw-bold shadow-sm">
                                 <i class="bi bi-play-circle-fill me-2"></i>Tiếp Tục Học Ngay
                             </a>
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="button" class="btn btn-outline-primary btn-sm flex-fill py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#announcementsModal">
+                                    <i class="bi bi-megaphone-fill me-1"></i>Thông Báo
+                                </button>
+                                <button type="button" class="btn btn-outline-dark btn-sm flex-fill py-2 fw-semibold" data-bs-toggle="modal" data-bs-target="#schedulesModal">
+                                    <i class="bi bi-camera-video-fill me-1 text-danger"></i>Lịch Meet
+                                </button>
+                            </div>
                         </div>
 
                         <div th:if="${!course.isEnrolled}">
@@ -246,8 +255,13 @@
             </div>
         </div>
     </div>
+    <!-- Announcements & Schedules Modals -->
+    <div th:replace="~{fragments/announcements-modal :: announcementsModal}"></div>
+    <div th:replace="~{fragments/schedules-modal :: schedulesModal}"></div>
 </div>
-    <script>
+    <th:block th:fragment="scripts">
+        <script th:src="@{/js/learning-hub.js}"></script>
+        <script>
         function toggleAllChapters() {
             const collapses = document.querySelectorAll('#syllabusAccordion .accordion-collapse');
             const buttons = document.querySelectorAll('#syllabusAccordion .accordion-button');
@@ -281,6 +295,7 @@
                 }
             }
         }
-    </script>
+        </script>
+    </th:block>
 </body>
 </html>
