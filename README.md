@@ -15,8 +15,8 @@ EduLearn LMS là nền tảng quản lý học tập và thực hành lập trì
 
 | STT | Họ và tên | MSSV | Vai trò | Trách nhiệm chính |
 |:---:|---|:---:|---|---|
-| 1 | **Nguyễn Minh Trí** | 24110359 | Trưởng nhóm / Fullstack | Assignment Service (Quiz & Code Judge), Chatbot Service (AI LLM), Dashboard, Leaderboard, CI/CD |
-| 2 | **Nông Văn Cường** | 24110176 | Thành viên / Fullstack | Identity Service, Course Service, Blog Service, Frontend Auth/Course/Blog/Admin |
+| 1 | **Nguyễn Minh Trí** | 24110359 | Trưởng nhóm / Fullstack | Identity Service, Course Service, Blog Service, Tiến độ học tập CSDL thật, Studio Giảng viên, Admin |
+| 2 | **Nông Văn Cường** | 24110176 | Thành viên / Fullstack | Assignment Service (Quiz & Code Judge0), Chatbot Service (AI LLM), Dashboard, Leaderboard, CI/CD |
 
 *(Chi tiết phân công xem tại [docs/TEAM_ROLES.md](docs/TEAM_ROLES.md))*.
 
