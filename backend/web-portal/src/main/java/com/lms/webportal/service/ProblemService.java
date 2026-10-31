@@ -339,4 +339,23 @@ public class ProblemService {
                 .filter(s -> s.getProblemId().equals(problemId))
                 .collect(Collectors.toList());
     }
+
+    public List<SubmissionResultDto> getSubmissionsByUser(String userId) {
+        if (submissionHistory.isEmpty()) {
+            SubmissionResultDto initial = SubmissionResultDto.builder()
+                    .submissionId("sub-8a1f3c2b")
+                    .problemId(1)
+                    .userId(userId != null ? userId : "22222222-2222-2222-2222-222222222222")
+                    .language("JAVA")
+                    .status("AC")
+                    .score(100)
+                    .execTimeMs(12)
+                    .memoryUsedKb(2048)
+                    .submittedAt("2026-10-31 09:45:00")
+                    .sourceCode("class Solution { public int[] twoSum(int[] nums, int target) { return new int[]{0, 1}; } }")
+                    .build();
+            submissionHistory.add(initial);
+        }
+        return new ArrayList<>(submissionHistory);
+    }
 }

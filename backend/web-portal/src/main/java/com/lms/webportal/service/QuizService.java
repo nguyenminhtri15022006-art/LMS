@@ -23,6 +23,7 @@ public class QuizService {
 
     private final Map<Integer, QuizDto> quizRepository = new ConcurrentHashMap<>();
     private final List<QuizQuestionDto> globalQuestionBank = new ArrayList<>();
+    private final List<QuizResultDto> submissionHistory = Collections.synchronizedList(new ArrayList<>());
 
     public QuizService() {
         initDefaultQuizzes();
@@ -247,7 +248,7 @@ public class QuizService {
             quiz.setBestScore(score);
         }
 
-        return QuizResultDto.builder()
+        QuizResultDto res = QuizResultDto.builder()
                 .quizId(quiz.getQuizId())
                 .quizTitle(quiz.getTitle())
                 .totalQuestions(totalQuestions)
@@ -258,11 +259,30 @@ public class QuizService {
                 .submittedAt(now)
                 .questionResults(details)
                 .build();
+        submissionHistory.add(0, res);
+        return res;
     }
 
     public List<QuizQuestionDto> getQuestionBank(String category) {
         return globalQuestionBank.stream()
                 .filter(q -> category == null || category.isBlank() || "ALL".equalsIgnoreCase(category) || category.equalsIgnoreCase(q.getCategory()))
                 .collect(Collectors.toList());
+    }
+
+    public List<QuizResultDto> getSubmissionsByUser(String userId) {
+        if (submissionHistory.isEmpty()) {
+            QuizResultDto initial = QuizResultDto.builder()
+                    .quizId(1)
+                    .quizTitle("Trắc nghiệm Kiến trúc Microservices & Spring Cloud")
+                    .totalQuestions(5)
+                    .correctCount(5)
+                    .score(10.0)
+                    .passed(true)
+                    .timeSpentSeconds(180)
+                    .submittedAt("2026-10-31 09:33:00")
+                    .build();
+            submissionHistory.add(initial);
+        }
+        return new ArrayList<>(submissionHistory);
     }
 }

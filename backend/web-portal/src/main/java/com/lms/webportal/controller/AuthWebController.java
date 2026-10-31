@@ -17,8 +17,11 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-import java.util.HashMap;
-import java.util.Map;
+import com.lms.webportal.dto.*;
+import com.lms.webportal.service.CourseService;
+import com.lms.webportal.service.ProblemService;
+import com.lms.webportal.service.QuizService;
+import java.util.*;
 
 @Slf4j
 @Controller
@@ -26,6 +29,15 @@ public class AuthWebController {
 
     private final AuthService authService;
     private final GatewayClient gatewayClient;
+
+    @Autowired(required = false)
+    private CourseService courseService;
+
+    @Autowired(required = false)
+    private QuizService quizService;
+
+    @Autowired(required = false)
+    private ProblemService problemService;
 
     @Autowired
     public AuthWebController(AuthService authService, @Autowired(required = false) GatewayClient gatewayClient) {
@@ -192,14 +204,43 @@ public class AuthWebController {
                     model.addAttribute("enrolledCourses", enrolledData);
 
                     Map<String, JsonNode> courseProgressMap = new HashMap<>();
+                    List<Map<String, Object>> completedLessonsHistory = new ArrayList<>();
+
                     if (enrolledData.isArray()) {
                         for (JsonNode courseNode : enrolledData) {
                             String courseId = courseNode.path("id").asText();
+                            String courseTitle = courseNode.path("title").asText();
                             if (!courseId.isBlank()) {
                                 try {
                                     JsonNode pRes = gatewayClient.get("/course/courses/" + courseId + "/progress", JsonNode.class);
                                     if (pRes != null && pRes.has("data")) {
-                                        courseProgressMap.put(courseId, pRes.get("data"));
+                                        JsonNode progData = pRes.get("data");
+                                        courseProgressMap.put(courseId, progData);
+
+                                        if (progData.has("completedLessonIds") && progData.get("completedLessonIds").isArray()) {
+                                            CourseDto cDto = courseService != null ? courseService.getCourseById(courseId) : null;
+                                            Map<String, String> lessonTitleMap = new HashMap<>();
+                                            if (cDto != null && cDto.getChapters() != null) {
+                                                for (ChapterDto ch : cDto.getChapters()) {
+                                                    if (ch.getLessons() != null) {
+                                                        for (LessonDto l : ch.getLessons()) {
+                                                            lessonTitleMap.put(l.getId(), l.getTitle());
+                                                        }
+                                                    }
+                                                }
+                                            }
+
+                                            for (JsonNode lIdNode : progData.get("completedLessonIds")) {
+                                                String lId = lIdNode.asText();
+                                                Map<String, Object> lItem = new HashMap<>();
+                                                lItem.put("courseId", courseId);
+                                                lItem.put("courseTitle", courseTitle);
+                                                lItem.put("lessonId", lId);
+                                                lItem.put("title", lessonTitleMap.getOrDefault(lId, "Bài học " + lId.substring(0, Math.min(8, lId.length()))));
+                                                lItem.put("type", "VIDEO");
+                                                completedLessonsHistory.add(lItem);
+                                            }
+                                        }
                                     }
                                 } catch (Exception ignored) {
                                 }
@@ -207,6 +248,14 @@ public class AuthWebController {
                         }
                     }
                     model.addAttribute("courseProgressMap", courseProgressMap);
+                    model.addAttribute("completedLessonsHistory", completedLessonsHistory);
+                }
+
+                if (quizService != null) {
+                    model.addAttribute("studentQuizHistory", quizService.getSubmissionsByUser(currentUser.getUserId()));
+                }
+                if (problemService != null) {
+                    model.addAttribute("studentCodeSubmissions", problemService.getSubmissionsByUser(currentUser.getUserId()));
                 }
             }
         } catch (Exception e) {

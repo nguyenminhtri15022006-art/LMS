@@ -494,52 +494,191 @@
                                     </div>
                                 </div>
 
-                                <!-- STUDENT: Lịch sử học tập & Tiến độ khóa học -->
+                                <!-- STUDENT: Lịch sử học tập toàn diện (Video, Quiz, Luyện Code) -->
                                 <div th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">
-                                    <div class="d-flex justify-content-between align-items-center mb-3">
-                                        <div>
-                                            <h6 class="fw-bold mb-1 text-dark">
-                                                <i class="bi bi-clock-history text-primary me-2"></i>Lịch sử học tập &amp; Tiến độ bài giảng
-                                            </h6>
-                                            <small class="text-muted">Nhật ký các khóa học bạn đã đăng ký và trạng thái hoàn thành bài học</small>
+                                    
+                                    <!-- 1. Lịch sử xem bài giảng & video đã học -->
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-dark">
+                                                    <i class="bi bi-play-circle-fill text-danger me-2"></i>Lịch sử học Video &amp; Bài giảng hoàn thành
+                                                </h6>
+                                                <small class="text-muted">Nhật ký chi tiết các bài học đã hoàn thành lưu trữ trong CSDL MySQL (lesson_progress)</small>
+                                            </div>
+                                            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-3 py-1">
+                                                <i class="bi bi-camera-video me-1"></i>Học Video
+                                            </span>
                                         </div>
-                                    </div>
 
-                                    <div th:if="${enrolledCourses != null and !enrolledCourses.isEmpty()}">
-                                        <div class="list-group list-group-flush rounded-3 border">
-                                            <div th:each="c : ${enrolledCourses}"
-                                                 th:with="prog=${courseProgressMap != null ? courseProgressMap.get(c.get('id').asText()) : null},
-                                                          percent=${prog != null ? prog.path('percentComplete').asInt() : 0},
-                                                          doneCount=${prog != null ? prog.path('completedLessons').asInt() : 0},
-                                                          totalCount=${prog != null ? prog.path('totalLessons').asInt() : 0}"
-                                                 class="list-group-item d-flex align-items-center justify-content-between p-3">
-                                                <div class="d-flex align-items-center gap-3">
-                                                    <div class="rounded-circle d-flex align-items-center justify-content-center"
-                                                         th:classappend="${percent == 100 ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'}"
-                                                         style="width: 44px; height: 44px; min-width: 44px;">
-                                                        <i th:class="${percent == 100 ? 'bi bi-award-fill fs-5' : 'bi bi-play-circle-fill fs-5'}"></i>
-                                                    </div>
-                                                    <div>
-                                                        <div class="text-dark fw-bold" th:text="${c.get('title') != null ? c.get('title').asText() : ''}">Tên khóa học</div>
-                                                        <div class="small text-muted">
-                                                            Tiến độ: <strong class="text-success" th:text="${percent + '%'}">0%</strong>
-                                                            • <span th:text="${doneCount > 0 ? ('Đã hoàn thành ' + doneCount + '/' + totalCount + ' bài học') : 'Chưa bắt đầu học'}">0/6 bài học</span>
+                                        <div th:if="${completedLessonsHistory != null and !completedLessonsHistory.isEmpty()}">
+                                            <div class="list-group list-group-flush rounded-3 border">
+                                                <div th:each="les : ${completedLessonsHistory}" class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                    <div class="d-flex align-items-center gap-3">
+                                                        <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; min-width: 44px;">
+                                                            <i class="bi bi-check-circle-fill fs-5"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-dark fw-bold" th:text="${les.title}">Tên bài giảng</div>
+                                                            <div class="small text-muted">
+                                                                Khóa học: <span class="text-primary fw-semibold" th:text="${les.courseTitle}">Tên khóa học</span>
+                                                            </div>
                                                         </div>
                                                     </div>
-                                                </div>
-                                                <div class="d-flex align-items-center gap-2">
-                                                    <span class="badge" th:classappend="${percent == 100 ? 'bg-success' : 'bg-primary'}"
-                                                          th:text="${percent == 100 ? 'Đã hoàn thành' : 'Đang theo học'}">Đang theo học</span>
-                                                    <a th:href="@{'/courses/' + ${c.get('id') != null ? c.get('id').asText() : ''}}" class="btn btn-sm btn-outline-primary py-1 px-3">
-                                                        <i class="bi bi-arrow-right"></i>
-                                                    </a>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge bg-success-subtle text-success border border-success-subtle">
+                                                            <i class="bi bi-check2-all me-1"></i>Đã hoàn thành
+                                                        </span>
+                                                        <a th:href="@{'/courses/' + ${les.courseId} + '/lessons/' + ${les.lessonId}}" class="btn btn-sm btn-outline-danger py-1 px-3">
+                                                            <i class="bi bi-play-fill me-1"></i>Xem lại
+                                                        </a>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
+                                        <div th:if="${completedLessonsHistory == null or completedLessonsHistory.isEmpty()}" class="text-center py-3 bg-light rounded-3">
+                                            <p class="text-muted mb-0 small">Chưa có bài học video nào được đánh dấu hoàn thành.</p>
+                                        </div>
                                     </div>
-                                    <div th:if="${enrolledCourses == null or enrolledCourses.isEmpty()}" class="text-center py-4 bg-light rounded-3">
-                                        <i class="bi bi-clock-history text-muted fs-1 mb-2 d-block"></i>
-                                        <p class="text-muted mb-0">Bạn chưa có lịch sử học tập nào.</p>
+
+                                    <!-- 2. Lịch sử làm bài thi trắc nghiệm (Quiz) -->
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-dark">
+                                                    <i class="bi bi-patch-question-fill text-primary me-2"></i>Lịch sử làm bài thi trắc nghiệm (Quiz)
+                                                </h6>
+                                                <small class="text-muted">Nhật ký nộp bài thi, điểm số và kết quả làm bài trắc nghiệm trực tuyến</small>
+                                            </div>
+                                            <span class="badge bg-primary-subtle text-primary border border-primary-subtle px-3 py-1">
+                                                <i class="bi bi-award me-1"></i>Thi Trắc Nghiệm
+                                            </span>
+                                        </div>
+
+                                        <div th:if="${studentQuizHistory != null and !studentQuizHistory.isEmpty()}">
+                                            <div class="list-group list-group-flush rounded-3 border">
+                                                <div th:each="q : ${studentQuizHistory}" class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                    <div class="d-flex align-items-center gap-3">
+                                                        <div class="rounded-circle bg-primary-subtle text-primary d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; min-width: 44px;">
+                                                            <i class="bi bi-card-checklist fs-5"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-dark fw-bold" th:text="${q.quizTitle}">Trắc nghiệm Kiến trúc Microservices</div>
+                                                            <div class="small text-muted">
+                                                                Điểm số: <strong class="text-success" th:text="${q.score + ' / 10.0'}">10.0 / 10.0</strong>
+                                                                • <span th:text="${q.correctCount + '/' + q.totalQuestions + ' câu đúng'}">5/5 câu đúng</span>
+                                                                • Thời gian: <span th:text="${q.submittedAt}">2026-10-31 09:33:00</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge" th:classappend="${q.passed ? 'bg-success' : 'bg-danger'}"
+                                                              th:text="${q.passed ? 'ĐẠT (Passed)' : 'CHƯA ĐẠT'}">ĐẠT (Passed)</span>
+                                                        <a th:href="@{'/quizzes/' + ${q.quizId} + '/result'}" class="btn btn-sm btn-outline-primary py-1 px-3">
+                                                            <i class="bi bi-eye me-1"></i>Xem kết quả
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div th:if="${studentQuizHistory == null or studentQuizHistory.isEmpty()}" class="text-center py-3 bg-light rounded-3">
+                                            <p class="text-muted mb-0 small">Chưa có bài thi trắc nghiệm nào được nộp.</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- 3. Lịch sử luyện tập lập trình (Code Judge) -->
+                                    <div class="mb-4">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-dark">
+                                                    <i class="bi bi-code-slash text-success me-2"></i>Lịch sử luyện tập Lập trình &amp; Thuật toán (Judge)
+                                                </h6>
+                                                <small class="text-muted">Nhật ký nộp mã nguồn, kết quả chấm tự động qua bộ Test Cases</small>
+                                            </div>
+                                            <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-1">
+                                                <i class="bi bi-cpu me-1"></i>Chấm Code Tự Động
+                                            </span>
+                                        </div>
+
+                                        <div th:if="${studentCodeSubmissions != null and !studentCodeSubmissions.isEmpty()}">
+                                            <div class="list-group list-group-flush rounded-3 border">
+                                                <div th:each="sub : ${studentCodeSubmissions}" class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                    <div class="d-flex align-items-center gap-3">
+                                                        <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; min-width: 44px;">
+                                                            <i class="bi bi-terminal-check fs-5"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-dark fw-bold">Hai Số Có Tổng Bằng Target (Two Sum)</div>
+                                                            <div class="small text-muted">
+                                                                Ngôn ngữ: <span class="badge bg-light text-dark border fw-bold" th:text="${sub.language}">JAVA</span>
+                                                                • Thời gian chạy: <span th:text="${sub.execTimeMs + ' ms'}">12 ms</span>
+                                                                • Bộ nhớ: <span th:text="${sub.memoryUsedKb + ' KB'}">2048 KB</span>
+                                                                • Nộp lúc: <span th:text="${sub.submittedAt}">2026-10-31 09:45:00</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge" th:classappend="${sub.status == 'AC' ? 'bg-success' : 'bg-warning text-dark'}"
+                                                              th:text="${sub.status == 'AC' ? 'AC - Accepted' : sub.status}">AC - Accepted</span>
+                                                        <a th:href="@{'/problems/' + ${sub.problemId}}" class="btn btn-sm btn-outline-success py-1 px-3">
+                                                            <i class="bi bi-code me-1"></i>Xem bài
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div th:if="${studentCodeSubmissions == null or studentCodeSubmissions.isEmpty()}" class="text-center py-3 bg-light rounded-3">
+                                            <p class="text-muted mb-0 small">Chưa có bài toán lập trình nào được nộp.</p>
+                                        </div>
+                                    </div>
+
+                                    <!-- 4. Tổng quan tiến độ các khóa học đã ghi danh -->
+                                    <div class="mb-2">
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <div>
+                                                <h6 class="fw-bold mb-1 text-dark">
+                                                    <i class="bi bi-mortarboard-fill text-warning me-2"></i>Tổng quan tiến độ các khóa học đã ghi danh
+                                                </h6>
+                                                <small class="text-muted">Tỷ lệ hoàn thành tổng thể toàn khóa theo dữ liệu đăng ký</small>
+                                            </div>
+                                        </div>
+
+                                        <div th:if="${enrolledCourses != null and !enrolledCourses.isEmpty()}">
+                                            <div class="list-group list-group-flush rounded-3 border">
+                                                <div th:each="c : ${enrolledCourses}"
+                                                     th:with="prog=${courseProgressMap != null ? courseProgressMap.get(c.get('id').asText()) : null},
+                                                              percent=${prog != null ? prog.path('percentComplete').asInt() : 0},
+                                                              doneCount=${prog != null ? prog.path('completedLessons').asInt() : 0},
+                                                              totalCount=${prog != null ? prog.path('totalLessons').asInt() : 0}"
+                                                     class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                    <div class="d-flex align-items-center gap-3">
+                                                        <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                                             th:classappend="${percent == 100 ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'}"
+                                                             style="width: 44px; height: 44px; min-width: 44px;">
+                                                            <i th:class="${percent == 100 ? 'bi bi-award-fill fs-5' : 'bi bi-play-circle-fill fs-5'}"></i>
+                                                        </div>
+                                                        <div>
+                                                            <div class="text-dark fw-bold" th:text="${c.get('title') != null ? c.get('title').asText() : ''}">Tên khóa học</div>
+                                                            <div class="small text-muted">
+                                                                Tiến độ: <strong class="text-success" th:text="${percent + '%'}">0%</strong>
+                                                                • <span th:text="${doneCount > 0 ? ('Đã hoàn thành ' + doneCount + '/' + totalCount + ' bài học') : 'Chưa bắt đầu học'}">0/6 bài học</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div class="d-flex align-items-center gap-2">
+                                                        <span class="badge" th:classappend="${percent == 100 ? 'bg-success' : 'bg-primary'}"
+                                                              th:text="${percent == 100 ? 'Đã hoàn thành' : 'Đang theo học'}">Đang theo học</span>
+                                                        <a th:href="@{'/courses/' + ${c.get('id') != null ? c.get('id').asText() : ''}}" class="btn btn-sm btn-outline-primary py-1 px-3">
+                                                            <i class="bi bi-arrow-right"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div th:if="${enrolledCourses == null or enrolledCourses.isEmpty()}" class="text-center py-4 bg-light rounded-3">
+                                            <i class="bi bi-clock-history text-muted fs-1 mb-2 d-block"></i>
+                                            <p class="text-muted mb-0">Bạn chưa có lịch sử học tập nào.</p>
+                                        </div>
                                     </div>
                                 </div>
 
