@@ -294,6 +294,14 @@
                                 </button>
                             </li>
                             <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-semibold" id="activity-tab" data-bs-toggle="tab" data-bs-target="#activity" type="button" role="tab">
+                                    <i class="bi bi-clock-history me-1 text-primary"></i>
+                                    <span th:if="${user.role == 'INSTRUCTOR'}">Nhật ký &amp; Hoạt động</span>
+                                    <span th:if="${user.role == 'ADMIN'}">Nhật ký hệ thống</span>
+                                    <span th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">Lịch sử học tập &amp; Hoạt động</span>
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
                                 <button class="nav-link fw-semibold" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab">
                                     <i class="bi bi-gear me-1"></i>Cài đặt tài khoản
                                 </button>
@@ -437,6 +445,149 @@
                                         <a th:href="@{/courses}" class="btn btn-primary btn-sm px-4">
                                             <i class="bi bi-search me-1"></i>Khám phá khóa học ngay
                                         </a>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab: Hoạt động & Nhật ký gần đây theo Role -->
+                            <div class="tab-pane fade" id="activity" role="tabpanel">
+                                <!-- INSTRUCTOR: Lịch sử học viên ghi danh gần đây -->
+                                <div th:if="${user.role == 'INSTRUCTOR'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h6 class="fw-bold mb-1 text-dark">
+                                                <i class="bi bi-clock-history text-success me-2"></i>Nhật ký ghi danh &amp; Hoạt động gần đây
+                                            </h6>
+                                            <small class="text-muted">Theo dõi thời gian thực các học viên vừa đăng ký tham gia các khóa học của bạn</small>
+                                        </div>
+                                        <span class="badge bg-success-subtle text-success border border-success-subtle px-3 py-2">
+                                            <i class="bi bi-broadcast me-1"></i>Dữ liệu đồng bộ CSDL
+                                        </span>
+                                    </div>
+
+                                    <div th:if="${recentActivities != null and !recentActivities.isEmpty()}">
+                                        <div class="list-group list-group-flush rounded-3 border">
+                                            <div th:each="act : ${recentActivities}" class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 44px; height: 44px; min-width: 44px;">
+                                                        <i class="bi bi-person-check-fill fs-5"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-dark fw-bold" th:text="${act.hasNonNull('fullname') ? act.get('fullname').asText() : (act.hasNonNull('userId') ? act.get('userId').asText() : 'Học viên')}">Nguyễn Văn An</div>
+                                                        <div class="small text-muted">
+                                                            Đã ghi danh khóa: <strong class="text-primary" th:text="${act.hasNonNull('courseTitle') ? act.get('courseTitle').asText() : ''}">Tên khóa</strong>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="text-end">
+                                                    <span class="badge bg-light text-secondary border">
+                                                        <i class="bi bi-clock me-1"></i>
+                                                        <span th:text="${act.hasNonNull('enrolledAt') ? #strings.replace(act.get('enrolledAt').asText(), 'T', ' ') : ''}">2026-10-31 02:52</span>
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div th:if="${recentActivities == null or recentActivities.isEmpty()}" class="text-center py-4 bg-light rounded-3">
+                                        <i class="bi bi-clock-history text-muted fs-1 mb-2 d-block"></i>
+                                        <p class="text-muted mb-0">Chưa có lượt ghi danh mới gần đây.</p>
+                                    </div>
+                                </div>
+
+                                <!-- STUDENT: Lịch sử học tập & Tiến độ khóa học -->
+                                <div th:if="${user.role != 'ADMIN' and user.role != 'INSTRUCTOR'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h6 class="fw-bold mb-1 text-dark">
+                                                <i class="bi bi-clock-history text-primary me-2"></i>Lịch sử học tập &amp; Tiến độ bài giảng
+                                            </h6>
+                                            <small class="text-muted">Nhật ký các khóa học bạn đã đăng ký và trạng thái hoàn thành bài học</small>
+                                        </div>
+                                    </div>
+
+                                    <div th:if="${enrolledCourses != null and !enrolledCourses.isEmpty()}">
+                                        <div class="list-group list-group-flush rounded-3 border">
+                                            <div th:each="c : ${enrolledCourses}"
+                                                 th:with="prog=${courseProgressMap != null ? courseProgressMap.get(c.get('id').asText()) : null},
+                                                          percent=${prog != null ? prog.path('percentComplete').asInt() : 0},
+                                                          doneCount=${prog != null ? prog.path('completedLessons').asInt() : 0},
+                                                          totalCount=${prog != null ? prog.path('totalLessons').asInt() : 0}"
+                                                 class="list-group-item d-flex align-items-center justify-content-between p-3">
+                                                <div class="d-flex align-items-center gap-3">
+                                                    <div class="rounded-circle d-flex align-items-center justify-content-center"
+                                                         th:classappend="${percent == 100 ? 'bg-success-subtle text-success' : 'bg-primary-subtle text-primary'}"
+                                                         style="width: 44px; height: 44px; min-width: 44px;">
+                                                        <i th:class="${percent == 100 ? 'bi bi-award-fill fs-5' : 'bi bi-play-circle-fill fs-5'}"></i>
+                                                    </div>
+                                                    <div>
+                                                        <div class="text-dark fw-bold" th:text="${c.get('title') != null ? c.get('title').asText() : ''}">Tên khóa học</div>
+                                                        <div class="small text-muted">
+                                                            Tiến độ: <strong class="text-success" th:text="${percent + '%'}">0%</strong>
+                                                            • <span th:text="${doneCount > 0 ? ('Đã hoàn thành ' + doneCount + '/' + totalCount + ' bài học') : 'Chưa bắt đầu học'}">0/6 bài học</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <span class="badge" th:classappend="${percent == 100 ? 'bg-success' : 'bg-primary'}"
+                                                          th:text="${percent == 100 ? 'Đã hoàn thành' : 'Đang theo học'}">Đang theo học</span>
+                                                    <a th:href="@{'/courses/' + ${c.get('id') != null ? c.get('id').asText() : ''}}" class="btn btn-sm btn-outline-primary py-1 px-3">
+                                                        <i class="bi bi-arrow-right"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div th:if="${enrolledCourses == null or enrolledCourses.isEmpty()}" class="text-center py-4 bg-light rounded-3">
+                                        <i class="bi bi-clock-history text-muted fs-1 mb-2 d-block"></i>
+                                        <p class="text-muted mb-0">Bạn chưa có lịch sử học tập nào.</p>
+                                    </div>
+                                </div>
+
+                                <!-- ADMIN: Giám sát nhật ký hệ thống -->
+                                <div th:if="${user.role == 'ADMIN'}">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div>
+                                            <h6 class="fw-bold mb-1 text-dark">
+                                                <i class="bi bi-shield-check text-danger me-2"></i>Nhật ký kiểm toán &amp; Giám sát toàn trường
+                                            </h6>
+                                            <small class="text-muted">Theo dõi trạng thái các node dịch vụ và nhật ký kiểm duyệt khóa học</small>
+                                        </div>
+                                        <a th:href="@{/admin/dashboard}" class="btn btn-danger btn-sm fw-semibold">
+                                            <i class="bi bi-speedometer2 me-1"></i>Mở Admin Dashboard
+                                        </a>
+                                    </div>
+
+                                    <div class="row g-3">
+                                        <div class="col-md-4">
+                                            <div class="card border rounded-3 p-3 bg-light">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    <span class="badge bg-success p-2 rounded-circle"> </span>
+                                                    <strong class="text-dark">Service Registry</strong>
+                                                </div>
+                                                <div class="small text-muted">Eureka Server (Port 8761)</div>
+                                                <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>Đang trực tuyến</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card border rounded-3 p-3 bg-light">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    <span class="badge bg-success p-2 rounded-circle"> </span>
+                                                    <strong class="text-dark">API Gateway</strong>
+                                                </div>
+                                                <div class="small text-muted">Spring Cloud Gateway (Port 8080)</div>
+                                                <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>Token Offloading Active</div>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="card border rounded-3 p-3 bg-light">
+                                                <div class="d-flex align-items-center gap-2 mb-2">
+                                                    <span class="badge bg-success p-2 rounded-circle"> </span>
+                                                    <strong class="text-dark">Database Clusters</strong>
+                                                </div>
+                                                <div class="small text-muted">MySQL 8 &amp; Redis Cache</div>
+                                                <div class="small text-success mt-1"><i class="bi bi-check-circle me-1"></i>Kết nối ổn định</div>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

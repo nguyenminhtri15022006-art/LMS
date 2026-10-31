@@ -172,6 +172,14 @@ public class AuthWebController {
                 if (coursesRes != null && coursesRes.has("data")) {
                     model.addAttribute("myCourses", coursesRes.get("data"));
                 }
+                try {
+                    JsonNode recentRes = gatewayClient.get("/course/courses/my/recent-enrollments?limit=10", JsonNode.class);
+                    if (recentRes != null && recentRes.has("data")) {
+                        model.addAttribute("recentActivities", recentRes.get("data"));
+                    }
+                } catch (Exception e) {
+                    log.warn("Lỗi tải recent enrollments cho instructor: {}", e.getMessage());
+                }
             } else if ("ADMIN".equals(role)) {
                 JsonNode allCoursesRes = gatewayClient.get("/course/courses?page=0&size=20", JsonNode.class);
                 if (allCoursesRes != null && allCoursesRes.has("data")) {
