@@ -116,22 +116,30 @@
 
     <div class="container py-5">
 
-        <!-- Success Alert -->
-
-        <div th:if="${success}" class="alert alert-success d-flex align-items-center gap-2 alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
-
-            <i class="bi bi-check-circle-fill fs-5"></i>
-
+        <!-- Alerts (Success / Flash / Warning / Error) -->
+        <div th:if="${success != null or successMessage != null}" class="alert alert-success d-flex align-items-center gap-2 alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+            <i class="bi bi-check-circle-fill fs-5 text-success"></i>
             <div>
-
-                <strong th:text="${success}">Đăng ký thành công!</strong>
-
+                <strong th:text="${successMessage != null ? successMessage : success}">Đăng ký thành công!</strong>
                 <span class="small ms-2">Bạn có thể bắt đầu học ngay bây giờ.</span>
-
             </div>
-
             <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
 
+        <div th:if="${errorMessage}" class="alert alert-danger d-flex align-items-center gap-2 alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+            <i class="bi bi-exclamation-triangle-fill fs-5 text-danger"></i>
+            <div>
+                <strong th:text="${errorMessage}">Đã xảy ra lỗi</strong>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+
+        <div th:if="${warningMessage}" class="alert alert-warning d-flex align-items-center gap-2 alert-dismissible fade show rounded-4 shadow-sm mb-4" role="alert">
+            <i class="bi bi-info-circle-fill fs-5 text-warning"></i>
+            <div>
+                <span th:text="${warningMessage}">Thông báo</span>
+            </div>
+            <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
 
 
@@ -188,29 +196,52 @@
 
 
 
-                <!-- Bảng Tin & Lịch Google Meet Cho Học Viên -->
-                <div class="card border-0 bg-primary-subtle bg-opacity-25 shadow-sm rounded-4 p-4 mb-4">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
-                        <div class="d-flex align-items-center gap-3">
-                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; min-width: 52px;">
-                                <i class="bi bi-megaphone-fill fs-4"></i>
-                            </div>
-                            <div>
-                                <h6 class="fw-bold mb-1 text-dark">Bảng Tin &amp; Lịch Học Trực Tuyến Google Meet</h6>
-                                <p class="text-muted small mb-0">Xem thông báo mới nhất của giảng viên và tham gia phòng học trực tuyến.</p>
-                            </div>
-                        </div>
-                        <div class="d-flex gap-2">
-                            <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementsModal">
-                                <i class="bi bi-megaphone me-1"></i>Xem Thông Báo
-                            </button>
-                            <button type="button" class="btn btn-danger btn-sm rounded-pill px-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#schedulesModal">
-                                <i class="bi bi-camera-video-fill me-1"></i>Lịch Google Meet
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
+                <!-- Bảng Tin & Lịch Google Meet Cho Học Viên -->
+
+                <div class="card border-0 bg-primary-subtle bg-opacity-25 shadow-sm rounded-4 p-4 mb-4">
+
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-3">
+
+                        <div class="d-flex align-items-center gap-3">
+
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 52px; height: 52px; min-width: 52px;">
+
+                                <i class="bi bi-megaphone-fill fs-4"></i>
+
+                            </div>
+
+                            <div>
+
+                                <h6 class="fw-bold mb-1 text-dark">Bảng Tin &amp; Lịch Học Trực Tuyến Google Meet</h6>
+
+                                <p class="text-muted small mb-0">Xem thông báo mới nhất của giảng viên và tham gia phòng học trực tuyến.</p>
+
+                            </div>
+
+                        </div>
+
+                        <div class="d-flex gap-2">
+
+                            <button type="button" class="btn btn-primary btn-sm rounded-pill px-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#announcementsModal">
+
+                                <i class="bi bi-megaphone me-1"></i>Xem Thông Báo
+
+                            </button>
+
+                            <button type="button" class="btn btn-danger btn-sm rounded-pill px-3 py-2 fw-semibold shadow-sm" data-bs-toggle="modal" data-bs-target="#schedulesModal">
+
+                                <i class="bi bi-camera-video-fill me-1"></i>Lịch Google Meet
+
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
                 <!-- Syllabus Accordion -->
 
                 <div class="card border-0 shadow-sm rounded-4 p-4 mb-4 bg-white">
@@ -479,7 +510,7 @@
 
                                 <div class="text-center mt-2 small text-muted">
 
-                                    <i class="bi bi-shield-lock-fill text-success me-1"></i>Cổng thanh toán bảo mật VNPAY / Momo
+                                    <i class="bi bi-qr-code-scan text-success me-1"></i>Thanh toán chuyển khoản VietQR tự động qua <strong>PayOS</strong>
 
                                 </div>
 

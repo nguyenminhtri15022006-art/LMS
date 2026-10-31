@@ -46,6 +46,11 @@ public class Course {
     @Enumerated(EnumType.STRING)
     CourseLevel level;
 
+
+
+    @Column(name = "price")
+    Double price;
+
     @Column(name = "meeting_url", length = 500)
     String meetingUrl;
 
@@ -90,6 +95,8 @@ public class Course {
     void onCreate() {
         if (id == null) id = UUID.randomUUID().toString();
         if (status == null) status = CourseStatus.PRIVATE;
+
+ if (price == null) price = 0.0;
         createdAt = updatedAt = LocalDateTime.now();
     }
 

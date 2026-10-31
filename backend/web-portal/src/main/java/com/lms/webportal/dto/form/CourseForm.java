@@ -31,6 +31,9 @@ public class CourseForm {
     private Integer duration;
 
     @Builder.Default
+    private Double price = 0.0;
+
+    @Builder.Default
     private String level = "BEGINNER";
 
     @Builder.Default

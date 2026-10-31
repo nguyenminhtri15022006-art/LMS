@@ -31,3 +31,9 @@ app:
 lms:
   gateway:
     base-url: ${GATEWAY_API_URL:http://localhost:8080/api}
+
+payos:
+  client-id: ${PAYOS_CLIENT_ID:0cc855e6-ed8b-4eb5-a5a9-f5a4cee21208}
+  api-key: ${PAYOS_API_KEY:61bf9bfc-9aca-4729-ae1d-458a26e2f121}
+  checksum-key: ${PAYOS_CHECKSUM_KEY:6083ce0b91cc434588afe5ce44becee7d71e1d4a5a426828cde6a77c43f214a9}
+  base-url: ${PAYOS_BASE_URL:https://api-merchant.payos.vn/v2/payment-requests}

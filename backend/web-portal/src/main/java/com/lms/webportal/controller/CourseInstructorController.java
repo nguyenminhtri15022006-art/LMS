@@ -139,6 +139,7 @@ public class CourseInstructorController {
             form.setStatus(courseData.hasNonNull("status") ? courseData.get("status").asText() : "PUBLIC");
             form.setDuration(courseData.hasNonNull("duration") ? courseData.get("duration").asInt() : 1);
             form.setLevel(courseData.hasNonNull("level") ? courseData.get("level").asText() : "BEGINNER");
+            form.setPrice(courseData.hasNonNull("price") ? courseData.get("price").asDouble() : 0.0);
 
             List<Long> catIds = new ArrayList<>();
             if (courseData.has("categories") && courseData.get("categories").isArray()) {
@@ -721,6 +722,9 @@ public class CourseInstructorController {
         }
         if (form.getLevel() != null) {
             body.add("level", form.getLevel());
+        }
+        if (form.getPrice() != null) {
+            body.add("price", form.getPrice());
         }
         if (form.getCategoryIds() != null) {
             for (Long catId : form.getCategoryIds()) {

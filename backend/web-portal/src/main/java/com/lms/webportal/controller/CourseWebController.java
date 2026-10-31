@@ -8,6 +8,10 @@ import com.lms.webportal.dto.CourseFilterDto;
 import com.lms.webportal.dto.LessonDto;
 import com.lms.webportal.dto.UserSessionDto;
 import com.lms.webportal.service.CourseService;
+import com.lms.webportal.service.PayosService;
+import jakarta.servlet.http.HttpServletRequest;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import lombok.extern.slf4j.Slf4j;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -26,6 +30,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+@Slf4j
 @Controller
 public class CourseWebController {
 
@@ -34,6 +39,9 @@ public class CourseWebController {
 
     @Autowired
     private GatewayClient gatewayClient;
+
+    @Autowired
+    private PayosService payosService;
 
     @GetMapping("/courses")
     public String listCourses(@ModelAttribute("filter") CourseFilterDto filter,
@@ -73,14 +81,97 @@ public class CourseWebController {
 
     @PostMapping("/courses/{id}/enroll")
     public String enrollCourse(@PathVariable("id") String id,
-                               HttpSession session) {
+                               HttpServletRequest request,
+                               HttpSession session,
+                               RedirectAttributes redirectAttributes) {
         UserSessionDto user = (UserSessionDto) session.getAttribute("currentUser");
         if (user == null) {
             return "redirect:/auth/login?redirectUrl=/courses/" + id;
         }
 
+        CourseDto course = courseService.getCourseById(id);
+        if (course == null) {
+            return "redirect:/courses";
+        }
+
+        // Nếu khóa học có học phí (> 0) -> Chuyển hướng sang PayOS VietQR
+        if (course.getPrice() > 0) {
+            long orderCode = System.currentTimeMillis() % 1000000000L;
+            long amount = Math.round(course.getPrice());
+
+            String scheme = request.getScheme();
+            String serverName = request.getServerName();
+            int serverPort = request.getServerPort();
+            String host = scheme + "://" + serverName + (serverPort == 80 || serverPort == 443 ? "" : ":" + serverPort);
+
+            String returnUrl = host + "/payment/payos/success?courseId=" + id + "&orderCode=" + orderCode;
+            String cancelUrl = host + "/payment/payos/cancel?courseId=" + id;
+
+            String courseTitle = course.getTitle() != null ? course.getTitle() : "EduLearn";
+            String desc = "HP " + (courseTitle.length() > 20 ? courseTitle.substring(0, 20) : courseTitle);
+
+            PayosService.PaymentLinkResult linkResult = payosService.createPaymentLink(orderCode, amount, desc, cancelUrl, returnUrl);
+            if (linkResult != null && linkResult.getCheckoutUrl() != null) {
+                session.setAttribute("PENDING_PAYOS_ORDER_" + orderCode, id);
+                return "redirect:" + linkResult.getCheckoutUrl();
+            } else {
+                redirectAttributes.addFlashAttribute("errorMessage", "Không thể khởi tạo cổng thanh toán PayOS. Vui lòng thử lại!");
+                return "redirect:/courses/" + id;
+            }
+        }
+
+        // Khóa học miễn phí -> Ghi danh ngay lập tức
         courseService.enroll(id, user.getUserId());
         return "redirect:/courses/" + id + "?enrolled=true";
+    }
+
+    @GetMapping("/payment/payos/success")
+    public String payosSuccess(@RequestParam("courseId") String courseId,
+                               @RequestParam(value = "orderCode", required = false) Long orderCode,
+                               @RequestParam(value = "status", required = false) String returnStatus,
+                               HttpSession session,
+                               RedirectAttributes redirectAttributes) {
+        UserSessionDto user = (UserSessionDto) session.getAttribute("currentUser");
+        if (user == null) {
+            return "redirect:/auth/login?redirectUrl=/courses/" + courseId;
+        }
+
+        boolean isPaid = false;
+        if (orderCode != null) {
+            String payosStatus = payosService.getPaymentStatus(orderCode);
+            log.info("PayOS callback kiểm tra orderCode {}: status={}", orderCode, payosStatus);
+            if ("PAID".equalsIgnoreCase(payosStatus) || "PAID".equalsIgnoreCase(returnStatus)) {
+                isPaid = true;
+            }
+        } else if ("PAID".equalsIgnoreCase(returnStatus)) {
+            isPaid = true;
+        }
+
+        if (isPaid) {
+            try {
+                courseService.enroll(courseId, user.getUserId());
+                if (orderCode != null) {
+                    session.removeAttribute("PENDING_PAYOS_ORDER_" + orderCode);
+                }
+                redirectAttributes.addFlashAttribute("successMessage", "Thanh toán học phí thành công qua PayOS VietQR! Bạn đã được ghi danh vào khóa học.");
+                return "redirect:/courses/" + courseId + "?enrolled=true&paymentSuccess=true";
+            } catch (Exception e) {
+                log.error("Lỗi khi ghi danh sau thanh toán: {}", e.getMessage());
+                redirectAttributes.addFlashAttribute("errorMessage", "Thanh toán thành công nhưng có lỗi kích hoạt: " + e.getMessage());
+                return "redirect:/courses/" + courseId;
+            }
+        } else {
+            log.warn("Giao dịch PayOS chưa hoàn tất hoặc thất bại. orderCode={}", orderCode);
+            redirectAttributes.addFlashAttribute("errorMessage", "Giao dịch thanh toán chưa hoàn tất hoặc không hợp lệ.");
+            return "redirect:/courses/" + courseId;
+        }
+    }
+
+    @GetMapping("/payment/payos/cancel")
+    public String payosCancel(@RequestParam("courseId") String courseId,
+                              RedirectAttributes redirectAttributes) {
+        redirectAttributes.addFlashAttribute("warningMessage", "Bạn đã hủy giao dịch thanh toán PayOS.");
+        return "redirect:/courses/" + courseId;
     }
 
     @GetMapping("/courses/{id}/lessons/{lessonId}")

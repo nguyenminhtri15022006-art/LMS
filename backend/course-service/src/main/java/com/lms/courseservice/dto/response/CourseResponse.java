@@ -29,6 +29,12 @@ public class CourseResponse {
     @JsonInclude(JsonInclude.Include.ALWAYS)
     CourseLevel level;
 
+
+
+ @JsonInclude(JsonInclude.Include.ALWAYS)
+
+ Double price;
+
     String meetingUrl;
     List<CategoryResponse> categories;
     Long exerciseCount;

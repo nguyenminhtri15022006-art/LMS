@@ -127,7 +127,7 @@
                             </div>
                         </div>
 
-                        <!-- 4. Hàng: Trạng thái & Ảnh Thumbnail -->
+                        <!-- 4. Hàng: Trạng thái & Học phí -->
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
                                 <label for="statusSelect" class="form-label fw-bold">Trạng thái phát hành</label>
@@ -138,23 +138,41 @@
                             </div>
 
                             <div class="col-md-6">
-                                <label for="thumbnailInput" class="form-label fw-bold">Ảnh bìa (Thumbnail)</label>
-                                <input class="form-control rounded-3"
-                                       type="file"
-                                       id="thumbnailInput"
-                                       name="thumbnail"
-                                       accept="image/jpeg,image/png,image/webp">
-                                <div class="form-text small">Hỗ trợ JPG, PNG, WEBP (tối đa 5MB)</div>
-
-                                <!-- Current Thumbnail preview if edit -->
-                                <div th:if="${isEdit and course != null and course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
-                                     class="mt-2 d-flex align-items-center">
-                                    <span class="small text-muted me-2">Ảnh hiện tại:</span>
-                                    <img th:src="${course.get('thumbnailUrl').asText()}"
-                                         class="rounded border"
-                                         style="width: 60px; height: 40px; object-fit: cover;"
-                                         alt="Current thumbnail">
+                                <label for="priceInput" class="form-label fw-bold">
+                                    <i class="bi bi-tag-fill text-warning me-1"></i>Học phí / Giá khóa học (VNĐ)
+                                </label>
+                                <div class="input-group">
+                                    <input type="number"
+                                           class="form-control rounded-start-3"
+                                           id="priceInput"
+                                           th:field="*{price}"
+                                           min="0"
+                                           step="1000"
+                                           placeholder="0">
+                                    <span class="input-group-text bg-light rounded-end-3">VNĐ</span>
                                 </div>
+                                <div class="form-text small text-muted">Nhập 0 hoặc để trống nếu là khóa học miễn phí.</div>
+                            </div>
+                        </div>
+
+                        <!-- 5. Hàng: Ảnh Thumbnail -->
+                        <div class="mb-4">
+                            <label for="thumbnailInput" class="form-label fw-bold">Ảnh bìa (Thumbnail)</label>
+                            <input class="form-control rounded-3"
+                                   type="file"
+                                   id="thumbnailInput"
+                                   name="thumbnail"
+                                   accept="image/jpeg,image/png,image/webp">
+                            <div class="form-text small">Hỗ trợ JPG, PNG, WEBP (tối đa 5MB)</div>
+
+                            <!-- Current Thumbnail preview if edit -->
+                            <div th:if="${isEdit and course != null and course.hasNonNull('thumbnailUrl') and !course.get('thumbnailUrl').asText().isEmpty()}"
+                                 class="mt-2 d-flex align-items-center">
+                                <span class="small text-muted me-2">Ảnh hiện tại:</span>
+                                <img th:src="${course.get('thumbnailUrl').asText()}"
+                                     class="rounded border"
+                                     style="width: 60px; height: 40px; object-fit: cover;"
+                                     alt="Current thumbnail">
                             </div>
                         </div>
 

@@ -33,6 +33,7 @@ CREATE TABLE `courses` (
     `level` ENUM('BEGINNER', 'INTERMEDIATE', 'ADVANCED') NULL,
     `thumbnail_url` VARCHAR(1000) NULL,
     `status` ENUM('PRIVATE', 'PUBLIC', 'LOCKED') NOT NULL DEFAULT 'PRIVATE',
+    `price` DECIMAL(12,2) NULL DEFAULT 0.00,
     `meeting_url` VARCHAR(500) NULL,
     `google_event_id` VARCHAR(200) NULL,
     `mongo_structure_id` VARCHAR(36) NOT NULL UNIQUE,
@@ -116,10 +117,10 @@ INSERT INTO `categories` (`id`, `name`, `slug`, `created_at`) VALUES
 (9006, 'DevOps & Docker', 'devops-va-docker', NOW());
 
 -- Dữ liệu Khóa học mẫu
-INSERT INTO `courses` (`id`, `title`, `description`, `instructor_id`, `duration`, `level`, `thumbnail_url`, `status`, `meeting_url`, `mongo_structure_id`, `created_at`, `updated_at`) VALUES
-('c1111111-1111-1111-1111-111111111111', 'Lập trình Web hiện đại với Spring Boot 3 & Thymeleaf', 'Khóa học thực chiến phát triển ứng dụng Web chuẩn doanh nghiệp, tích hợp Spring Security 6, JPA, Docker và Thymeleaf Server-Side Rendering.', '11111111-1111-1111-1111-111111111111', 36, 'BEGINNER', 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800', 'PUBLIC', 'https://meet.google.com/abc-defg-hij', 'd1111111-1111-1111-1111-111111111111', NOW(), NOW()),
-('c2222222-2222-2222-2222-222222222222', 'Kiến trúc Microservices với Spring Cloud, Docker & Resilience4j', 'Xây dựng hệ thống phân tán chịu lỗi cao, cơ chế Circuit Breaker, Service Discovery Eureka, API Gateway và Token Offloading.', '33333333-3333-3333-3333-333333333333', 48, 'INTERMEDIATE', 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800', 'PUBLIC', 'https://meet.google.com/xyz-uvwx-rst', 'd2222222-2222-2222-2222-222222222222', NOW(), NOW()),
-('c3333333-3333-3333-3333-333333333333', 'Thực hành Cấu trúc dữ liệu & Thuật toán và Luyện Code Sandbox', 'Rèn luyện tư duy thuật toán, giải quyết các bài toán kinh điển từ LeetCode, chấm điểm tự động qua engine Judge0 Sandbox.', '55555555-5555-5555-5555-555555555555', 40, 'ADVANCED', 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800', 'PUBLIC', 'https://meet.google.com/opq-rstu-vwx', 'd3333333-3333-3333-3333-333333333333', NOW(), NOW());
+INSERT INTO `courses` (`id`, `title`, `description`, `instructor_id`, `duration`, `level`, `thumbnail_url`, `status`, `price`, `meeting_url`, `mongo_structure_id`, `created_at`, `updated_at`) VALUES
+('c1111111-1111-1111-1111-111111111111', 'Lập trình Web hiện đại với Spring Boot 3 & Thymeleaf', 'Khóa học thực chiến phát triển ứng dụng Web chuẩn doanh nghiệp, tích hợp Spring Security 6, JPA, Docker và Thymeleaf Server-Side Rendering.', '11111111-1111-1111-1111-111111111111', 36, 'BEGINNER', 'https://images.unsplash.com/photo-1517694712202-14dd9538aa97?w=800', 'PUBLIC', 0.00, 'https://meet.google.com/abc-defg-hij', 'd1111111-1111-1111-1111-111111111111', NOW(), NOW()),
+('c2222222-2222-2222-2222-222222222222', 'Kiến trúc Microservices với Spring Cloud, Docker & Resilience4j', 'Xây dựng hệ thống phân tán chịu lỗi cao, cơ chế Circuit Breaker, Service Discovery Eureka, API Gateway và Token Offloading.', '33333333-3333-3333-3333-333333333333', 48, 'INTERMEDIATE', 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800', 'PUBLIC', 0.00, 'https://meet.google.com/xyz-uvwx-rst', 'd2222222-2222-2222-2222-222222222222', NOW(), NOW()),
+('c3333333-3333-3333-3333-333333333333', 'Thực hành Cấu trúc dữ liệu & Thuật toán và Luyện Code Sandbox', 'Rèn luyện tư duy thuật toán, giải quyết các bài toán kinh điển từ LeetCode, chấm điểm tự động qua engine Judge0 Sandbox.', '55555555-5555-5555-5555-555555555555', 40, 'ADVANCED', 'https://images.unsplash.com/photo-1515879218367-8466d910aaa4?w=800', 'PUBLIC', 799000.00, 'https://meet.google.com/opq-rstu-vwx', 'd3333333-3333-3333-3333-333333333333', NOW(), NOW());
 
 INSERT INTO `course_categories` (`course_id`, `category_id`) VALUES
 ('c1111111-1111-1111-1111-111111111111', 9001),

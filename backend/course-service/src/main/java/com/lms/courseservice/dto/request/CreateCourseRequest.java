@@ -35,6 +35,11 @@ public class CreateCourseRequest {
 
     CourseLevel level;
 
+
+
+ @Min(value = 0, message = "COURSE_PRICE_MIN")
+    Double price;
+
     List<Long> categoryIds;
 
     List<String> learningPoints;
